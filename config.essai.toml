@@ -13,6 +13,12 @@ port = 25576
 mot_de_passe = "essai"
 log = "data/essai/logs/latest.log"
 
+[atelier]
+# Monde plat de l'essai : la surface est à y = -60. À 8 blocs au sud du point d'apparition.
+x = 0
+y = -60
+z = 8
+
 [canal]
 adaptateur = "telegram"
 jeton = ""

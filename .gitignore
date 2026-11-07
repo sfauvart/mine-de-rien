@@ -3,7 +3,7 @@
 config.toml
 
 # données du serveur et de l'agent
-data/
+/data/
 
 # python
 __pycache__/

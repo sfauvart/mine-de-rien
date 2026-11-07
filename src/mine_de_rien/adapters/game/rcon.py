@@ -5,9 +5,14 @@ ce qui échoue hors du thread principal, et son délai d'attente lèverait l'exc
 boucle asyncio plutôt que dans le thread. Ici, les délais sont ceux du socket.
 
 Protocole : paquets `<longueur:int32><id:int32><type:int32><corps>\\0\\0`, en petit-boutiste.
-Une réponse longue arrive en plusieurs paquets ; on envoie après chaque commande un paquet
-sentinelle d'un type inconnu, auquel le serveur répond une fois la commande traitée. Tout ce
-qui arrive avant la réponse à la sentinelle appartient à la commande.
+
+Le serveur vanilla lit chaque paquet d'un seul `read` et ignore ce qui suit dans le même
+tampon : deux paquets envoyés coup sur coup peuvent se coller, le second est perdu et la
+connexion se ferme. On n'a donc jamais plus d'un paquet en attente de réponse.
+
+Une réponse longue arrive découpée en morceaux de 4096 caractères. Si le premier morceau est
+plein, on envoie alors seulement un paquet sentinelle d'un type inconnu : le serveur y répond
+« Unknown request » après avoir fini d'écrire la réponse, ce qui en marque la fin.
 """
 
 from __future__ import annotations
@@ -22,6 +27,8 @@ _SENTINELLE = 0
 
 # Le serveur vanilla refuse les paquets entrants dont le corps dépasse cette taille.
 TAILLE_MAX_COMMANDE = 1446
+# Taille des morceaux d'une réponse longue, en caractères (donc au moins autant d'octets).
+TAILLE_MORCEAU = 4096
 
 
 class ErreurRcon(Exception):
@@ -92,15 +99,19 @@ class ClientRcon:
         # Une erreur à cet envoi-ci remonte telle quelle : rien n'est parti, l'appelant peut
         # se reconnecter et réessayer.
         ident = self._envoyer(_COMMANDE, commande)
-        morceaux: list[bytes] = []
         try:
-            sentinelle = self._envoyer(_SENTINELLE, "")
-            while True:
-                reponse_id, _, corps = self._lire_paquet()
-                if reponse_id == sentinelle:
-                    break
-                if reponse_id == ident:
-                    morceaux.append(corps)
+            reponse_id, _, corps = self._lire_paquet()
+            if reponse_id != ident:
+                raise OSError(f"réponse RCON inattendue (id {reponse_id} au lieu de {ident})")
+            morceaux = [corps]
+            if len(corps) >= TAILLE_MORCEAU:
+                sentinelle = self._envoyer(_SENTINELLE, "")
+                while True:
+                    reponse_id, _, corps = self._lire_paquet()
+                    if reponse_id == sentinelle:
+                        break
+                    if reponse_id == ident:
+                        morceaux.append(corps)
         except OSError as e:
             # La commande a peut-être été exécutée : on ne la rejoue pas.
             self.fermer()

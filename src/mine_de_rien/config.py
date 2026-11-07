@@ -49,12 +49,22 @@ class Stockage:
 
 
 @dataclass
+class Atelier:
+    """Position du coffre au centre de l'atelier, relevée avec F3 près de la base."""
+
+    x: int
+    y: int
+    z: int
+
+
+@dataclass
 class Config:
     enfant: Enfant
     jeu: Jeu
     canal: Canal
     llm: Llm
     stockage: Stockage
+    atelier: Atelier | None = None
 
 
 def _substituer(valeur: Any) -> Any:
@@ -76,4 +86,5 @@ def charger_config(chemin: Path) -> Config:
         canal=Canal(**brut.get("canal", {})),
         llm=Llm(**brut.get("llm", {})),
         stockage=Stockage(**brut.get("stockage", {})),
+        atelier=Atelier(**brut["atelier"]) if "atelier" in brut else None,
     )

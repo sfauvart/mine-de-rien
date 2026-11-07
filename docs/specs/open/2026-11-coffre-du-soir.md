@@ -88,7 +88,7 @@ l'enclume, ouvre le coffre, récupère sa récompense ; les deux parents reçoiv
 
 - [x] **Phase 1 : Parler au serveur** (Minecraft Java 26.3, Paper build 244)
 - [x] **Phase 2 : Saisir un exercice**
-- [ ] **Phase 3 : L'atelier**
+- [x] **Phase 3 : L'atelier**
 - [ ] **Phase 4 : Le coffre**
 - [ ] **Phase 5 : Telegram et rapport**
 

@@ -12,6 +12,14 @@ port = 25575
 mot_de_passe = "${RCON_PASSWORD}"
 log = "/minecraft/logs/latest.log"   # pour lire le chat sans plugin
 
+[atelier]
+# Où Mine de rien construit l'atelier des coffres : un plancher de 5 × 5 près de la base,
+# sur du sol naturel dégagé. Viser avec F3 le bloc au-dessus du sol, au centre : c'est là
+# que sera le coffre.
+x = 0
+y = 64
+z = 0
+
 [canal]
 adaptateur = "telegram"
 jeton = "${TELEGRAM_BOT_TOKEN}"

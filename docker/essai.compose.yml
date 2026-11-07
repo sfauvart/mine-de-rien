@@ -23,8 +23,11 @@ services:
       DIFFICULTY: peaceful
       SPAWN_PROTECTION: "0"
       MOTD: "Mine de rien - essai"
+      # Recopié dans world/datapacks à chaque démarrage : le monde suit le dépôt.
+      DATAPACKS: /datapacks/mine_de_rien
     ports:
       - "25566:25565"
       - "25576:25575"
     volumes:
       - ../data/essai:/data
+      - ../datapacks:/datapacks:ro

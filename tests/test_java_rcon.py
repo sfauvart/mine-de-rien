@@ -30,7 +30,9 @@ def _lire(conn: socket.socket, n: int) -> bytes:
 
 
 class FauxServeur:
-    """Répond `reponses[commande]`, découpé en paquets de 10 octets pour tester le recollage.
+    """Imite le serveur vanilla : réponses découpées en morceaux de 4096 caractères, et un
+    seul paquet lu par `recv` ; ce qui suit dans le même tampon est perdu, et la connexion se
+    ferme si le paquet est incomplet.
 
     `couper_apres` : nombre de commandes après lesquelles le serveur ferme la connexion.
     """
@@ -40,6 +42,7 @@ class FauxServeur:
         self.mot_de_passe = mot_de_passe
         self.recues: list[str] = []
         self.connexions = 0
+        self.paquets_perdus = 0
         self.couper_apres: int | None = None
         self._ecoute = socket.create_server(("127.0.0.1", 0))
         self.port = self._ecoute.getsockname()[1]
@@ -59,8 +62,15 @@ class FauxServeur:
         with conn:
             try:
                 while True:
-                    (longueur,) = struct.unpack("<i", _lire(conn, 4))
-                    charge = _lire(conn, longueur)
+                    tampon = conn.recv(1460)
+                    if len(tampon) < 4:
+                        return
+                    (longueur,) = struct.unpack("<i", tampon[:4])
+                    if len(tampon) < 4 + longueur:
+                        return
+                    if len(tampon) > 4 + longueur:
+                        self.paquets_perdus += 1
+                    charge = tampon[4 : 4 + longueur]
                     ident, type_ = struct.unpack("<ii", charge[:8])
                     corps = charge[8:-2].decode("utf-8")
                     if type_ == 3:
@@ -68,16 +78,16 @@ class FauxServeur:
                         conn.sendall(_paquet(ident if ok else -1, 2, b""))
                     elif type_ == 2:
                         self.recues.append(corps)
-                        reponse = self.reponses.get(corps, "").encode("utf-8")
-                        morceaux = [reponse[i : i + 10] for i in range(0, len(reponse), 10)]
-                        for morceau in morceaux or [b""]:
-                            conn.sendall(_paquet(ident, 0, morceau))
+                        reponse = self.reponses.get(corps, "")
+                        morceaux = [reponse[i : i + 4096] for i in range(0, len(reponse), 4096)]
+                        for morceau in morceaux or [""]:
+                            conn.sendall(_paquet(ident, 0, morceau.encode("utf-8")))
                         commandes += 1
+                        if self.couper_apres is not None and commandes >= self.couper_apres:
+                            return
                     else:
                         # Le vrai serveur répond « Unknown request » aux types inconnus.
                         conn.sendall(_paquet(ident, 0, b"Unknown request 0"))
-                        if self.couper_apres is not None and commandes >= self.couper_apres:
-                            return
             except ConnectionError:
                 return
 
@@ -90,7 +100,8 @@ def serveur():
     s = FauxServeur(
         {
             "list": "There are 0 of a max of 20 players online: ",
-            "long": "abcdefghij" * 50 + "é",
+            "long": "abcdefghij" * 1000 + "é",
+            "pile": "x" * 4096,
         }
     )
     yield s
@@ -108,7 +119,22 @@ def test_commande_et_reponse(serveur):
 
 def test_reponse_en_plusieurs_paquets_recollee(serveur):
     jeu = _adaptateur(serveur)
-    assert asyncio.run(jeu.commande("long")) == "abcdefghij" * 50 + "é"
+    assert asyncio.run(jeu.commande("long")) == "abcdefghij" * 1000 + "é"
+    # Un morceau pile plein : la sentinelle sert à savoir qu'il n'y en a pas d'autre.
+    assert asyncio.run(jeu.commande("pile")) == "x" * 4096
+    assert serveur.paquets_perdus == 0
+
+
+def test_rafale_de_commandes_sans_paquet_perdu(serveur):
+    """Régression : commande et sentinelle envoyées ensemble se collaient côté serveur."""
+    jeu = _adaptateur(serveur)
+
+    async def rafale():
+        return [await jeu.commande("list") for _ in range(200)]
+
+    assert all(r.startswith("There are 0") for r in asyncio.run(rafale()))
+    assert serveur.paquets_perdus == 0
+    assert serveur.connexions == 1
 
 
 def test_mauvais_mot_de_passe(serveur):
