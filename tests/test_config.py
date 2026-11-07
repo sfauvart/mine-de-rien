@@ -20,3 +20,9 @@ def test_exemple_fourni_se_charge():
     os.environ.pop("TELEGRAM_BOT_TOKEN", None)
     config = charger_config(Path(__file__).resolve().parents[1] / "config.example.toml")
     assert config.llm.adaptateur == "anthropic"
+
+
+def test_config_essai_vise_le_serveur_d_essai():
+    config = charger_config(Path(__file__).resolve().parents[1] / "config.essai.toml")
+    assert config.jeu.hote == "localhost"
+    assert config.jeu.port == 25576  # jamais 25575, le monde de l'enfant

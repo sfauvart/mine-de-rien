@@ -84,9 +84,9 @@ l'enclume, ouvre le coffre, récupère sa récompense ; les deux parents reçoiv
 
 ## Statut
 
-**Branche** : `feat/coffre-du-soir`, pas encore créée, `/next` l'ouvre à la première phase.
+**Branche** : `feat/coffre-du-soir`.
 
-- [ ] **Phase 1 : Parler au serveur**
+- [x] **Phase 1 : Parler au serveur** (Minecraft Java 26.3, Paper build 244)
 - [ ] **Phase 2 : Saisir un exercice**
 - [ ] **Phase 3 : L'atelier**
 - [ ] **Phase 4 : Le coffre**
