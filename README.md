@@ -50,6 +50,9 @@ docker compose up -d            # serveur Minecraft + agent
 docker compose --profile local-llm up -d   # variante avec llama.cpp en local
 ```
 
+Pour se connecter au serveur depuis le lanceur officiel ou un lanceur hors ligne comme XMCL,
+voir [docs/rejoindre-le-serveur.md](docs/rejoindre-le-serveur.md).
+
 Développement sans Docker :
 
 ```bash

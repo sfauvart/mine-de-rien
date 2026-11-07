@@ -5,6 +5,8 @@ services:
       EULA: ${EULA:-FALSE}
       TYPE: PAPER
       VERSION: ${MC_VERSION:-LATEST}
+      # FALSE accepte les comptes hors ligne : lire docs/rejoindre-le-serveur.md avant.
+      ONLINE_MODE: ${ONLINE_MODE:-TRUE}
       MEMORY: 2G
       ENABLE_RCON: "true"
       RCON_PASSWORD: ${RCON_PASSWORD}

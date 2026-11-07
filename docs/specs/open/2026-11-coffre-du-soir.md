@@ -287,7 +287,8 @@ et installable à la maison par quelqu'un qui n'a pas suivi le développement.
   médiane, et une ligne « à retravailler » pour les exercices non ouverts après
   48 h ou ouverts en plus de 30 minutes.
 - `docs/installation.md` : créer le bot avec BotFather, remplir `.env`, accepter
-  l'EULA, relever ses identifiants avec `/start`, choisir les coordonnées de
+  l'EULA, choisir `ONLINE_MODE` en renvoyant à `docs/rejoindre-le-serveur.md`,
+  relever ses identifiants avec `/start`, choisir les coordonnées de
   l'atelier avec F3, importer un monde existant en copiant son dossier dans
   `data/minecraft/world`, régler le lanceur sur la version épinglée, vérifier que
   l'enfant n'est pas opérateur.

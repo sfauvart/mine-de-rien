@@ -13,6 +13,7 @@ services:
       EULA: ${EULA:-FALSE}
       TYPE: PAPER
       VERSION: ${MC_VERSION:-LATEST}
+      ONLINE_MODE: ${ONLINE_MODE:-TRUE}
       MEMORY: 1G
       ENABLE_RCON: "true"
       RCON_PASSWORD: essai
