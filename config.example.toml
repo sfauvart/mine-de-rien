@@ -1,0 +1,30 @@
+# Configuration de Mine de rien. Les valeurs ${VAR} sont lues dans l'environnement.
+
+[enfant]
+pseudo_minecraft = "Steve"      # pseudo en jeu
+alias_llm = "l'élève"           # seul nom transmis à un LLM distant
+classe = "CM2"
+
+[jeu]
+adaptateur = "java-rcon"
+hote = "minecraft"              # nom du service docker, ou "localhost"
+port = 25575
+mot_de_passe = "${RCON_PASSWORD}"
+log = "/minecraft/logs/latest.log"   # pour lire le chat sans plugin
+
+[canal]
+adaptateur = "telegram"
+jeton = "${TELEGRAM_BOT_TOKEN}"
+parents = []                    # identifiants Telegram autorisés à envoyer des devoirs
+
+[llm]
+adaptateur = "anthropic"        # "anthropic" ou "openai-compatible"
+modele = "claude-sonnet-5-5"
+cle = "${ANTHROPIC_API_KEY}"
+# Pour llama.cpp, Ollama ou LM Studio :
+# adaptateur = "openai-compatible"
+# url = "http://llm:8080/v1"
+# modele = "local"
+
+[stockage]
+sqlite = "/data/mine-de-rien.sqlite"

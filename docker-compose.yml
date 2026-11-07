@@ -1,0 +1,46 @@
+services:
+  minecraft:
+    image: itzg/minecraft-server
+    environment:
+      EULA: ${EULA:-FALSE}
+      TYPE: PAPER
+      VERSION: LATEST
+      MEMORY: 2G
+      ENABLE_RCON: "true"
+      RCON_PASSWORD: ${RCON_PASSWORD}
+      # Geyser + Floodgate : les clients Bedrock rejoignent le serveur Java
+      MODRINTH_PROJECTS: geyser,floodgate
+      MOTD: "Mine de rien"
+    ports:
+      - "25565:25565"        # Java
+      - "19132:19132/udp"    # Bedrock via Geyser
+    volumes:
+      - ./data/minecraft:/data
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: .
+      dockerfile: docker/agent.Dockerfile
+    env_file: .env
+    volumes:
+      - ./config.toml:/app/config.toml:ro
+      - ./data/agent:/data
+      - ./data/minecraft:/minecraft:ro   # lecture du log serveur
+    depends_on:
+      - minecraft
+    restart: unless-stopped
+
+  # LLM 100 % local. Lancer avec : docker compose --profile local-llm up -d
+  llm:
+    profiles: ["local-llm"]
+    image: ghcr.io/ggml-org/llama.cpp:server
+    command: >
+      --host 0.0.0.0 --port 8080
+      --model /models/${LLM_MODEL_FILE:-model.gguf}
+      --ctx-size 8192
+    volumes:
+      - ./data/models:/models:ro
+    ports:
+      - "8080:8080"
+    restart: unless-stopped

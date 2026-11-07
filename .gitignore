@@ -1,0 +1,14 @@
+# secrets et config locale
+.env
+config.toml
+
+# données du serveur et de l'agent
+data/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+dist/
+.pytest_cache/
+.ruff_cache/
