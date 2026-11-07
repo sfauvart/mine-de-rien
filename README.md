@@ -24,7 +24,7 @@ ce qui est à retravailler.
 
 | Jeu | Mécanisme Minecraft | État |
 |---|---|---|
-| Coffre du soir | coffre verrouillé par la réponse, à renommer sur une enclume | à faire |
+| Coffre du soir | coffre verrouillé par la réponse, à renommer sur une enclume | en cours ([spec](docs/specs/open/2026-11-coffre-du-soir.md)) |
 | Arbre de progrès | datapack d'advancements, un nœud par compétence de CM2 | à faire |
 | Bartholomé l'apprenti | villageois qui se trompe, l'enfant le corrige dans le chat | à faire |
 | Bordure du monde | chaque exercice validé agrandit la bordure | à faire |
