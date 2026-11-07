@@ -90,7 +90,7 @@ l'enclume, ouvre le coffre, récupère sa récompense ; les deux parents reçoiv
 - [x] **Phase 2 : Saisir un exercice**
 - [x] **Phase 3 : L'atelier**
 - [x] **Phase 4 : Le coffre**
-- [ ] **Phase 5 : Telegram et rapport**
+- [x] **Phase 5 : Telegram et rapport**
 
 Les phases 1 et 2 sont indépendantes. La phase 3 dépend de la 1, la phase 4 des
 phases 2 et 3, la phase 5 de la 4.

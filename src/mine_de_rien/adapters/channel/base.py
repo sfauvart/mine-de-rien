@@ -18,5 +18,8 @@ class Canal(Protocol):
     async def envoyer(self, texte: str) -> None:
         """Envoie un message à tous les parents autorisés."""
 
+    async def repondre(self, destinataire: int, texte: str) -> None:
+        """Répond à un parent autorisé."""
+
     def recevoir(self) -> AsyncIterator[MessageParent]:
         """Flux des messages reçus des parents autorisés."""

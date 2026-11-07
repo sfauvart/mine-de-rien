@@ -13,6 +13,12 @@ services:
       MOTD: "Mine de rien"
       # Zone de l'atelier en mode aventure, recopiée dans world/datapacks à chaque démarrage.
       DATAPACKS: /datapacks/mine_de_rien
+      # Liste blanche active et appliquée, mais vide au départ : le pseudo de l'enfant s'ajoute
+      # par RCON (docs/installation.md). La variable WHITELIST de l'image ferait résoudre le
+      # pseudo par un service en ligne (PlayerDB ou Mojang), ce qu'on évite.
+      ENABLE_WHITELIST: "true"
+      ENFORCE_WHITELIST: "true"
+      # Aucun opérateur : un enfant opérateur peut lire la réponse ou se donner la récompense.
     ports:
       - "25565:25565"
     volumes:

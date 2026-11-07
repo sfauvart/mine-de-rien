@@ -24,7 +24,7 @@ ce qui est à retravailler.
 
 | Jeu | Mécanisme Minecraft | État |
 |---|---|---|
-| Coffre du soir | coffre verrouillé par la réponse, à renommer sur une enclume | en cours ([spec](docs/specs/open/2026-11-coffre-du-soir.md)) |
+| Coffre du soir | coffre verrouillé par la réponse, à renommer sur une enclume | à tester en jeu ([spec](docs/specs/open/2026-11-coffre-du-soir.md)) |
 | Arbre de progrès | datapack d'advancements, un nœud par compétence de CM2 | à faire |
 | Bartholomé l'apprenti | villageois qui se trompe, l'enfant le corrige dans le chat | à faire |
 | Bordure du monde | chaque exercice validé agrandit la bordure | à faire |
@@ -41,24 +41,37 @@ Détail des idées et des choix : [docs/idees.md](docs/idees.md), [docs/architec
 - **Python 3.12+**, `uv`, SQLite.
 - `docker compose` qui lance Paper et l'agent d'un coup.
 
-## Démarrage rapide
+## Installation
+
+Le guide pas à pas, du bot Telegram au premier coffre : [docs/installation.md](docs/installation.md).
+
+En résumé :
 
 ```bash
-cp .env.example .env            # EULA, mot de passe RCON, jeton Telegram, clé LLM
+cp .env.example .env            # EULA, version, mot de passe RCON, jeton Telegram
 cp config.example.toml config.toml
 docker compose up -d            # serveur Minecraft + agent
-docker compose --profile local-llm up -d   # variante avec llama.cpp en local
 ```
 
 Pour se connecter au serveur depuis le lanceur officiel ou un lanceur hors ligne comme XMCL,
 voir [docs/rejoindre-le-serveur.md](docs/rejoindre-le-serveur.md).
 
-Développement sans Docker :
+## Développement
 
 ```bash
 uv sync
 uv run pytest
-uv run mine-de-rien --config config.toml
+uv run ruff check
+```
+
+Tout se joue aussi sans Telegram, sur le serveur d'essai jetable
+(`docker/essai.compose.yml`, jamais le monde de l'enfant) :
+
+```bash
+docker compose -f docker/essai.compose.yml --env-file .env up -d
+uv run mine-de-rien --config config.essai.toml atelier          # construit l'atelier
+uv run mine-de-rien --config config.essai.toml lancer           # surveille, pose les coffres
+uv run mine-de-rien --config config.essai.toml coffre "division 2"   # dans un autre terminal
 ```
 
 ## Licence

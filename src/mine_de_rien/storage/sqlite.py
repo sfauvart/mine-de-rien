@@ -285,3 +285,11 @@ class Depot:
             (_iso(debut), _iso(fin)),
         ).fetchall()
         return [Evenement(lg["exercice_id"], lg["genre"], _date(lg["quand"])) for lg in lignes]
+
+    def poses_entre(self, debut: datetime, fin: datetime) -> list[ExerciceStocke]:
+        """Exercices posés dans [debut, fin[, quel que soit leur statut actuel."""
+        lignes = self.cx.execute(
+            "SELECT * FROM exercices WHERE pose_le >= ? AND pose_le < ? ORDER BY id",
+            (_iso(debut), _iso(fin)),
+        ).fetchall()
+        return [self._lire(ligne) for ligne in lignes]
