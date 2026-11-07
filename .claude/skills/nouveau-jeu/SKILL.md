@@ -1,6 +1,6 @@
 ---
 name: nouveau-jeu
-description: Ajoute une mise en scène Mine de rien dans Minecraft (comme le coffre du soir ou Bartholomé) dans src/mine_de_rien/games/ : placement, commandes RCON échappées, détection de réussite, récompense, nettoyage, garde-fous contre le contournement par l'enfant, rapport aux parents, compatibilité Bedrock via Geyser. À utiliser dès qu'on ajoute ou modifie un jeu, y compris pendant une phase de /next.
+description: Ajoute une mise en scène Mine de rien dans Minecraft (comme le coffre du soir ou Bartholomé) dans src/mine_de_rien/games/ : placement, commandes RCON échappées, détection de réussite, récompense, nettoyage, garde-fous contre le contournement par l'enfant, rapport aux parents. À utiliser dès qu'on ajoute ou modifie un jeu, y compris pendant une phase de /next.
 ---
 
 # Ajouter un jeu
@@ -29,6 +29,8 @@ commencer.
   entités du jeu disparaissent ou deviennent décoratifs. Un monde jonché de vieux
   coffres d'exercice, c'est un monde que l'enfant n'aime plus.
 - **Rien ne sort de la maison** au-delà de ce que la spec a prévu.
+- **Java Edition seulement.** Bedrock n'est pas pris en charge (voir
+  `docs/architecture.md`) : ne pas ajouter de contournement pour lui.
 
 ## 1. Écrire la mécanique sur papier d'abord
 
@@ -65,15 +67,7 @@ ce n'est pas grave :
 - **Faire résoudre par quelqu'un d'autre** sur un serveur multijoueur : pas
   grave en soi, mais le rapport ne doit pas prétendre le contraire.
 
-## 3. Bedrock via Geyser
-
-Un enfant sur tablette joue par Geyser. Vérifier que la mécanique y existe :
-renommage sur enclume, panneaux, livres, échanges avec les villageois et
-messages `tellraw` passent ; les composants Java très récents ou les
-interfaces d'inventaire exotiques ne passent pas toujours. Si un point n'est pas
-vérifiable sans client Bedrock, le dire dans le rapport au lieu de le supposer.
-
-## 4. Coder et vérifier
+## 3. Coder et vérifier
 
 - Le jeu n'appelle le serveur que par l'adaptateur de jeu (`adapters/game/`),
   jamais par un client RCON direct : c'est ce qui permettra un jour un autre

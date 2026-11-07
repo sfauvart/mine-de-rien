@@ -8,12 +8,9 @@ services:
       MEMORY: 2G
       ENABLE_RCON: "true"
       RCON_PASSWORD: ${RCON_PASSWORD}
-      # Geyser + Floodgate : les clients Bedrock rejoignent le serveur Java
-      MODRINTH_PROJECTS: geyser,floodgate
       MOTD: "Mine de rien"
     ports:
-      - "25565:25565"        # Java
-      - "19132:19132/udp"    # Bedrock via Geyser
+      - "25565:25565"
     volumes:
       - ./data/minecraft:/data
     restart: unless-stopped

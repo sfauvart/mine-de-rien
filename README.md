@@ -36,10 +36,10 @@ Détail des idées et des choix : [docs/idees.md](docs/idees.md), [docs/architec
 
 - **Minecraft Java Edition** sur un serveur **Paper** auto-hébergé, piloté par RCON et
   la lecture du log serveur. Aucun plugin requis pour commencer.
-- **Geyser + Floodgate** pour que les clients Bedrock (tablette, PC Windows) rejoignent
-  le même serveur.
+- **Java Edition uniquement** pour l'instant. Bedrock (tablette, console, Minecraft pour
+  Windows) n'est pas pris en charge : voir [docs/architecture.md](docs/architecture.md).
 - **Python 3.12+**, `uv`, SQLite.
-- `docker compose` qui lance Paper, Geyser et l'agent d'un coup.
+- `docker compose` qui lance Paper et l'agent d'un coup.
 
 ## Démarrage rapide
 
