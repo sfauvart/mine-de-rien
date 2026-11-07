@@ -19,8 +19,8 @@ class AdaptateurJeu(Protocol):
     async def commande(self, commande: str) -> str:
         """Exécute une commande serveur (sans le / initial) et renvoie sa sortie brute."""
 
-    async def dire(self, joueur: str, texte: str) -> None:
-        """Affiche un message à un joueur."""
+    async def dire(self, joueur: str, texte: str, **style: str | bool) -> None:
+        """Affiche un message à un joueur (style : `color="gold"`, `bold=True`, ...)."""
 
     def chat(self) -> AsyncIterator[MessageChat]:
         """Flux des messages de chat des joueurs."""

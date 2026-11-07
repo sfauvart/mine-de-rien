@@ -42,8 +42,8 @@ class JavaRcon:
             self._client.connecter()
             return self._client.commande(commande)
 
-    async def dire(self, joueur: str, message: str) -> None:
-        reponse = await self.commande(texte.tellraw(joueur, message))
+    async def dire(self, joueur: str, message: str, **style: str | bool) -> None:
+        reponse = await self.commande(texte.tellraw(joueur, message, **style))
         # `tellraw` ne répond rien quand il réussit.
         if reponse.strip():
             raise ErreurRcon(f"le serveur a refusé le message : {reponse.strip()}")

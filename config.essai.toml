@@ -19,6 +19,11 @@ x = 0
 y = -60
 z = 8
 
+[coffre]
+recompense = "minecraft:diamond"   # identique pour tous les coffres
+recompense_nombre = 3
+niveaux_offerts = 3                 # renommer sur l'enclume coûte un niveau par essai
+
 [canal]
 adaptateur = "telegram"
 jeton = ""

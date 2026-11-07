@@ -16,7 +16,7 @@ from pathlib import Path
 
 from mine_de_rien.exercises.base import Exercice
 
-VERSION_SCHEMA = 1
+VERSION_SCHEMA = 2
 
 SCHEMA = """
 CREATE TABLE exercices (
@@ -45,6 +45,20 @@ CREATE TABLE tentatives (
     faite_le    TEXT NOT NULL
 );
 """
+
+# Chaque entrée fait passer le schéma de la version `indice + 1` à `indice + 2`.
+MIGRATIONS = (
+    # 2 : niveaux d'expérience donnés pour le coffre, et journal pour le rapport.
+    """
+    ALTER TABLE exercices ADD COLUMN niveaux_donnes INTEGER NOT NULL DEFAULT 0;
+    CREATE TABLE evenements (
+        id          INTEGER PRIMARY KEY,
+        exercice_id INTEGER REFERENCES exercices(id),
+        genre       TEXT NOT NULL,
+        quand       TEXT NOT NULL
+    );
+    """,
+)
 
 STATUTS = ("en_file", "pose", "ouvert", "annule")
 
@@ -78,6 +92,21 @@ class ExerciceStocke:
     cree_le: datetime
     pose_le: datetime | None
     ouvert_le: datetime | None
+    niveaux_donnes: bool = False
+
+    @property
+    def duree(self):
+        """Temps entre la pose et l'ouverture, ou None."""
+        if self.pose_le and self.ouvert_le:
+            return self.ouvert_le - self.pose_le
+        return None
+
+
+@dataclass(frozen=True)
+class Evenement:
+    exercice_id: int | None
+    genre: str
+    quand: datetime
 
 
 def ouvrir(chemin: Path | str) -> sqlite3.Connection:
@@ -94,11 +123,14 @@ def ouvrir(chemin: Path | str) -> sqlite3.Connection:
                 f"{chemin} a été créée par une version antérieure sans schéma daté : "
                 "aucune donnée réelle n'existait alors, supprimer le fichier."
             )
-        with connexion:
-            connexion.executescript(SCHEMA)
-            connexion.execute(f"PRAGMA user_version = {VERSION_SCHEMA}")
+        connexion.executescript(SCHEMA)
+        version = 1
     elif version > VERSION_SCHEMA:
         raise ErreurStockage(f"{chemin} vient d'une version plus récente de Mine de rien.")
+    for script in MIGRATIONS[version - 1 :]:
+        connexion.executescript(script)
+    connexion.execute(f"PRAGMA user_version = {VERSION_SCHEMA}")
+    connexion.commit()
     return connexion
 
 
@@ -133,6 +165,7 @@ class Depot:
             cree_le=_date(ligne["cree_le"]),
             pose_le=_date(ligne["pose_le"]),
             ouvert_le=_date(ligne["ouvert_le"]),
+            niveaux_donnes=bool(ligne["niveaux_donnes"]),
         )
 
     def ajouter(
@@ -227,3 +260,28 @@ class Depot:
             (_iso(debut), _iso(fin)),
         ).fetchall()
         return [self._lire(ligne) for ligne in lignes]
+
+    def marquer_niveaux_donnes(self, ident: int) -> None:
+        with self.cx:
+            self.cx.execute("UPDATE exercices SET niveaux_donnes = 1 WHERE id = ?", (ident,))
+
+    def dernier_ouvert(self) -> ExerciceStocke | None:
+        ligne = self.cx.execute(
+            "SELECT * FROM exercices WHERE statut = 'ouvert' ORDER BY ouvert_le DESC LIMIT 1"
+        ).fetchone()
+        return self._lire(ligne) if ligne else None
+
+    def noter(self, genre: str, exercice_id: int | None = None, quand: datetime | None = None):
+        """Journal des événements notables pour le rapport (coffre disparu, ...)."""
+        with self.cx:
+            self.cx.execute(
+                "INSERT INTO evenements (exercice_id, genre, quand) VALUES (?, ?, ?)",
+                (exercice_id, genre, _iso(quand or maintenant())),
+            )
+
+    def evenements_entre(self, debut: datetime, fin: datetime) -> list[Evenement]:
+        lignes = self.cx.execute(
+            "SELECT * FROM evenements WHERE quand >= ? AND quand < ? ORDER BY id",
+            (_iso(debut), _iso(fin)),
+        ).fetchall()
+        return [Evenement(lg["exercice_id"], lg["genre"], _date(lg["quand"])) for lg in lignes]
