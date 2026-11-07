@@ -56,3 +56,31 @@ def verifier_pseudo(joueur: str) -> str:
 def tellraw(joueur: str, texte: str, **style: str | bool) -> str:
     """Commande `tellraw` (sans `/`) qui affiche `texte` à `joueur`."""
     return f"tellraw {verifier_pseudo(joueur)} {composant(texte, **style)}"
+
+
+LIGNES_PANNEAU = 4
+LARGEUR_PANNEAU = 15
+
+
+def lignes_panneau(texte: str) -> list[str] | None:
+    """Découpe `texte` en 4 lignes de 15 caractères au plus, coupées sur les espaces.
+
+    Renvoie `None` si le texte ne tient pas : on refuse plutôt que de tronquer un énoncé.
+    Le résultat a toujours exactement 4 lignes (complétées par des chaînes vides).
+    """
+    lignes: list[str] = []
+    courante = ""
+    for mot in nettoyer(texte).split():
+        if len(mot) > LARGEUR_PANNEAU:
+            return None
+        candidat = f"{courante} {mot}" if courante else mot
+        if len(candidat) <= LARGEUR_PANNEAU:
+            courante = candidat
+        else:
+            lignes.append(courante)
+            courante = mot
+    if courante:
+        lignes.append(courante)
+    if len(lignes) > LIGNES_PANNEAU:
+        return None
+    return lignes + [""] * (LIGNES_PANNEAU - len(lignes))
