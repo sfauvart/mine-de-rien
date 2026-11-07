@@ -4,7 +4,7 @@ services:
     environment:
       EULA: ${EULA:-FALSE}
       TYPE: PAPER
-      VERSION: LATEST
+      VERSION: ${MC_VERSION:-LATEST}
       MEMORY: 2G
       ENABLE_RCON: "true"
       RCON_PASSWORD: ${RCON_PASSWORD}

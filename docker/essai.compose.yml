@@ -1,0 +1,29 @@
+# Serveur d'essai, jetable, utilisé par la skill /essai-en-jeu.
+# Il ne partage RIEN avec le monde réel de l'enfant : autre projet compose, autre dossier,
+# autres ports. Monde plat, paisible, graine fixe pour que les coordonnées soient stables.
+#
+#   docker compose -f docker/essai.compose.yml --env-file .env up -d
+#   docker compose -f docker/essai.compose.yml exec minecraft rcon-cli "list"
+name: mine-de-rien-essai
+
+services:
+  minecraft:
+    image: itzg/minecraft-server
+    environment:
+      EULA: ${EULA:-FALSE}
+      TYPE: PAPER
+      VERSION: ${MC_VERSION:-LATEST}
+      MEMORY: 1G
+      ENABLE_RCON: "true"
+      RCON_PASSWORD: essai
+      LEVEL_TYPE: flat
+      SEED: "20261107"
+      MODE: creative
+      DIFFICULTY: peaceful
+      SPAWN_PROTECTION: "0"
+      MOTD: "Mine de rien - essai"
+    ports:
+      - "25566:25565"
+      - "25576:25575"
+    volumes:
+      - ../data/essai:/data

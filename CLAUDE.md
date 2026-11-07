@@ -15,6 +15,20 @@ piloté par les parents via Telegram, avec rapports de progression.
 - Toute dépendance à un service externe passe par un adaptateur dans `src/mine_de_rien/adapters/`
   et doit avoir une alternative auto-hébergée.
 
+## Façon de travailler
+
+Pas de forge ni d'issues : les specs de `docs/specs/` sont la seule source de vérité.
+
+- `/feature` : questions, puis spec dans `docs/specs/open/`, validée et commitée sur `main`. Aucun code.
+- `/next` : une phase de la spec, sur sa branche `feat/<slug>`, un commit avec le trailer
+  `Spec: <slug>, phase N`, puis arrêt avec le scénario à jouer en jeu.
+- `/close` : après avoir joué, archive la spec dans `docs/specs/done/`. Ne fusionne pas.
+- `/nouvel-exercice`, `/nouveau-jeu` : règles pour ajouter un générateur ou une mise en scène.
+- `/essai-en-jeu` : serveur Minecraft d'essai jetable (`docker/essai.compose.yml`),
+  jamais le monde réel de l'enfant.
+
+Ne pas pousser ni fusionner sans qu'on le demande.
+
 ## Commandes
 
 ```bash
