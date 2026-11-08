@@ -2,8 +2,9 @@
 
 Usage : python scripts/verifier_version.py v0.1.0
 
-Le tag `vX.Y.Z` doit égaler la version de `pyproject.toml` et `__version__` du paquet
-(ce qu'affiche `mine-de-rien --version`). Sort avec le code 1 et la liste des écarts sinon.
+Le tag `vX.Y.Z` doit égaler la version de `pyproject.toml`, `__version__` du paquet (ce
+qu'affiche `mine-de-rien --version`) et chaque tag de l'image `ghcr.io/sfauvart/mine-de-rien`
+cité dans `docker-compose.yml`. Sort avec le code 1 et la liste des écarts sinon.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parents[1]
 _TAG = re.compile(r"^v(\d+\.\d+\.\d+)$")
 _VERSION_PAQUET = re.compile(r'^__version__\s*=\s*"([^"]+)"', re.MULTILINE)
+_IMAGE = re.compile(r"^\s*image:\s*[\"']?ghcr\.io/sfauvart/mine-de-rien(?::([^\s\"']+))?", re.MULTILINE)
 
 
 def verifier(tag: str, racine: Path = RACINE) -> list[str]:
@@ -36,6 +38,14 @@ def verifier(tag: str, racine: Path = RACINE) -> list[str]:
     paquet = trouvee.group(1) if trouvee else "rien"
     if paquet != attendue:
         ecarts.append(f"src/mine_de_rien/__init__.py annonce {paquet}, le tag {attendue}.")
+
+    compose = (racine / "docker-compose.yml").read_text(encoding="utf-8")
+    images = [m.group(1) or "sans tag" for m in _IMAGE.finditer(compose)]
+    if not images:
+        ecarts.append("docker-compose.yml ne cite pas l'image ghcr.io/sfauvart/mine-de-rien.")
+    for image in images:
+        if image != attendue:
+            ecarts.append(f"docker-compose.yml cite l'image {image}, le tag {attendue}.")
 
     return ecarts
 

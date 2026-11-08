@@ -15,9 +15,12 @@ Le workflow (`.github/workflows/publier.yml`) refuse de publier :
 
 1. Choisir le numéro : `Z` pour une correction, `Y` pour une nouveauté, `X` pour un
    changement qui demande d'intervenir sur une installation existante.
-2. Le reporter à deux endroits :
+2. Le reporter à trois endroits :
    - `version` dans `pyproject.toml` ;
-   - `__version__` dans `src/mine_de_rien/__init__.py`.
+   - `__version__` dans `src/mine_de_rien/__init__.py` ;
+   - le tag de `ghcr.io/sfauvart/mine-de-rien` dans `docker-compose.yml`, services `agent`
+     et `datapack`. C'est ce fichier que les installations téléchargent depuis le tag : il
+     doit désigner l'image que le tag publie.
 3. Vérifier en local, puis commiter sur `main` :
 
    ```bash
@@ -37,11 +40,12 @@ Le workflow (`.github/workflows/publier.yml`) refuse de publier :
 
 5. Suivre le workflow « Publier l'image » dans l'onglet **Actions** du dépôt GitHub.
 
-## La première fois seulement
+## Visibilité du paquet
 
-Un paquet ghcr.io est privé à sa première publication. Une fois le premier workflow vert :
-GitHub → profil → **Packages** → `mine-de-rien` → **Package settings** → **Change
-visibility** → **Public**. Les versions suivantes restent publiques.
+Le paquet `mine-de-rien` a pris la visibilité publique du dépôt dès la première
+publication (v0.1.0) : rien à régler. Si un téléchargement anonyme est un jour refusé
+(`unauthorized`), le réglage est dans GitHub → profil → **Packages** → `mine-de-rien` →
+**Package settings** → **Change visibility**.
 
 ## Vérifier une version publiée
 

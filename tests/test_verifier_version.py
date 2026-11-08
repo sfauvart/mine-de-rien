@@ -11,11 +11,20 @@ verifier_version = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(verifier_version)
 
 
-def _projet(racine: Path, pyproject: str, paquet: str) -> Path:
+def _projet(
+    racine: Path, pyproject: str, paquet: str, images: tuple[str, ...] = (":1.2.3", ":1.2.3")
+) -> Path:
+    """Un faux dépôt ; les images du compose suivent le tag v1.2.3 des tests par défaut."""
     (racine / "src" / "mine_de_rien").mkdir(parents=True)
     (racine / "pyproject.toml").write_text(f'[project]\nname = "x"\nversion = "{pyproject}"\n')
     (racine / "src" / "mine_de_rien" / "__init__.py").write_text(
         f'"""Doc."""\n\n__version__ = "{paquet}"\n'
+    )
+    services = "".join(
+        f"  s{i}:\n    image: ghcr.io/sfauvart/mine-de-rien{tag}\n" for i, tag in enumerate(images)
+    )
+    (racine / "docker-compose.yml").write_text(
+        f"services:\n  minecraft:\n    image: itzg/minecraft-server:2026.10.1\n{services}"
     )
     return racine
 
@@ -36,6 +45,28 @@ def test_pyproject_en_retard(tmp_path):
 def test_version_du_paquet_oubliee(tmp_path):
     ecarts = verifier_version.verifier("v1.2.3", _projet(tmp_path, "1.2.3", "1.2.2"))
     assert ecarts == ["src/mine_de_rien/__init__.py annonce 1.2.2, le tag 1.2.3."]
+
+
+def test_une_image_du_compose_oubliee(tmp_path):
+    racine = _projet(tmp_path, "1.2.3", "1.2.3", (":1.2.3", ":1.2.2"))
+    assert verifier_version.verifier("v1.2.3", racine) == [
+        "docker-compose.yml cite l'image 1.2.2, le tag 1.2.3."
+    ]
+
+
+def test_une_image_du_compose_sans_tag(tmp_path):
+    racine = _projet(tmp_path, "1.2.3", "1.2.3", ("", ":latest"))
+    assert verifier_version.verifier("v1.2.3", racine) == [
+        "docker-compose.yml cite l'image sans tag, le tag 1.2.3.",
+        "docker-compose.yml cite l'image latest, le tag 1.2.3.",
+    ]
+
+
+def test_le_compose_doit_citer_l_image(tmp_path):
+    racine = _projet(tmp_path, "1.2.3", "1.2.3", ())
+    assert verifier_version.verifier("v1.2.3", racine) == [
+        "docker-compose.yml ne cite pas l'image ghcr.io/sfauvart/mine-de-rien."
+    ]
 
 
 @pytest.mark.parametrize("tag", ["1.2.3", "v1.2", "v1.2.3-rc1", "main"])

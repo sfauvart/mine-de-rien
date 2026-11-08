@@ -1,6 +1,14 @@
 services:
+  # Ponctuel : recopie le datapack de la version de l'agent dans data/datapacks, avant le
+  # serveur. Code et datapack viennent de la même image, donc de la même version.
+  datapack:
+    image: ghcr.io/sfauvart/mine-de-rien:0.1.0
+    command: ["mine-de-rien", "datapack", "/datapacks"]
+    volumes:
+      - ./data/datapacks:/datapacks
+
   minecraft:
-    image: itzg/minecraft-server
+    image: itzg/minecraft-server:2026.10.1-java25
     environment:
       EULA: ${EULA:-FALSE}
       TYPE: PAPER
@@ -23,10 +31,15 @@ services:
       - "25565:25565"
     volumes:
       - ./data/minecraft:/data
-      - ./datapacks:/datapacks:ro
+      - ./data/datapacks:/datapacks:ro
+    depends_on:
+      datapack:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   agent:
+    image: ghcr.io/sfauvart/mine-de-rien:0.1.0
+    # Construire sa propre image depuis le clone, sans ghcr.io : docker compose build agent
     build:
       context: .
       dockerfile: docker/agent.Dockerfile

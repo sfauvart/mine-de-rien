@@ -1,10 +1,14 @@
 # Datapacks
 
-`mine_de_rien` est monté dans les deux serveurs (`docker-compose.yml` et
-`docker/essai.compose.yml`) et recopié dans `world/datapacks` à chaque démarrage.
+Les deux serveurs recopient `mine_de_rien` dans `world/datapacks` à chaque démarrage, mais
+ne le prennent pas au même endroit :
 
-Il est aussi copié dans l'image de l'agent, à `/app/datapacks/mine_de_rien`, pour qu'une
-installation sans le dépôt reçoive le datapack de la même version que l'agent :
+- **Serveur réel** (`docker-compose.yml`) : le datapack vient de l'image de l'agent, à
+  `/app/datapacks/mine_de_rien`. Le service ponctuel `datapack` le recopie dans
+  `data/datapacks` avant le démarrage du serveur. Agent et datapack ont donc toujours la
+  même version.
+- **Serveur d'essai** (`docker/essai.compose.yml`) : monté depuis la copie de travail, pour
+  essayer une modification avant de la publier.
 
 ```bash
 mine-de-rien datapack /un/dossier    # crée ou remplace /un/dossier/mine_de_rien, sans config
