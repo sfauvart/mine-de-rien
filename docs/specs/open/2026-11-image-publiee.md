@@ -94,7 +94,7 @@ Chaque tag git `vX.Y.Z` publie l'image pour amd64 et arm64.
 **Branche** : `feat/image-publiee`, créée depuis `main` à la phase 1.
 
 - [x] **Phase 1 : une image qui porte l'agent et son datapack**
-- [ ] **Phase 2 : un tag git publie l'image sur ghcr.io**
+- [x] **Phase 2 : un tag git publie l'image sur ghcr.io**
 - [ ] **Phase 3 : le compose et le guide utilisent l'image publiée**
 
 La phase 2 construit l'image de la phase 1. La phase 3 a besoin d'une image réellement
@@ -177,9 +177,10 @@ première publication : il faut le passer en public une fois, à la main.
 - **Déclencheur.** `on: push: tags: ["v*.*.*"]`.
 - **Job `verifier`.**
   - `uv sync`, `uv run pytest`, `uv run ruff check`.
-  - Contrôle de cohérence : la version du tag (sans le `v`) doit égaler `version` dans
-    `pyproject.toml`. La phase 3 ajoutera le tag d'image de `docker-compose.yml` à ce
-    contrôle.
+  - Contrôle de cohérence (`scripts/verifier_version.py`) : la version du tag (sans le `v`)
+    doit égaler `version` dans `pyproject.toml` et `__version__` dans
+    `src/mine_de_rien/__init__.py`, que la phase a trouvé en double. La phase 3 ajoutera le
+    tag d'image de `docker-compose.yml` à ce contrôle.
 - **Job `publier`**, qui dépend de `verifier`.
   - `permissions: packages: write, contents: read`, connexion à ghcr.io avec `GITHUB_TOKEN`.
   - `docker/setup-qemu-action`, `docker/setup-buildx-action`, `docker/metadata-action`
