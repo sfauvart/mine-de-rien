@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+import pytest
+
 from mine_de_rien.config import charger_config
 
 
@@ -26,3 +28,15 @@ def test_config_essai_vise_le_serveur_d_essai():
     config = charger_config(Path(__file__).resolve().parents[1] / "config.essai.example.toml")
     assert config.jeu.hote == "localhost"
     assert config.jeu.port == 25576  # jamais 25575, le monde de l'enfant
+
+
+def test_assistant_par_defaut_et_nom_verifie(tmp_path: Path):
+    fichier = tmp_path / "config.toml"
+    fichier.write_text('[enfant]\npseudo_minecraft = "Steve"\n', encoding="utf-8")
+    config = charger_config(fichier)
+    assert (config.assistant.nom, config.assistant.actif) == ("Pixel", True)
+    fichier.write_text(
+        '[enfant]\npseudo_minecraft = "Steve"\n[assistant]\nnom = "@a tp"\n', encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="assistant"):
+        charger_config(fichier)

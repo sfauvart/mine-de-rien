@@ -11,6 +11,7 @@ from typing import Any
 
 _VARIABLE = re.compile(r"\$\{([A-Z0-9_]+)\}")
 _OBJET = re.compile(r"(minecraft:)?[a-z0-9_]+")
+_NOM_ASSISTANT = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ]{2,16}")
 
 
 @dataclass
@@ -76,6 +77,18 @@ class Coffre:
 
 
 @dataclass
+class Assistant:
+    """Pixel, que l'enfant appelle dans le chat par son nom."""
+
+    nom: str = "Pixel"
+    actif: bool = True
+
+    def __post_init__(self) -> None:
+        if not _NOM_ASSISTANT.fullmatch(self.nom):
+            raise ValueError(f"[assistant] nom : 2 à 16 lettres, sans espace ({self.nom!r})")
+
+
+@dataclass
 class Config:
     enfant: Enfant
     jeu: Jeu
@@ -84,6 +97,7 @@ class Config:
     stockage: Stockage
     atelier: Atelier | None = None
     coffre: Coffre = field(default_factory=Coffre)
+    assistant: Assistant = field(default_factory=Assistant)
 
 
 def _substituer(valeur: Any) -> Any:
@@ -107,4 +121,5 @@ def charger_config(chemin: Path) -> Config:
         stockage=Stockage(**brut.get("stockage", {})),
         atelier=Atelier(**brut["atelier"]) if "atelier" in brut else None,
         coffre=Coffre(**brut.get("coffre", {})),
+        assistant=Assistant(**brut.get("assistant", {})),
     )

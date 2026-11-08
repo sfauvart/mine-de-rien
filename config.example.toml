@@ -26,6 +26,13 @@ recompense = "minecraft:diamond"   # identique pour tous les coffres
 recompense_nombre = 3
 niveaux_offerts = 3                 # renommer sur l'enclume coûte un niveau par essai
 
+# Pixel : l'enfant l'appelle dans le chat (« Pixel, aide-moi », « Pixel, ramène-moi au
+# coffre »). Il demande [jeu] log et [atelier]. Son message ne part qu'à un LLM local ;
+# sans lui, des mots-clés suffisent et les indices partent tels quels.
+[assistant]
+nom = "Pixel"
+actif = true
+
 [canal]
 adaptateur = "telegram"
 jeton = "${TELEGRAM_BOT_TOKEN}"

@@ -315,6 +315,14 @@ class Depot:
                 (exercice_id, genre, _iso(quand or maintenant())),
             )
 
+    def compter(self, genre: str, exercice_id: int) -> int:
+        """Nombre d'événements `genre` notés pour un coffre (indices demandés, ...)."""
+        (n,) = self.cx.execute(
+            "SELECT COUNT(*) FROM evenements WHERE genre = ? AND exercice_id = ?",
+            (genre, exercice_id),
+        ).fetchone()
+        return n
+
     def evenements_entre(self, debut: datetime, fin: datetime) -> list[Evenement]:
         lignes = self.cx.execute(
             "SELECT * FROM evenements WHERE quand >= ? AND quand < ? ORDER BY id",
