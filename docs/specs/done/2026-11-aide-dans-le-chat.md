@@ -119,7 +119,7 @@ chaque demande, sans jamais la réponse ; les parents lisent « ouvert en 12 min
 
 ## Statut
 
-**Branche** : `feat/aide-dans-le-chat`, créée le 2026-11-08 depuis `main`.
+**Branche** : `feat/aide-dans-le-chat`.
 
 - [x] **Phase 1 : Lire le chat**
 - [x] **Phase 2 : Les indices par paliers**
@@ -128,6 +128,8 @@ chaque demande, sans jamais la réponse ; les parents lisent « ouvert en 12 min
 
 Les phases 1 et 2 sont indépendantes. La phase 3 dépend des deux, et de la fusion de
 `feat/photo-du-cahier`. La phase 4 dépend de la 3.
+
+Close le 2026-11-08.
 
 ## Retours de jeu
 
@@ -151,6 +153,11 @@ Les phases 1 et 2 sont indépendantes. La phase 3 dépend des deux, et de la fus
 - 2026-11-08, phase 3, serveur d'essai : la commande `tp` amène une entité du Nether au
   centre du bloc devant le coffre, regard au nord. Chaîne complète log → Pixel → RCON sans
   joueur connecté : le `tellraw` est accepté, refusé seulement faute de joueur.
+
+- 2026-11-08, phases 1 et 3, en jeu, par le parent : « Pixel, ramène-moi au coffre » ramène
+  bien devant le coffre ; l'aide reste vague et ne donne pas la réponse. Conforme.
+- 2026-11-08, phase 4 : notification et `/rapport` non regardés en jeu, vérifiés seulement
+  par les tests. Spec close quand même, à la demande du parent.
 
 ## Conception
 
