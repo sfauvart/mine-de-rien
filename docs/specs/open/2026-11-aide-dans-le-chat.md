@@ -119,9 +119,9 @@ chaque demande, sans jamais la réponse ; les parents lisent « ouvert en 12 min
 
 ## Statut
 
-**Branche** : `feat/aide-dans-le-chat`, pas encore créée, `/next` l'ouvre à la première phase.
+**Branche** : `feat/aide-dans-le-chat`, créée le 2026-11-08 depuis `main`.
 
-- [ ] **Phase 1 : Lire le chat**
+- [x] **Phase 1 : Lire le chat**
 - [ ] **Phase 2 : Les indices par paliers**
 - [ ] **Phase 3 : Pixel répond dans le chat**
 - [ ] **Phase 4 : Les parents voient les indices**
@@ -149,7 +149,8 @@ Les phases 1 et 2 sont indépendantes. La phase 3 dépend des deux, et de la fus
   `^\[(\d\d:\d\d:\d\d)\] \[[^\]]+/INFO\]: (?:\[Not Secure\] )?<([A-Za-z0-9_]{3,16})> (.*)$`.
   Les autres lignes sont ignorées (`/say` s'écrit `[Pseudo]`, un joueur qui tape
   « <autre> » produit `<lui> <autre>`, son propre pseudo vient en premier).
-- Horodatage : la date du jour, avec l'heure de la ligne.
+- Horodatage : l'instant de la réception. L'heure du log est celle du conteneur, en UTC
+  dans l'image Docker (une heure d'écart observée), et sans date.
 - Corriger la docstring du module, qui annonce le mauvais format.
 - `mine-de-rien ecouter` : affiche les messages de chat au fil de l'eau, pour vérifier à la
   main. C'est la seule sortie du texte du chat, et elle reste dans le terminal.

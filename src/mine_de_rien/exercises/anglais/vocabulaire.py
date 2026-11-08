@@ -34,7 +34,7 @@ competence = "anglais/vocabulaire"
 VERS_ANGLAIS = "vers-anglais"
 VERS_FRANCAIS = "vers-francais"
 
-# À vérifier en jeu (spec 2026-11-photo-du-cahier, phase 2) : « août » tapé sur l'enclume.
+# Vérifié en jeu le 2026-11-08 : « août » se tape sur l'enclume, et l'accent est exigé.
 ACCENTS_SUR_ENCLUME = True
 
 _AVEC_MAJUSCULE = {"jours", "mois"}

@@ -56,6 +56,12 @@ async def _dire(config: Config, joueur: str, message: str) -> None:
         await jeu.fermer()
 
 
+async def _ecouter(config: Config) -> None:
+    print(f"Chat lu dans {config.jeu.log}. Ctrl+C pour arrêter.", flush=True)
+    async for message in _jeu(config).chat():
+        print(f"{message.horodatage:%H:%M:%S} <{message.joueur}> {message.texte}", flush=True)
+
+
 async def _atelier(config: Config) -> str:
     a = _atelier_config(config)
     jeu = _jeu(config)
@@ -135,6 +141,7 @@ def main(argv: list[str] | None = None) -> int:
     dire = sous.add_parser("dire", help="affiche un message à un joueur dans le chat")
     dire.add_argument("joueur")
     dire.add_argument("message")
+    sous.add_parser("ecouter", help="affiche le chat des joueurs au fil de l'eau, pour vérifier")
     sous.add_parser("atelier", help="construit ou répare l'atelier des coffres")
     coffre = sous.add_parser("coffre", help="met un exercice dans la file des coffres")
     coffre.add_argument("texte", help="un calcul (« 348 ÷ 12 ») ou une compétence (« division 2 »)")
@@ -154,6 +161,16 @@ def main(argv: list[str] | None = None) -> int:
         try:
             asyncio.run(_dire(config, args.joueur, args.message))
         except (ErreurRcon, ValueError) as e:
+            print(f"Erreur : {e}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.action == "ecouter":
+        try:
+            asyncio.run(_ecouter(config))
+        except KeyboardInterrupt:
+            pass
+        except ValueError as e:
             print(f"Erreur : {e}", file=sys.stderr)
             return 1
         return 0
