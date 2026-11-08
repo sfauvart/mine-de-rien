@@ -127,3 +127,57 @@ def test_aucun_message_aux_parents_ne_contient_le_pseudo(depot):
     asyncio.run(scenario())
     assert any("Coffre n°1 ouvert en 3 min" in m for m in envoyes)
     assert all(PSEUDO not in m for m in envoyes), envoyes
+
+
+def _indices(depot, ident, n):
+    for _ in range(n):
+        depot.noter("indice", ident, MAINTENANT - timedelta(days=1))
+
+
+@pytest.mark.parametrize("n, texte", [(0, "sans indice"), (1, "1 indice"), (3, "3 indices")])
+def test_notification_d_ouverture_compte_les_indices(depot, n, texte):
+    serveur = FauxServeur()
+    coffre = CoffreDuSoir(serveur, Atelier(0, -60, 8), PSEUDO)
+    envoyes: list[str] = []
+
+    class Notif:
+        async def notifier(self, m):
+            envoyes.append(m)
+
+    horloge = [MAINTENANT]
+    orch = Orchestrateur(depot, coffre, Notif(), lambda: horloge[0])
+    depot.ajouter(Exercice("maths/doubles-moities", "Double de 17 = ?", "34"), source="photo",
+                  demande_par="111", recompense="minecraft:diamond", recompense_nombre=3)
+
+    async def scenario():
+        await orch.tour()
+        _indices(depot, 1, n)
+        horloge[0] += timedelta(minutes=12)
+        serveur.ouvert = True
+        await orch.tour()
+
+    asyncio.run(scenario())
+    assert envoyes[-1] == f"Coffre n°1 ouvert en 12 min, {texte} (Double de 17 = ? → 34)."
+
+
+def test_rapport_compte_les_indices_et_retravaille_a_trois(depot):
+    deux = _ajouter(depot, "maths/doubles-moities", "Double de 17 = ?", timedelta(days=4),
+                    timedelta(minutes=5))
+    _indices(depot, deux, 2)
+    trois = _ajouter(depot, "maths/doubles-moities", "Moitié de 75 = ?", timedelta(days=3),
+                     timedelta(minutes=5))
+    _indices(depot, trois, 3)
+    lent = _ajouter(depot, "anglais/vocabulaire", "August en français ?", timedelta(days=2),
+                    timedelta(minutes=40))
+    _indices(depot, lent, 4)
+    annule = _ajouter(depot, "anglais/vocabulaire", "annulé", timedelta(days=1), annule=True)
+    _indices(depot, annule, 5)
+
+    texte = rapport(depot, MAINTENANT)
+    assert "maths/doubles-moities : 2 posé(s), 2 ouvert(s), durée médiane 5 min, 5 indices" in texte
+    assert "anglais/vocabulaire : 1 posé(s), 1 ouvert(s), durée médiane 40 min, 4 indices" in texte
+    lignes = texte.split("À retravailler :\n")[1].split("\n\n")[0].splitlines()
+    assert lignes == [
+        f"• n°{trois} Moitié de 75 = ? : ouvert avec 3 indices",
+        f"• n°{lent} August en français ? : ouvert en 40 min avec 4 indices",
+    ]

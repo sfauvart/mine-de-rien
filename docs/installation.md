@@ -237,6 +237,42 @@ les 5 coffres en file, `/non` abandonne. Sans réponse, la lecture est oubliée 
   local.
 - Les problèmes rédigés ne sont pas lus : seules les opérations écrites sont retenues.
 
+## 11. Pixel, l'aide dans le chat
+
+Pixel est allumé par défaut dès que l'atelier existe (étape 7) et que `[jeu] log` pointe vers
+le journal du serveur, ce que fait `config.example.toml`. L'annonce de chaque coffre le
+présente à l'enfant. Dans le jeu, il appuie sur `T` pour ouvrir le chat, puis tape :
+
+| Message | Ce que fait Pixel |
+|---|---|
+| `Pixel, ramène-moi au coffre` | le téléporte devant le coffre, d'où qu'il soit (Nether compris), une fois toutes les 5 minutes et seulement quand un coffre attend |
+| `Pixel, aide-moi` | donne un indice, plus précis à chaque demande ; le dernier se répète. Jamais la réponse |
+| autre chose après `Pixel,` | répond en une ou deux phrases, sans aucun chiffre, et rappelle ce qu'il sait faire |
+
+Ce qu'il **ne fait pas** : donner des objets, changer l'heure ou le mode de jeu, faire un
+calcul qui n'est pas celui du coffre, parler le premier. Un message qui ne commence pas par
+« Pixel » n'est pas lu, ni celui d'un autre joueur.
+
+**Ce que voient les parents** : le nombre d'indices, dans la notification d'ouverture
+(« ouvert en 12 min, 2 indices ») et dans `/rapport`. Un coffre ouvert avec 3 indices ou
+plus passe « à retravailler ». Le texte de la conversation n'est ni envoyé ni gardé.
+
+**Ce qui part au LLM** : le message adressé à Pixel, l'énoncé du coffre et l'indice, jamais
+la réponse ni le pseudo, et seulement vers un LLM **local** (`openai-compatible`). Avec
+l'adaptateur `anthropic`, rien ne part : Pixel reconnaît les mots-clés (« aide »,
+« ramène »…) et donne les indices tels quels. Comptez une dizaine de secondes de réflexion
+avec le LLM local ; Pixel affiche « … » en attendant.
+
+Pour l'éteindre :
+
+```toml
+[assistant]
+actif = false
+```
+
+Pour le renommer : `nom = "Bob"` dans la même section (2 à 16 lettres), puis redémarrer
+l'agent (`docker compose restart agent`).
+
 ## En cas de souci
 
 ```bash

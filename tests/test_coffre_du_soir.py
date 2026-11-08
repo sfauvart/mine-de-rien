@@ -219,7 +219,7 @@ def test_scenario_complet(monde):
     horloge.t += timedelta(minutes=4)
     _tour(orch)
     assert coffre.actions[-1] == "ranger 1"
-    assert notifs.messages[-1] == "Coffre n°1 ouvert en 5 min (12 ÷ 12 = ? → 1)."
+    assert notifs.messages[-1] == "Coffre n°1 ouvert en 5 min, sans indice (12 ÷ 12 = ? → 1)."
     assert depot.lire(1).statut == "ouvert"
 
     # Coffre pas vidé : on attend, et on le lui demande une fois.

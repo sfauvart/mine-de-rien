@@ -124,7 +124,7 @@ chaque demande, sans jamais la réponse ; les parents lisent « ouvert en 12 min
 - [x] **Phase 1 : Lire le chat**
 - [x] **Phase 2 : Les indices par paliers**
 - [x] **Phase 3 : Pixel répond dans le chat**
-- [ ] **Phase 4 : Les parents voient les indices**
+- [x] **Phase 4 : Les parents voient les indices**
 
 Les phases 1 et 2 sont indépendantes. La phase 3 dépend des deux, et de la fusion de
 `feat/photo-du-cahier`. La phase 4 dépend de la 3.
@@ -321,7 +321,7 @@ phase 3. Il reste à les montrer.
 `docs/installation.md`, tests.
 
 **Conception.**
-- `Depot.compter(genre, exercice_id) -> int`.
+- `Depot.compter(genre, exercice_id) -> int` (écrit dès la phase 3, qui en avait besoin).
 - Notification : « Coffre n°12 ouvert en 12 min, 2 indices (Double de 17 → 34). »
   « sans indice » quand il n'y en a pas.
 - Rapport : par compétence, le total d'indices de la semaine ; « à retravailler » gagne la
