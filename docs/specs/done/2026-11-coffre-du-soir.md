@@ -96,6 +96,23 @@ l'enclume, ouvre le coffre, récupère sa récompense ; les deux parents reçoiv
 Les phases 1 et 2 sont indépendantes. La phase 3 dépend de la 1, la phase 4 des
 phases 2 et 3, la phase 5 de la 4.
 
+Close le 2026-11-08.
+
+## Retours de jeu
+
+Joués par un parent sur le serveur d'essai, l'enfant n'a pas encore joué.
+
+- 2026-11-08 : sans connaître Minecraft, l'enclume bloque (champ grisé sans objet à
+  gauche, pas de bouton pour valider). Corrigé en phase 4 : une « Clé du coffre » avec son
+  mode d'emploi, répété dans le chat. Mécanique jugée plaisante ensuite.
+- 2026-11-08 : `/tp` refusé au testeur, qui n'est pas opérateur sur l'essai : les
+  commandes du scénario passent par `rcon-cli`.
+- 2026-11-08 : `config.essai.toml` versionné recevait pseudo et Telegram du testeur : devenu
+  un modèle, `config.essai.example.toml`.
+- 2026-11-08 : conformes : mauvaise réponse refusée, coffre suivant, rappel à la
+  reconnexion, `/coffre`, `/rapport`, compte non parent ignoré, second parent ajouté et
+  notifié.
+
 ## Conception
 
 ### Phase 1 : Parler au serveur
