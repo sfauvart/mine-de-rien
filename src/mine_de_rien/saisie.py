@@ -31,13 +31,27 @@ class Saisie:
     source: str  # "expression" ou "competence"
 
 
+# Clé en mots : minuscules (accents compris), espaces et tirets simples, 50 caractères au plus
+# comme le champ de l'enclume. Jamais de majuscule : le verrou compare lettre à lettre.
+_CLE_MOTS = re.compile(r"[a-zà-öø-ÿœæ]+(?:[ -][a-zà-öø-ÿœæ]+)*")
+LONGUEUR_CLE = 50
+
+
+def cle_valide(reponse: str) -> bool:
+    """Une clé de coffre a une écriture unique : nombre écrit par `ecrire_reponse`, ou mots."""
+    if len(reponse) > LONGUEUR_CLE:
+        return False
+    if _CLE_MOTS.fullmatch(reponse):
+        return True
+    try:
+        return ecrire_reponse(Fraction(reponse.replace(",", "."))) == reponse
+    except ValueError:  # y compris ErreurExpression
+        return False
+
+
 def _verifier_cle(ex: Exercice) -> None:
     """Garde-fou : la réponse d'un générateur doit avoir l'écriture unique du coffre."""
-    try:
-        valide = ecrire_reponse(Fraction(ex.reponse.replace(",", "."))) == ex.reponse
-    except ValueError:  # y compris ErreurExpression
-        valide = False
-    if not valide:
+    if not cle_valide(ex.reponse):
         raise RuntimeError(f"réponse de générateur inutilisable dans un coffre : {ex!r}")
     if lignes_panneau(ex.enonce) is None:
         raise RuntimeError(f"énoncé de générateur trop long pour un panneau : {ex!r}")
@@ -50,7 +64,7 @@ def _competence(texte: str, rng: random.Random) -> Saisie:
         raise ErreurSaisie(
             "Je ne reconnais ni un calcul ni une compétence. "
             f"Compétences disponibles : {', '.join(registre.noms())}. "
-            "Exemples : « 348 ÷ 12 » ou « division 3 »."
+            "Exemples : « 348 ÷ 12 », « division 3 » ou « anglais 3 »."
         )
     nombre = int(m.group(2)) if m.group(2) else 1
     if not 1 <= nombre <= NOMBRE_MAX:

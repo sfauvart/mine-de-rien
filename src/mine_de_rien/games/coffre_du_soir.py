@@ -107,14 +107,14 @@ CLE = "minecraft:trial_key"
 NOM_CLE = "Clé du coffre"
 MODE_EMPLOI_CLE = (
     "1. Pose-moi à gauche sur l'enclume",
-    "2. Remplace mon nom par la réponse",
+    "2. Écris la réponse, en minuscules",
     "3. Clique sur moi à droite",
     "4. Tiens-moi en main, ouvre le coffre",
 )
 MODE_EMPLOI = (
     "Pour l'ouvrir : pose ta clé à gauche sur l'enclume, remplace son nom par la réponse "
-    "du panneau, clique sur la clé renommée à droite pour la prendre, puis ouvre le coffre "
-    "en la tenant en main."
+    "du panneau, écrite en minuscules, clique sur la clé renommée à droite pour la prendre, "
+    "puis ouvre le coffre en la tenant en main."
 )
 
 

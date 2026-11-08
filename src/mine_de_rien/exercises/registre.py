@@ -2,7 +2,7 @@
 
 Chaque nom désigne un générateur et le niveau utilisé dans le coffre. Seuls les niveaux dont
 la réponse a une écriture unique tapable sur une enclume figurent ici (la division avec
-reste, niveau 2, en est exclue).
+reste, niveau 2, en est exclue). `anglais` tire dans tout le lexique de vocabulaire.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import random
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from mine_de_rien.exercises.anglais import vocabulaire
 from mine_de_rien.exercises.base import Exercice, normaliser
 from mine_de_rien.exercises.maths import division
 
@@ -25,6 +26,7 @@ class Entree:
 
 ENTREES: tuple[Entree, ...] = (
     Entree("division", division.competence, 1, division.generer),
+    Entree("anglais", vocabulaire.competence, 1, vocabulaire.generer),
 )
 
 _PAR_NOM = {normaliser(e.nom): e for e in ENTREES}

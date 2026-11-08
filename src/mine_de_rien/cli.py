@@ -5,13 +5,17 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import random
 import sys
+import time
 from pathlib import Path
 
-from mine_de_rien import __version__
+from mine_de_rien import __version__, photo
 from mine_de_rien.adapters.channel.telegram import Telegram
 from mine_de_rien.adapters.game.java_rcon import JavaRcon
 from mine_de_rien.adapters.game.rcon import ErreurRcon
+from mine_de_rien.adapters.llm import creer as creer_llm
+from mine_de_rien.adapters.llm.base import ErreurLlm
 from mine_de_rien.config import Config, charger_config
 from mine_de_rien.games import atelier
 from mine_de_rien.games.coffre_du_soir import CoffreDuSoir, NotificateurConsole
@@ -61,6 +65,22 @@ async def _atelier(config: Config) -> str:
         await jeu.fermer()
 
 
+async def _llm(config: Config, consigne: str, image: Path | None) -> str:
+    llm = creer_llm(config.llm)
+    octets = image.read_bytes() if image is not None else None
+    return await llm.completer("Tu réponds en français.", consigne, octets)
+
+
+async def _lire_photo(config: Config, image: Path, consigne: str, nombre: int) -> str:
+    debut = time.monotonic()
+    lecture = await photo.lire(creer_llm(config.llm), image.read_bytes(), consigne)
+    lignes = photo.resumer(lecture)
+    lignes.append(f"Lu en {time.monotonic() - debut:.0f} s. Tirage de {nombre} :")
+    lignes += [f"• {ex.enonce} → {ex.reponse}" for ex in photo.tirer(lecture, nombre,
+                                                                    random.Random())]
+    return "\n".join(lignes)
+
+
 async def _lancer(config: Config) -> None:
     jeu = _jeu(config)
     depot = _depot(config)
@@ -87,7 +107,14 @@ async def _lancer(config: Config) -> None:
         notificateur = NotificateurConsole() if canal is None else NotificateurCanal(canal)
         taches.append(Orchestrateur(depot, coffre, notificateur).tourner())
     if canal is not None:
-        commandes = CommandesParents(depot, config.coffre, coffre, config.canal.parents)
+        try:
+            llm = creer_llm(config.llm)
+        except ValueError as e:
+            print(f"Lecture de photo désactivée : {e}", file=sys.stderr)
+            llm = None
+        commandes = CommandesParents(
+            depot, config.coffre, coffre, config.canal.parents, llm=llm
+        )
         taches.append(servir(canal, commandes))
     try:
         if not taches:
@@ -112,6 +139,13 @@ def main(argv: list[str] | None = None) -> int:
     coffre = sous.add_parser("coffre", help="met un exercice dans la file des coffres")
     coffre.add_argument("texte", help="un calcul (« 348 ÷ 12 ») ou une compétence (« division 2 »)")
     sous.add_parser("lancer", help="surveille l'atelier et pose les coffres de la file")
+    llm = sous.add_parser("llm", help="pose une question au LLM configuré, pour l'essayer")
+    llm.add_argument("consigne")
+    llm.add_argument("--image", type=Path, help="photo JPEG jointe à la question")
+    lire = sous.add_parser("lire-photo", help="lit une fiche photographiée, sans rien mettre en file")
+    lire.add_argument("image", type=Path)
+    lire.add_argument("--consigne", default="", help="partie de la page, ex. « exercice 7 »")
+    lire.add_argument("--nombre", type=int, default=3, help="exercices à tirer au hasard")
     args = parser.parse_args(argv)
 
     config = charger_config(args.config)
@@ -141,6 +175,22 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         finally:
             depot.fermer()
+        return 0
+
+    if args.action == "llm":
+        try:
+            print(asyncio.run(_llm(config, args.consigne, args.image)))
+        except (ErreurLlm, ValueError, OSError) as e:
+            print(f"Erreur : {e}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.action == "lire-photo":
+        try:
+            print(asyncio.run(_lire_photo(config, args.image, args.consigne, args.nombre)))
+        except (ErreurLlm, photo.ErreurPhoto, ValueError, OSError) as e:
+            print(f"Erreur : {e}", file=sys.stderr)
+            return 1
         return 0
 
     if args.action == "lancer":

@@ -35,10 +35,10 @@ parents = []                    # identifiants Telegram autorisés à envoyer de
 adaptateur = "anthropic"        # "anthropic" ou "openai-compatible"
 modele = "claude-sonnet-5-5"
 cle = "${ANTHROPIC_API_KEY}"
-# Pour llama.cpp, Ollama ou LM Studio :
+# Pour llama.cpp, Ollama ou LM Studio (seule voie pour lire les photos de fiches) :
 # adaptateur = "openai-compatible"
 # url = "http://llm:8080/v1"
-# modele = "local"
+# modele = "local"   # identifiant exact donné par GET {url}/models (Ollama l'exige)
 
 [stockage]
 sqlite = "/data/mine-de-rien.sqlite"

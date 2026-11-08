@@ -50,7 +50,8 @@ coffre et aux durées. Jamais le pseudo ni le prénom de l'enfant.
   openssl rand -hex 16
   ```
 
-- **`ANTHROPIC_API_KEY`** : laisser vide, cette version n'utilise aucun LLM.
+- **`ANTHROPIC_API_KEY`** : laisser vide. Le seul usage d'un LLM, la lecture des photos de
+  fiches, passe par un LLM local (étape 4).
 
 ## 4. Remplir `config.toml`
 
@@ -60,6 +61,22 @@ coffre et aux durées. Jamais le pseudo ni le prénom de l'enfant.
   d'expérience offerts pour les essais (3 par défaut, un renommage coûte un niveau).
 - **`[atelier]`** : on y reviendra à l'étape 7, une fois dans le jeu.
 - **`[canal] parents`** : on y reviendra à l'étape 6.
+- **`[llm]`** : facultatif, pour lire les photos de fiches (étape 10). Un serveur local
+  compatible OpenAI avec un modèle qui voit les images : `llama-server` de llama.cpp,
+  Ollama ou LM Studio, sur une machine de la maison. Essayé avec Gemma 4 E4B (version QAT,
+  4 Go) :
+
+  ```toml
+  [llm]
+  adaptateur = "openai-compatible"
+  url = "http://192.168.1.16:8001/v1"   # l'adresse du serveur, terminée par /v1
+  modele = "gemma"                      # identifiant exact donné par {url}/models (Ollama l'exige)
+  ```
+
+  Vérifier, une fois le serveur démarré (étape 5) :
+  `docker compose exec agent uv run --no-sync mine-de-rien --config /app/config.toml llm "Bonjour ?"`
+  doit répondre. Avec `adaptateur = "anthropic"`, aucune photo n'est lue : une photo ne
+  part jamais vers un LLM distant.
 
 ## 5. Démarrer le serveur, importer le monde
 
@@ -181,13 +198,44 @@ Commandes des parents :
 | Commande | Effet |
 |---|---|
 | `/coffre 348 ÷ 12` | un calcul recopié du cahier, recalculé par Mine de rien |
-| `/coffre division 3` | trois exercices d'une compétence |
+| `/coffre division 3` | trois exercices d'une compétence (`division`, `anglais`) |
+| photo d'une fiche | voir l'étape 10 |
+| `/oui`, `/non` | met en file ou abandonne les exercices tirés d'une photo |
 | `/file` | le coffre actif et ceux qui attendent |
 | `/annuler 12` | retire le coffre n°12, du jeu ou de la file |
+| `/annuler tout` | retire le coffre actif du jeu et vide la file |
 | `/rapport` | les 7 derniers jours, et ce qui est à retravailler |
 
 Les réponses s'écrivent avec une virgule pour les décimaux (`4,75`). Un calcul dont le
-résultat ne tombe pas juste (`10 ÷ 3`) est refusé avec une explication.
+résultat ne tombe pas juste (`10 ÷ 3`) est refusé avec une explication. Les mots d'anglais
+s'écrivent en minuscules, avec les accents du français (`août`, `dix-sept`).
+
+## 10. Envoyer la photo d'une fiche
+
+Il faut la section `[llm]` de l'étape 4. Dans la conversation avec le bot, envoyer la photo
+d'une fiche **imprimée** de calculs (opérations, tables, « Double de… », « Moitié de… ») ou
+de vocabulaire anglais (jours, mois, nombres jusqu'à 20, couleurs, salutations), avec en
+légende le nombre de coffres voulus, et au besoin la partie de la page :
+
+```
+5 exercice 7
+```
+
+Le bot répond « Je lis la photo… », puis, après 20 secondes à 2 minutes, ce qu'il a lu
+(« Doubles de (37) : 1, 2, 3… »), les calculs écartés, et les 5 exercices tirés au hasard
+avec leur réponse, calculée par Mine de rien. **Comparer la liste à la fiche** : `/oui` met
+les 5 coffres en file, `/non` abandonne. Sans réponse, la lecture est oubliée au bout de
+30 minutes.
+
+- **La photo doit être à l'endroit.** De travers, le modèle peut inventer des lignes
+  plausibles (« Double de 21, 22… » sur une fiche qui s'arrête à 20). Leurs réponses restent
+  justes, mais ce ne sont plus les exercices de la fiche : répondre `/non`, redresser la
+  photo dans Telegram (bouton de retouche avant l'envoi) et la renvoyer.
+- **Une double page** se photographie en entier : Mine de rien la coupe en deux.
+- **Cadrer sans le prénom de l'enfant.** La photo passe par les serveurs de Telegram avant
+  d'arriver à la maison. Mine de rien ne l'écrit pas sur le disque et ne l'envoie qu'au LLM
+  local.
+- Les problèmes rédigés ne sont pas lus : seules les opérations écrites sont retenues.
 
 ## En cas de souci
 

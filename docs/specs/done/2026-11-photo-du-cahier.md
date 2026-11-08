@@ -52,7 +52,8 @@ et les 5 coffres partent dans la file.
 | Rôle du LLM | Il **recopie** des lignes, rien d'autre. Tout ce qui suit un `=` dans sa réponse est jeté sans être lu. La réponse d'un calcul vient de l'analyseur (`exercises/expression.py`), la traduction d'un mot vient du lexique. |
 | Validation | Chaque ligne lue doit devenir un `Exercice` par l'analyseur, par les formes « Double de N » (`N x 2`) et « Moitié de N » (`N ÷ 2`), ou par le lexique anglais. Sinon elle est rejetée et listée au parent. |
 | Découpage | Une photo plus large que haute est une double page : Python la coupe en deux moitiés qui se recouvrent un peu, et envoie chaque moitié séparément. Les doublons sont retirés. |
-| Orientation | À la charge du parent, qui peut redresser la photo dans Telegram. Si aucune ligne n'est valide, Mine de rien demande si la photo est à l'endroit. |
+| Orientation | À la charge du parent, qui peut redresser la photo dans Telegram. Si aucune ligne n'est valide, Mine de rien demande si la photo est à l'endroit. Une photo de travers peut aussi donner des suites **inventées mais justes** (« Double de 21… 30 »), que Python ne peut pas écarter : chaque réponse au parent rappelle de comparer la liste à la fiche, et de répondre `/non` puis de renvoyer la photo à l'endroit si elle ne correspond pas. |
+| Consigne au LLM | Sans aucun exemple chiffré ni mot d'exemple : sur une photo qu'il ne lit pas, le modèle recopie les exemples de la consigne comme s'ils étaient sur la fiche. |
 | Résolution | La photo Telegram ordinaire suffit (essayée à 1280 px), pas besoin de l'envoyer comme fichier. |
 | Saisie | Une photo, avec en légende un nombre N (3 par défaut, 10 au plus, comme `NOMBRE_MAX`) suivi éventuellement d'un texte libre qui précise la partie de la page (« 5 exercice 7 »). Ce texte est ajouté à la consigne du LLM. |
 | Tirage | **Immédiat et sans remise** : N exercices au hasard parmi les lignes valides. La lecture est oubliée ensuite ; pour en tirer d'autres, on renvoie la photo. |
@@ -63,7 +64,7 @@ et les 5 coffres partent dans la file.
 | Vocabulaire anglais | Lexique fermé, dans un fichier de données du générateur : jours, mois, nombres de 0 à 20, couleurs, salutations. |
 | Sens de traduction | **Les deux, tirés au hasard** pour chaque coffre : « mercredi en anglais ? » ou « Wednesday en français ? ». Un sens n'est proposé que si sa réponse est **unique** dans le lexique : « bonjour » donne *hello* ou *good morning*, donc ces deux mots ne sont demandés que de l'anglais vers le français. Les mots identiques dans les deux langues (« orange ») sont exclus. Python le vérifie à l'import du lexique. |
 | Écriture des réponses | Toujours en minuscules, avec l'orthographe scolaire : accents français, anglais britannique (« grey »), masculin pour les couleurs (« vert »), tiret dans « dix-sept », espace dans « good night ». Le mode d'emploi de la clé et l'annonce le rappellent : « en minuscules ». |
-| Accents sur l'enclume | Hypothèse à vérifier en jeu en phase 2 : l'enclume accepte « août » tapé au clavier. **Repli** si elle ne l'accepte pas : le lexique marque ces mots, et seul le sens qui ne demande pas d'accent est proposé pour eux. |
+| Accents sur l'enclume | Vérifié en jeu le 2026-11-08 : l'enclume accepte « août » tapé au clavier, et l'accent est exigé. **Repli**, non déclenché, si elle ne l'accepte pas : le lexique marque ces mots, et seul le sens qui ne demande pas d'accent est proposé pour eux. |
 | `/coffre anglais 3` | Le générateur de vocabulaire entre aussi au registre : trois mots au hasard dans tout le lexique, sans photo. |
 | Énoncé affiché | Celui de la fiche quand il tient sur le panneau (« Double de 17 = ? »), sinon l'énoncé normalisé de l'analyseur. Aucun habillage. |
 | Contournement | Une fiche « Je mémorise » porte les réponses imprimées : l'enfant peut la consulter. C'est de la mémorisation, le parent garde la fiche s'il le souhaite. Les essais au hasard restent limités par l'expérience, comme pour tout coffre. |
@@ -106,14 +107,36 @@ et les 5 coffres partent dans la file.
 
 ## Statut
 
-**Branche** : `feat/photo-du-cahier`, pas encore créée, `/next` l'ouvre à la première phase.
+**Branche** : `feat/photo-du-cahier`.
 
-- [ ] **Phase 1 : Parler au LLM local**
-- [ ] **Phase 2 : Le vocabulaire anglais**
-- [ ] **Phase 3 : Lire une photo**
-- [ ] **Phase 4 : La photo depuis Telegram**
+- [x] **Phase 1 : Parler au LLM local**
+- [x] **Phase 2 : Le vocabulaire anglais**
+- [x] **Phase 3 : Lire une photo**
+- [x] **Phase 4 : La photo depuis Telegram**
 
 Les phases 1 et 2 sont indépendantes. La phase 3 dépend des deux, la phase 4 de la 3.
+
+Close le 2026-11-08.
+
+## Retours de jeu
+
+- 2026-11-08, phase 3, sur le serveur de la maison, photos réduites à 1280 px :
+  - double page doubles et moitiés **redressée** : 72 des 73 lignes, aucune inventée, 70 à
+    80 s (deux appels) ;
+  - même fiche **de travers**, telle que sortie du téléphone : suites inventées
+    (« Double de 21 à 30 », « Moitié de 1 à 30 »), toutes justes. D'où le rappel au parent ;
+  - avec des exemples chiffrés dans la consigne, la photo de travers les recopiait
+    (« 348 ÷ 12 », « 7 × 8 ») : consigne réécrite sans exemple ;
+  - fiche d'anglais avec « exercice 7 » : 19 mots sur 19, dans l'ordre, 21 s. Sans
+    consigne : 22 mots, dont les salutations manuscrites de l'exercice 6, et un jour
+    oublié, 35 s ;
+  - problèmes additifs : seules les deux opérations imprimées sont retenues, réponses
+    recalculées (39 et 25,5), 36 s.
+- 2026-11-08, phase 2, en jeu : le verrou « août » s'ouvre avec la clé renommée « août »
+  tapée au clavier sur l'enclume ; l'accent est exigé (sans lui, le coffre reste fermé).
+  Le repli `ACCENTS_SUR_ENCLUME = False` n'est pas nécessaire.
+- 2026-11-08, phase 4, en jeu : import de photo par Telegram essayé par le parent,
+  conforme. Son avis : « ça fonctionne, c'est plutôt sympa ».
 
 ## Conception
 
@@ -159,12 +182,13 @@ exact (`GET /v1/models`).
 
 **Fichiers.**
 - `src/mine_de_rien/exercises/anglais/vocabulaire.py` (nouveau) : générateur.
-- `src/mine_de_rien/exercises/anglais/lexique.toml` (nouveau) : les paires, par famille.
+- `src/mine_de_rien/exercises/anglais/donnees/lexique.toml` (nouveau) : les paires, par
+  famille (emplacement des données de langue fixé par `/nouvel-exercice`).
 - `src/mine_de_rien/exercises/registre.py` : entrée `anglais`.
 - `src/mine_de_rien/saisie.py` : `_verifier_cle` accepte aussi une clé en mots.
 - `src/mine_de_rien/games/coffre_du_soir.py` : « en minuscules » dans le mode d'emploi de
   la clé et dans l'annonce.
-- `tests/test_vocabulaire.py`.
+- `tests/test_anglais_vocabulaire.py`.
 
 **Conception.**
 - Une paire : `anglais`, `francais`, `famille`, et `accent` calculé à l'import. Chargement
@@ -185,10 +209,12 @@ exact (`GET /v1/models`).
 - `uv run pytest`, sur 500 graines : chaque énoncé tient sur le panneau ; chaque clé passe
   `_verifier_cle` ; « bonjour » n'est jamais demandé vers l'anglais ; « orange » n'est
   jamais tiré ; les deux sens apparaissent ; les cinq familles apparaissent ;
-  `/coffre anglais 3` donne trois exercices différents.
+  `/coffre anglais 3` donne trois exercices différents. Une entrée du lexique peut
+  interdire le sens vers l'anglais (`vers_anglais = false`) quand l'anglais a plusieurs
+  écritures admises : « goodbye » ou « good bye ».
 - `/essai-en-jeu` : un coffre verrouillé par « août », puis par « good night », est accepté
-  par le serveur et `data get block` restitue la clé à l'identique (commande `lock` à
-  vérifier sur la version du serveur, déjà validée pour une clé numérique).
+  par le serveur et `data get block` restitue la clé à l'identique. Validé sur Minecraft
+  26.3 le 2026-11-08, avec aussi « bon après-midi ».
 
 **Vérification en jeu.** Sur le serveur d'essai, envoyer `/coffre anglais 3` jusqu'à obtenir
 un mot à accent, sinon poser à la main un coffre de clé « août » par `rcon-cli`. À
@@ -210,7 +236,8 @@ montrent le prénom de l'enfant et ne doivent pas entrer dans le dépôt.
 - `src/mine_de_rien/cli.py` : sous-commande `lire-photo <fichier> [--consigne "exercice 7"]`
   qui affiche la lecture, les rejets et un tirage.
 - `pyproject.toml` : dépendance `pillow`.
-- `tests/test_photo.py`, `tests/donnees/photo/*.json` : réponses du LLM, sans nom.
+- `tests/test_photo.py`, `tests/donnees/photo/*.json` : réponses du LLM, sans nom, y
+  compris celle d'une photo de travers, qui garde la trace de la limite.
 
 **Conception.**
 - Préparation : redressement EXIF, réduction à 1536 px de côté au plus, JPEG. Plus large que
@@ -230,15 +257,15 @@ montrent le prénom de l'enfant et ne doivent pas entrer dans le dépôt.
 - Résultat : `Lecture(exercices, rejets)`, et `tirer(lecture, n, rng)` sans remise.
 
 **Vérification automatique.**
-- `uv run pytest` : à partir des réponses enregistrées pour les deux fiches essayées, 73
-  doubles et moitiés valides, 19 mots ; une réponse qui contient « Double de 17 = 35 »
+- `uv run pytest` : à partir des réponses enregistrées pour les deux fiches essayées, 72
+  des 73 doubles et moitiés, aucun inventé, 19 mots dans l'ordre de la fiche ; une réponse qui contient « Double de 17 = 35 »
   donne quand même la clé « 34 » ; « Moitié de 3 » donne « 1,5 », valide ; « Moitié de 1,25 »
   (trois décimales), ou « 10 ÷ 3 », est rejeté ; un mot hors lexique est rejeté ; une
   image paysage produit deux appels ; une image portrait, un seul ; le tirage ne dépasse
   jamais le nombre de lignes valides.
 - À la main, sur le serveur de la maison, avec les trois photos du 2026-11-08 :
-  `uv run mine-de-rien lire-photo <photo>` retrouve 73 doubles et moitiés sur la double
-  page, et les 19 jours et mois de la fiche d'anglais ; la photo des problèmes ne donne
+  `uv run mine-de-rien lire-photo <photo>` retrouve au moins 70 des 73 doubles et moitiés
+  sur la double page redressée, et les 19 jours et mois de la fiche d'anglais ; la photo des problèmes ne donne
   aucun exercice faux. Noter les durées dans « Retours de jeu ».
 
 ### Phase 4 : La photo depuis Telegram

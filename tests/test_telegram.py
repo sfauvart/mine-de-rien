@@ -8,6 +8,7 @@ import pytest
 from mine_de_rien.adapters.channel.base import MessageParent
 from mine_de_rien.adapters.channel.telegram import Telegram, message_autorise
 from mine_de_rien.config import Coffre
+from mine_de_rien.games.coffre_du_soir import ErreurCoffre
 from mine_de_rien.orchestrateur import CommandesParents, servir
 from mine_de_rien.storage.sqlite import Depot
 
@@ -97,6 +98,35 @@ def test_coffre_file_annuler(commandes):
     assert "numéro" in _traiter(c, 111, "/annuler")
 
 
+def test_annuler_tout(commandes):
+    c, depot, coffre = commandes
+    assert _traiter(c, 111, "/annuler tout").startswith("Rien à annuler")
+    for calcul in ("1 + 1", "2 + 2", "3 + 3"):
+        _traiter(c, 111, f"/coffre {calcul}")
+    depot.marquer_pose(1)
+    assert _traiter(c, 111, "/annuler Tout") == (
+        "Coffre actif n°1 annulé.\nEn attente annulés : n°2, n°3"
+    )
+    assert coffre.retraits == 1
+    assert depot.actif() is None and depot.en_file() == []
+    assert _traiter(c, 111, "/annuler tout").startswith("Rien à annuler")
+
+
+def test_annuler_tout_garde_l_actif_si_le_jeu_refuse(commandes):
+    c, depot, coffre = commandes
+
+    async def refuser():
+        raise ErreurCoffre("RCON coupé")
+
+    coffre.retirer = refuser
+    _traiter(c, 111, "/coffre 1 + 1")
+    _traiter(c, 111, "/coffre 2 + 2")
+    depot.marquer_pose(1)
+    reponse = _traiter(c, 111, "/annuler tout")
+    assert "En attente annulés : n°2" in reponse and "n'a pas pu être retiré" in reponse
+    assert depot.actif().id == 1 and depot.en_file() == []
+
+
 def test_saisie_refusee_explique(commandes):
     c, depot, _ = commandes
     assert _traiter(c, 111, "/coffre 10 ÷ 3").startswith("Refusé : ")
@@ -129,3 +159,62 @@ def test_servir_ne_repond_qu_aux_parents(commandes):
     canal = FauxCanal([MessageParent(333, "/coffre 1 + 1"), MessageParent(111, "/coffre 1 + 1")])
     asyncio.run(servir(canal, c))
     assert canal.reponses == [(111, "Coffre n°1 en file : 1 + 1 = ? (réponse 2)")]
+
+
+def _update_photo(expediteur: int, legende: str | None, chat: str = "private", echec=False):
+    from telegram.error import TelegramError
+
+    class Fichier:
+        async def download_as_bytearray(self):
+            return bytearray(b"\xff\xd8jpeg")
+
+    class Taille:
+        async def get_file(self):
+            if echec:
+                raise TelegramError("réseau")
+            return Fichier()
+
+    return SimpleNamespace(
+        effective_user=SimpleNamespace(id=expediteur),
+        effective_chat=SimpleNamespace(type=chat),
+        effective_message=SimpleNamespace(text=None, caption=legende, photo=[Taille(), Taille()]),
+    )
+
+
+def test_photo_d_un_parent_telechargee_en_memoire():
+    canal = Telegram("jeton", PARENTS)
+    asyncio.run(canal._photo(_update_photo(111, "5 exercice 7"), None))
+    assert canal._file.get_nowait() == MessageParent(111, "5 exercice 7", image=b"\xff\xd8jpeg")
+    asyncio.run(canal._photo(_update_photo(222, None), None))
+    assert canal._file.get_nowait().texte == ""
+
+
+def test_photo_d_un_inconnu_ou_d_un_groupe_ignoree():
+    canal = Telegram("jeton", PARENTS)
+    asyncio.run(canal._photo(_update_photo(333, "3"), None))
+    asyncio.run(canal._photo(_update_photo(111, "3", chat="group"), None))
+    assert canal._file.empty()
+
+
+def test_photo_non_telechargee_previent_le_parent():
+    canal = Telegram("jeton", PARENTS)
+    envoyes = []
+
+    async def repondre(destinataire, texte):
+        envoyes.append((destinataire, texte))
+
+    canal.repondre = repondre
+    asyncio.run(canal._photo(_update_photo(111, "3", echec=True), None))
+    assert canal._file.empty()
+    assert envoyes and envoyes[0][0] == 111
+
+
+def test_long_message_decoupe_sur_les_lignes():
+    from mine_de_rien.adapters.channel.telegram import decouper
+
+    texte = "\n".join(f"• Double de {n} = ? (réponse {2 * n})" for n in range(400))
+    morceaux = decouper(texte, taille=1000)
+    assert all(len(m) <= 1000 for m in morceaux)
+    assert "\n".join(morceaux) == texte
+    assert decouper("court") == ["court"]
+    assert all(len(m) <= 10 for m in decouper("x" * 25, taille=10))
