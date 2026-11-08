@@ -1,0 +1,82 @@
+# Vocabulaire anglais de CM2, relu par un parent. Une table par famille, `anglais = "français"`.
+#
+# Écriture unique, puisque le verrou du coffre compare lettre à lettre :
+# - tout en minuscules (les jours et les mois prennent leur majuscule à l'affichage seulement) ;
+# - anglais britannique, comme à l'école (« grey ») ;
+# - masculin singulier pour les couleurs ;
+# - accents et tirets du français (« août », « dix-sept », « bon après-midi »).
+#
+# Une entrée écrite `{ francais = "...", vers_anglais = false }` n'est jamais demandée du
+# français vers l'anglais, quand l'anglais a plusieurs écritures admises (« goodbye »,
+# « good bye »).
+#
+# Les sens ambigus sont écartés par le code : « bonjour » donne « hello » ou « good morning »,
+# donc ces deux-là ne sont demandés que de l'anglais vers le français. Les mots identiques
+# dans les deux langues (« six », « orange ») ne sont jamais demandés.
+
+[jours]
+monday = "lundi"
+tuesday = "mardi"
+wednesday = "mercredi"
+thursday = "jeudi"
+friday = "vendredi"
+saturday = "samedi"
+sunday = "dimanche"
+
+[mois]
+january = "janvier"
+february = "février"
+march = "mars"
+april = "avril"
+may = "mai"
+june = "juin"
+july = "juillet"
+august = "août"
+september = "septembre"
+october = "octobre"
+november = "novembre"
+december = "décembre"
+
+[nombres]
+zero = "zéro"
+one = "un"
+two = "deux"
+three = "trois"
+four = "quatre"
+five = "cinq"
+six = "six"
+seven = "sept"
+eight = "huit"
+nine = "neuf"
+ten = "dix"
+eleven = "onze"
+twelve = "douze"
+thirteen = "treize"
+fourteen = "quatorze"
+fifteen = "quinze"
+sixteen = "seize"
+seventeen = "dix-sept"
+eighteen = "dix-huit"
+nineteen = "dix-neuf"
+twenty = "vingt"
+
+[couleurs]
+red = "rouge"
+blue = "bleu"
+green = "vert"
+yellow = "jaune"
+orange = "orange"
+pink = "rose"
+purple = "violet"
+black = "noir"
+white = "blanc"
+brown = "marron"
+grey = "gris"
+
+[salutations]
+hello = "bonjour"
+"good morning" = "bonjour"
+"good afternoon" = "bon après-midi"
+"good evening" = "bonsoir"
+"good night" = "bonne nuit"
+goodbye = { francais = "au revoir", vers_anglais = false }

@@ -109,7 +109,7 @@ et les 5 coffres partent dans la file.
 **Branche** : `feat/photo-du-cahier`, pas encore créée, `/next` l'ouvre à la première phase.
 
 - [x] **Phase 1 : Parler au LLM local**
-- [ ] **Phase 2 : Le vocabulaire anglais**
+- [x] **Phase 2 : Le vocabulaire anglais**
 - [ ] **Phase 3 : Lire une photo**
 - [ ] **Phase 4 : La photo depuis Telegram**
 
@@ -159,12 +159,13 @@ exact (`GET /v1/models`).
 
 **Fichiers.**
 - `src/mine_de_rien/exercises/anglais/vocabulaire.py` (nouveau) : générateur.
-- `src/mine_de_rien/exercises/anglais/lexique.toml` (nouveau) : les paires, par famille.
+- `src/mine_de_rien/exercises/anglais/donnees/lexique.toml` (nouveau) : les paires, par
+  famille (emplacement des données de langue fixé par `/nouvel-exercice`).
 - `src/mine_de_rien/exercises/registre.py` : entrée `anglais`.
 - `src/mine_de_rien/saisie.py` : `_verifier_cle` accepte aussi une clé en mots.
 - `src/mine_de_rien/games/coffre_du_soir.py` : « en minuscules » dans le mode d'emploi de
   la clé et dans l'annonce.
-- `tests/test_vocabulaire.py`.
+- `tests/test_anglais_vocabulaire.py`.
 
 **Conception.**
 - Une paire : `anglais`, `francais`, `famille`, et `accent` calculé à l'import. Chargement
@@ -185,10 +186,12 @@ exact (`GET /v1/models`).
 - `uv run pytest`, sur 500 graines : chaque énoncé tient sur le panneau ; chaque clé passe
   `_verifier_cle` ; « bonjour » n'est jamais demandé vers l'anglais ; « orange » n'est
   jamais tiré ; les deux sens apparaissent ; les cinq familles apparaissent ;
-  `/coffre anglais 3` donne trois exercices différents.
+  `/coffre anglais 3` donne trois exercices différents. Une entrée du lexique peut
+  interdire le sens vers l'anglais (`vers_anglais = false`) quand l'anglais a plusieurs
+  écritures admises : « goodbye » ou « good bye ».
 - `/essai-en-jeu` : un coffre verrouillé par « août », puis par « good night », est accepté
-  par le serveur et `data get block` restitue la clé à l'identique (commande `lock` à
-  vérifier sur la version du serveur, déjà validée pour une clé numérique).
+  par le serveur et `data get block` restitue la clé à l'identique. Validé sur Minecraft
+  26.3 le 2026-11-08, avec aussi « bon après-midi ».
 
 **Vérification en jeu.** Sur le serveur d'essai, envoyer `/coffre anglais 3` jusqu'à obtenir
 un mot à accent, sinon poser à la main un coffre de clé « août » par `rcon-cli`. À
