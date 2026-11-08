@@ -64,7 +64,7 @@ et les 5 coffres partent dans la file.
 | Vocabulaire anglais | Lexique fermé, dans un fichier de données du générateur : jours, mois, nombres de 0 à 20, couleurs, salutations. |
 | Sens de traduction | **Les deux, tirés au hasard** pour chaque coffre : « mercredi en anglais ? » ou « Wednesday en français ? ». Un sens n'est proposé que si sa réponse est **unique** dans le lexique : « bonjour » donne *hello* ou *good morning*, donc ces deux mots ne sont demandés que de l'anglais vers le français. Les mots identiques dans les deux langues (« orange ») sont exclus. Python le vérifie à l'import du lexique. |
 | Écriture des réponses | Toujours en minuscules, avec l'orthographe scolaire : accents français, anglais britannique (« grey »), masculin pour les couleurs (« vert »), tiret dans « dix-sept », espace dans « good night ». Le mode d'emploi de la clé et l'annonce le rappellent : « en minuscules ». |
-| Accents sur l'enclume | Hypothèse à vérifier en jeu en phase 2 : l'enclume accepte « août » tapé au clavier. **Repli** si elle ne l'accepte pas : le lexique marque ces mots, et seul le sens qui ne demande pas d'accent est proposé pour eux. |
+| Accents sur l'enclume | Vérifié en jeu le 2026-11-08 : l'enclume accepte « août » tapé au clavier, et l'accent est exigé. **Repli**, non déclenché, si elle ne l'accepte pas : le lexique marque ces mots, et seul le sens qui ne demande pas d'accent est proposé pour eux. |
 | `/coffre anglais 3` | Le générateur de vocabulaire entre aussi au registre : trois mots au hasard dans tout le lexique, sans photo. |
 | Énoncé affiché | Celui de la fiche quand il tient sur le panneau (« Double de 17 = ? »), sinon l'énoncé normalisé de l'analyseur. Aucun habillage. |
 | Contournement | Une fiche « Je mémorise » porte les réponses imprimées : l'enfant peut la consulter. C'est de la mémorisation, le parent garde la fiche s'il le souhaite. Les essais au hasard restent limités par l'expérience, comme pour tout coffre. |
@@ -107,7 +107,7 @@ et les 5 coffres partent dans la file.
 
 ## Statut
 
-**Branche** : `feat/photo-du-cahier`, pas encore créée, `/next` l'ouvre à la première phase.
+**Branche** : `feat/photo-du-cahier`.
 
 - [x] **Phase 1 : Parler au LLM local**
 - [x] **Phase 2 : Le vocabulaire anglais**
@@ -115,6 +115,8 @@ et les 5 coffres partent dans la file.
 - [x] **Phase 4 : La photo depuis Telegram**
 
 Les phases 1 et 2 sont indépendantes. La phase 3 dépend des deux, la phase 4 de la 3.
+
+Close le 2026-11-08.
 
 ## Retours de jeu
 
@@ -130,6 +132,11 @@ Les phases 1 et 2 sont indépendantes. La phase 3 dépend des deux, la phase 4 d
     oublié, 35 s ;
   - problèmes additifs : seules les deux opérations imprimées sont retenues, réponses
     recalculées (39 et 25,5), 36 s.
+- 2026-11-08, phase 2, en jeu : le verrou « août » s'ouvre avec la clé renommée « août »
+  tapée au clavier sur l'enclume ; l'accent est exigé (sans lui, le coffre reste fermé).
+  Le repli `ACCENTS_SUR_ENCLUME = False` n'est pas nécessaire.
+- 2026-11-08, phase 4, en jeu : import de photo par Telegram essayé par le parent,
+  conforme. Son avis : « ça fonctionne, c'est plutôt sympa ».
 
 ## Conception
 
