@@ -182,6 +182,7 @@ AIDE = (
     "puis /oui pour les mettre en file ou /non\n"
     "/file : le coffre actif et ceux qui attendent\n"
     "/annuler 12 : retire le coffre n°12\n"
+    "/annuler tout : retire le coffre actif et vide la file\n"
     "/rapport : les 7 derniers jours"
 )
 
@@ -307,8 +308,10 @@ class CommandesParents:
         return "\n".join(lignes)
 
     async def _annuler(self, argument: str) -> str:
+        if argument.lower() == "tout":
+            return await self._annuler_tout()
         if not argument.lstrip("n°").isdigit():
-            return "Préciser le numéro du coffre : /annuler 12"
+            return "Préciser le numéro du coffre (/annuler 12), ou /annuler tout"
         numero = int(argument.lstrip("n°"))
         s = self.depot.lire(numero)
         if s is None or s.statut not in ("en_file", "pose"):
@@ -320,6 +323,28 @@ class CommandesParents:
                 return f"Le coffre n°{numero} n'a pas pu être retiré du jeu, réessayer : {e}"
         self.depot.annuler(numero)
         return f"Coffre n°{numero} annulé."
+
+    async def _annuler_tout(self) -> str:
+        """La file d'abord, sans attendre le jeu : la boucle ne pourra pas poser le suivant
+        pendant que le coffre actif est retiré."""
+        annules = [s.id for s in self.depot.en_file() if self.depot.annuler(s.id)]
+        lignes = []
+        if annules:
+            lignes.append("En attente annulés : " + ", ".join(f"n°{i}" for i in annules))
+        actif = self.depot.actif()
+        if actif is not None:
+            if self.coffre is not None:
+                try:
+                    await self.coffre.retirer()
+                except (ErreurRcon, ErreurCoffre) as e:
+                    lignes.append(
+                        f"Le coffre actif n°{actif.id} n'a pas pu être retiré du jeu, "
+                        f"réessayer : {e}"
+                    )
+                    return "\n".join(lignes)
+            self.depot.annuler(actif.id)
+            lignes.insert(0, f"Coffre actif n°{actif.id} annulé.")
+        return "\n".join(lignes) or "Rien à annuler : aucun coffre actif ni en attente."
 
 
 class NotificateurCanal:

@@ -203,6 +203,7 @@ Commandes des parents :
 | `/oui`, `/non` | met en file ou abandonne les exercices tirés d'une photo |
 | `/file` | le coffre actif et ceux qui attendent |
 | `/annuler 12` | retire le coffre n°12, du jeu ou de la file |
+| `/annuler tout` | retire le coffre actif du jeu et vide la file |
 | `/rapport` | les 7 derniers jours, et ce qui est à retravailler |
 
 Les réponses s'écrivent avec une virgule pour les décimaux (`4,75`). Un calcul dont le

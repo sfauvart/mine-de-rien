@@ -8,6 +8,7 @@ import pytest
 from mine_de_rien.adapters.channel.base import MessageParent
 from mine_de_rien.adapters.channel.telegram import Telegram, message_autorise
 from mine_de_rien.config import Coffre
+from mine_de_rien.games.coffre_du_soir import ErreurCoffre
 from mine_de_rien.orchestrateur import CommandesParents, servir
 from mine_de_rien.storage.sqlite import Depot
 
@@ -95,6 +96,35 @@ def test_coffre_file_annuler(commandes):
     assert coffre.retraits == 1
     assert "ni actif ni en attente" in _traiter(c, 111, "/annuler 1")
     assert "numéro" in _traiter(c, 111, "/annuler")
+
+
+def test_annuler_tout(commandes):
+    c, depot, coffre = commandes
+    assert _traiter(c, 111, "/annuler tout").startswith("Rien à annuler")
+    for calcul in ("1 + 1", "2 + 2", "3 + 3"):
+        _traiter(c, 111, f"/coffre {calcul}")
+    depot.marquer_pose(1)
+    assert _traiter(c, 111, "/annuler Tout") == (
+        "Coffre actif n°1 annulé.\nEn attente annulés : n°2, n°3"
+    )
+    assert coffre.retraits == 1
+    assert depot.actif() is None and depot.en_file() == []
+    assert _traiter(c, 111, "/annuler tout").startswith("Rien à annuler")
+
+
+def test_annuler_tout_garde_l_actif_si_le_jeu_refuse(commandes):
+    c, depot, coffre = commandes
+
+    async def refuser():
+        raise ErreurCoffre("RCON coupé")
+
+    coffre.retirer = refuser
+    _traiter(c, 111, "/coffre 1 + 1")
+    _traiter(c, 111, "/coffre 2 + 2")
+    depot.marquer_pose(1)
+    reponse = _traiter(c, 111, "/annuler tout")
+    assert "En attente annulés : n°2" in reponse and "n'a pas pu être retiré" in reponse
+    assert depot.actif().id == 1 and depot.en_file() == []
 
 
 def test_saisie_refusee_explique(commandes):
