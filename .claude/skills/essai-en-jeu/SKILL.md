@@ -81,8 +81,10 @@ essai "execute if block 0 -60 0 chest"             # vérifier : renvoie « Test
 - **Vérifier par l'état du monde**, pas par l'absence d'erreur : une commande
   acceptée peut ne rien faire (mauvaise coordonnée, mauvais composant).
 - Le code de l'agent peut aussi viser ce serveur via `config.essai.toml`
-  (hôte `localhost`, port 25576, mot de passe `essai`), dès que l'adaptateur RCON
-  existe.
+  (hôte `localhost`, port 25576, mot de passe `essai`). Ce fichier est local et
+  ignoré par git : s'il manque, le créer avec
+  `cp config.essai.example.toml config.essai.toml`. Ne jamais commiter la copie
+  locale, elle porte le pseudo et l'identifiant Telegram du testeur.
 
 ## 4. Ce que l'essai ne prouve pas
 

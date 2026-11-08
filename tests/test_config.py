@@ -23,6 +23,6 @@ def test_exemple_fourni_se_charge():
 
 
 def test_config_essai_vise_le_serveur_d_essai():
-    config = charger_config(Path(__file__).resolve().parents[1] / "config.essai.toml")
+    config = charger_config(Path(__file__).resolve().parents[1] / "config.essai.example.toml")
     assert config.jeu.hote == "localhost"
     assert config.jeu.port == 25576  # jamais 25575, le monde de l'enfant

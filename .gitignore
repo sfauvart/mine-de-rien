@@ -1,6 +1,7 @@
 # secrets et config locale
 .env
 config.toml
+config.essai.toml
 
 # données du serveur et de l'agent
 /data/

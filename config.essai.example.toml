@@ -1,6 +1,9 @@
 # Configuration qui vise le serveur d'essai jetable (docker/essai.compose.yml).
 # Jamais le monde réel de l'enfant : port RCON 25576, mot de passe « essai ».
 #
+# Modèle versionné. La copie locale, ignorée par git, porte ton pseudo et ton Telegram :
+#
+#   cp config.essai.example.toml config.essai.toml
 #   uv run mine-de-rien --config config.essai.toml dire "<pseudo>" "bonjour"
 
 [enfant]
@@ -26,8 +29,8 @@ niveaux_offerts = 3                 # renommer sur l'enclume coûte un niveau pa
 
 [canal]
 adaptateur = "telegram"
-jeton = ""
-parents = []
+jeton = ""        # "${TELEGRAM_BOT_TOKEN}" pour essayer Telegram (variable d'environnement)
+parents = []      # identifiants numériques, donnés par /start au bot : [123456789]
 
 [stockage]
 sqlite = "data/mine-de-rien-essai.sqlite"

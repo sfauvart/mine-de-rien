@@ -69,6 +69,7 @@ Tout se joue aussi sans Telegram, sur le serveur d'essai jetable
 
 ```bash
 docker compose -f docker/essai.compose.yml --env-file .env up -d
+cp config.essai.example.toml config.essai.toml                  # puis y mettre ton pseudo
 uv run mine-de-rien --config config.essai.toml atelier          # construit l'atelier
 uv run mine-de-rien --config config.essai.toml lancer           # surveille, pose les coffres
 uv run mine-de-rien --config config.essai.toml coffre "division 2"   # dans un autre terminal

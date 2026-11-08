@@ -109,6 +109,9 @@ sûr, parce que les énoncés viennent des parents.
 - `src/mine_de_rien/minecraft/texte.py` (nouveau) : construction des composants
   texte et échappement, au format de la version épinglée.
 - `config.essai.toml` (nouveau, versionné) : config qui vise le serveur d'essai.
+  Devenu `config.essai.example.toml` après le premier essai joué : la copie
+  locale `config.essai.toml`, ignorée par git, porte le pseudo et le Telegram
+  du testeur.
 - `.env.example` : `MC_VERSION` épinglée.
 - `tests/test_texte.py`, `tests/test_java_rcon.py`.
 
