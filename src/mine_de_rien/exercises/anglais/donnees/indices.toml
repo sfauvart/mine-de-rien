@@ -1,0 +1,24 @@
+# Repères donnés en dernier indice par Pixel, relus par un parent. Clé : le mot anglais du
+# lexique. Un repère ne contient jamais le mot ni sa traduction : c'est vérifié par les tests.
+
+# Un objet de cette couleur (« orange » n'est jamais demandé, identique dans les deux langues).
+[couleurs]
+red = "comme une fraise bien mûre"
+blue = "comme le ciel sans nuage"
+green = "comme l'herbe d'une prairie"
+yellow = "comme un citron ou le soleil"
+pink = "comme un flamant"
+purple = "comme une aubergine"
+black = "comme le charbon"
+white = "comme la neige"
+brown = "comme le chocolat ou la terre"
+grey = "comme un éléphant ou la pierre"
+
+# Le moment où on le dit.
+[salutations]
+hello = "on le dit en arrivant, à n'importe quelle heure"
+"good morning" = "on le dit le matin"
+"good afternoon" = "on le dit l'après-midi"
+"good evening" = "on le dit en arrivant le soir"
+"good night" = "on le dit avant d'aller dormir"
+goodbye = "on le dit en partant"

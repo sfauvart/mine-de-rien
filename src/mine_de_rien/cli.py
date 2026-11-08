@@ -19,6 +19,7 @@ from mine_de_rien.adapters.llm.base import ErreurLlm
 from mine_de_rien.config import Config, charger_config
 from mine_de_rien.games import atelier
 from mine_de_rien.games.coffre_du_soir import CoffreDuSoir, NotificateurConsole
+from mine_de_rien.games.pixel import Pixel
 from mine_de_rien.orchestrateur import (
     CommandesParents,
     NotificateurCanal,
@@ -56,6 +57,12 @@ async def _dire(config: Config, joueur: str, message: str) -> None:
         await jeu.fermer()
 
 
+async def _ecouter(config: Config) -> None:
+    print(f"Chat lu dans {config.jeu.log}. Ctrl+C pour arrêter.", flush=True)
+    async for message in _jeu(config).chat():
+        print(f"{message.horodatage:%H:%M:%S} <{message.joueur}> {message.texte}", flush=True)
+
+
 async def _atelier(config: Config) -> str:
     a = _atelier_config(config)
     jeu = _jeu(config)
@@ -85,10 +92,12 @@ async def _lancer(config: Config) -> None:
     jeu = _jeu(config)
     depot = _depot(config)
     coffre = None
+    pixel_actif = config.assistant.actif and bool(config.jeu.log) and config.atelier is not None
     if config.atelier is not None:
         coffre = CoffreDuSoir(
             jeu, _atelier_config(config), config.enfant.pseudo_minecraft,
             config.coffre.niveaux_offerts,
+            assistant=config.assistant.nom if pixel_actif else None,
         )
     else:
         print("Pas de section [atelier] : aucun coffre ne sera posé (docs/installation.md).")
@@ -102,16 +111,24 @@ async def _lancer(config: Config) -> None:
         print(f"Telegram : {len(config.canal.parents)} parent(s) autorisé(s).")
     else:
         print("Pas de jeton Telegram : les notifications s'affichent ici.")
+    try:
+        llm = creer_llm(config.llm)
+    except ValueError as e:
+        print(f"LLM désactivé (photos, Pixel en mots-clés) : {e}", file=sys.stderr)
+        llm = None
     taches = []
     if coffre is not None:
         notificateur = NotificateurConsole() if canal is None else NotificateurCanal(canal)
         taches.append(Orchestrateur(depot, coffre, notificateur).tourner())
+    if pixel_actif:
+        pixel = Pixel(
+            jeu, depot, _atelier_config(config), config.enfant.pseudo_minecraft,
+            config.assistant.nom, llm,
+        )
+        mode = "LLM local" if pixel.llm is not None else "mots-clés"
+        print(f"{config.assistant.nom} écoute le chat ({mode}).")
+        taches.append(pixel.ecouter())
     if canal is not None:
-        try:
-            llm = creer_llm(config.llm)
-        except ValueError as e:
-            print(f"Lecture de photo désactivée : {e}", file=sys.stderr)
-            llm = None
         commandes = CommandesParents(
             depot, config.coffre, coffre, config.canal.parents, llm=llm
         )
@@ -135,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
     dire = sous.add_parser("dire", help="affiche un message à un joueur dans le chat")
     dire.add_argument("joueur")
     dire.add_argument("message")
+    sous.add_parser("ecouter", help="affiche le chat des joueurs au fil de l'eau, pour vérifier")
     sous.add_parser("atelier", help="construit ou répare l'atelier des coffres")
     coffre = sous.add_parser("coffre", help="met un exercice dans la file des coffres")
     coffre.add_argument("texte", help="un calcul (« 348 ÷ 12 ») ou une compétence (« division 2 »)")
@@ -154,6 +172,16 @@ def main(argv: list[str] | None = None) -> int:
         try:
             asyncio.run(_dire(config, args.joueur, args.message))
         except (ErreurRcon, ValueError) as e:
+            print(f"Erreur : {e}", file=sys.stderr)
+            return 1
+        return 0
+
+    if args.action == "ecouter":
+        try:
+            asyncio.run(_ecouter(config))
+        except KeyboardInterrupt:
+            pass
+        except ValueError as e:
             print(f"Erreur : {e}", file=sys.stderr)
             return 1
         return 0

@@ -38,7 +38,8 @@ from mine_de_rien.games.coffre_du_soir import (
     Notificateur,
     formater_duree,
 )
-from mine_de_rien.rapport import rapport
+from mine_de_rien.games.pixel import EVENEMENT_INDICE
+from mine_de_rien.rapport import nombre_indices, rapport
 from mine_de_rien.saisie import NOMBRE_MAX, ErreurSaisie, interpreter
 from mine_de_rien.storage.sqlite import Depot, ErreurStockage, maintenant
 
@@ -84,8 +85,9 @@ class Orchestrateur:
                 self.depot.marquer_ouvert(actif.id, quand)
                 await self.coffre.ranger(actif)
                 ouvert = self.depot.lire(actif.id)
+                aide = nombre_indices(self.depot.compter(EVENEMENT_INDICE, actif.id))
                 await self.notificateur.notifier(
-                    f"Coffre n°{actif.id} ouvert en {formater_duree(ouvert.duree)} "
+                    f"Coffre n°{actif.id} ouvert en {formater_duree(ouvert.duree)}, {aide} "
                     f"({actif.exercice.enonce} → {actif.exercice.reponse})."
                 )
                 return

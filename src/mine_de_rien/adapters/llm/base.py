@@ -1,8 +1,10 @@
 """Contrat d'un fournisseur de LLM.
 
-Le LLM recopie ce qu'il lit sur une photo de fiche. Il ne calcule jamais de réponse, et ne
-reçoit jamais le prénom ni le chat brut de l'enfant. Une photo ne se pseudonymise pas : elle
-ne part que vers un fournisseur local (`distant = False`).
+Le LLM recopie ce qu'il lit sur une photo de fiche, classe et reformule ce que dit Pixel. Il
+ne calcule jamais de réponse et ne reçoit jamais le prénom de l'enfant. Une photo ne se
+pseudonymise pas, un message de chat non plus : l'une comme l'autre ne partent que vers un
+fournisseur local (`distant = False`). Seul le message adressé à Pixel part, jamais le
+reste du chat.
 """
 
 from __future__ import annotations

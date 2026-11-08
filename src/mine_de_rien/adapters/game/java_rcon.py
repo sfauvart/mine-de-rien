@@ -1,7 +1,7 @@
 """Minecraft Java (Paper) via RCON pour les commandes et le log serveur pour le chat.
 
-Aucun plugin requis. Le chat est lu dans `logs/latest.log`, où chaque message apparaît
-sous la forme `[HH:MM:SS INFO]: <Pseudo> texte`.
+Aucun plugin requis. Le chat est lu dans `logs/latest.log` (voir `log.py` pour le format
+observé et le suivi du fichier).
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ import asyncio
 from collections.abc import AsyncIterator
 
 from mine_de_rien.adapters.game.base import MessageChat
+from mine_de_rien.adapters.game.log import suivre_chat
 from mine_de_rien.adapters.game.rcon import ClientRcon, ErreurRcon
 from mine_de_rien.minecraft import texte
 
@@ -52,6 +53,7 @@ class JavaRcon:
         async with self._verrou:
             self._client.fermer()
 
-    async def chat(self) -> AsyncIterator[MessageChat]:
-        raise NotImplementedError("version 0.3 : suivi de latest.log")
-        yield  # pragma: no cover
+    def chat(self) -> AsyncIterator[MessageChat]:
+        if not self.log:
+            raise ValueError("[jeu] log manquant : le chemin de logs/latest.log du serveur.")
+        return suivre_chat(self.log)

@@ -192,12 +192,29 @@ def commandes_retrait(a: Atelier) -> list[str]:
 
 class CoffreDuSoir:
     def __init__(
-        self, jeu: AdaptateurJeu, atelier: Atelier, pseudo: str, niveaux_offerts: int = 3
+        self,
+        jeu: AdaptateurJeu,
+        atelier: Atelier,
+        pseudo: str,
+        niveaux_offerts: int = 3,
+        assistant: str | None = None,
     ) -> None:
         self.jeu = jeu
         self.atelier = atelier
         self.pseudo = texte.verifier_pseudo(pseudo)
         self.niveaux_offerts = niveaux_offerts
+        # Nom de Pixel s'il écoute le chat : le mode d'emploi dit qu'on peut l'appeler.
+        self.assistant = assistant
+
+    async def _mode_emploi(self) -> None:
+        await self.jeu.dire(self.pseudo, MODE_EMPLOI, color="gray")
+        if self.assistant:
+            await self.jeu.dire(
+                self.pseudo,
+                f"Bloqué ou loin ? Écris « {self.assistant}, aide-moi » ou "
+                f"« {self.assistant}, ramène-moi au coffre » dans le chat.",
+                color="gray",
+            )
 
     async def _executer(self, commandes: list[str]) -> None:
         for commande in commandes:
@@ -231,7 +248,7 @@ class CoffreDuSoir:
         await self.jeu.dire(
             self.pseudo, "Un nouveau coffre est apparu à l'atelier !", color="gold"
         )
-        await self.jeu.dire(self.pseudo, MODE_EMPLOI, color="gray")
+        await self._mode_emploi()
         await self.jeu.commande(
             f"execute at {self.pseudo} run playsound minecraft:block.bell.use master "
             f"{self.pseudo} ~ ~ ~ 1 1"
@@ -257,7 +274,7 @@ class CoffreDuSoir:
         await self.jeu.dire(
             self.pseudo, f"Un coffre t'attend à l'atelier : {s.exercice.enonce}", color="gold"
         )
-        await self.jeu.dire(self.pseudo, MODE_EMPLOI, color="gray")
+        await self._mode_emploi()
 
     async def demander_de_vider(self) -> None:
         await self.jeu.dire(
