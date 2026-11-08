@@ -3,6 +3,13 @@
 `mine_de_rien` est monté dans les deux serveurs (`docker-compose.yml` et
 `docker/essai.compose.yml`) et recopié dans `world/datapacks` à chaque démarrage.
 
+Il est aussi copié dans l'image de l'agent, à `/app/datapacks/mine_de_rien`, pour qu'une
+installation sans le dépôt reçoive le datapack de la même version que l'agent :
+
+```bash
+mine-de-rien datapack /un/dossier    # crée ou remplace /un/dossier/mine_de_rien, sans config
+```
+
 - **Zone de l'atelier** (`function/tick.mcfunction`) : met en mode aventure les joueurs en
   survie autour de chaque marqueur `mdr_atelier`, et les remet en survie quand ils en
   sortent. Le datapack ne contient aucune coordonnée : c'est l'agent qui pose le marqueur

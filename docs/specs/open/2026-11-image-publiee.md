@@ -91,9 +91,9 @@ Chaque tag git `vX.Y.Z` publie l'image pour amd64 et arm64.
 
 ## Statut
 
-**Branche** : `feat/image-publiee`, pas encore créée, `/next` l'ouvre à la première phase.
+**Branche** : `feat/image-publiee`, créée depuis `main` à la phase 1.
 
-- [ ] **Phase 1 : une image qui porte l'agent et son datapack**
+- [x] **Phase 1 : une image qui porte l'agent et son datapack**
 - [ ] **Phase 2 : un tag git publie l'image sur ghcr.io**
 - [ ] **Phase 3 : le compose et le guide utilisent l'image publiée**
 
@@ -131,8 +131,8 @@ sous-commande sans `config.toml` doit être traitée avant cette ligne.
   - *Garde-fous.* Elle refuse une source sans `pack.mcmeta` et une destination qui est la
     source elle-même. Elle crée `<dossier>` s'il manque.
 - **Dockerfile.**
-  - Images de base figées (`python:3.12.x-slim-<debian>`, `ghcr.io/astral-sh/uv:0.x.y`),
-    versions relevées au moment de la phase.
+  - Images de base figées : `python:3.12.16-slim-trixie` et `ghcr.io/astral-sh/uv:0.13.7`,
+    relevées le 2026-11-08, publiées toutes deux pour amd64 et arm64.
   - `COPY datapacks ./datapacks`.
   - `ENV PATH=/app/.venv/bin:$PATH`, pour que `mine-de-rien` se lance directement. Les
     commandes `uv run --no-sync mine-de-rien …` du guide continuent de marcher.

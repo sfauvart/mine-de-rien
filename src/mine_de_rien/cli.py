@@ -10,7 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-from mine_de_rien import __version__, photo
+from mine_de_rien import __version__, datapack, photo
 from mine_de_rien.adapters.channel.telegram import Telegram
 from mine_de_rien.adapters.game.java_rcon import JavaRcon
 from mine_de_rien.adapters.game.rcon import ErreurRcon
@@ -164,7 +164,24 @@ def main(argv: list[str] | None = None) -> int:
     lire.add_argument("image", type=Path)
     lire.add_argument("--consigne", default="", help="partie de la page, ex. « exercice 7 »")
     lire.add_argument("--nombre", type=int, default=3, help="exercices à tirer au hasard")
+    pack = sous.add_parser(
+        "datapack", help="recopie le datapack dans un dossier lu par le serveur, sans config"
+    )
+    pack.add_argument("dossier", type=Path, help="reçoit le sous-dossier mine_de_rien")
+    pack.add_argument(
+        "--source", type=Path, default=datapack.SOURCE_PAR_DEFAUT, help="datapack à recopier"
+    )
     args = parser.parse_args(argv)
+
+    # Avant charger_config : le service qui livre le datapack n'a pas de config.toml.
+    if args.action == "datapack":
+        try:
+            cible = datapack.recopier(args.dossier, args.source)
+        except (datapack.ErreurDatapack, OSError) as e:
+            print(f"Erreur : {e}", file=sys.stderr)
+            return 1
+        print(f"Datapack recopié dans {cible}")
+        return 0
 
     config = charger_config(args.config)
 
