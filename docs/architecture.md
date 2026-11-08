@@ -39,7 +39,7 @@ vérification Bedrock dans la skill `/nouveau-jeu`.
 
 | Version | Contenu | Dépendance technique |
 |---|---|---|
-| 0.1 | Coffre du soir, Telegram, saisie d'exercices, rapport simple ([spec](specs/open/2026-11-coffre-du-soir.md)) | RCON, datapack |
+| 0.1 | Coffre du soir, Telegram, saisie d'exercices, rapport simple ([spec](specs/done/2026-11-coffre-du-soir.md)) | RCON, datapack |
 | 0.2 | Arbre de progrès comme format unique de rapport, bordure du monde | datapack |
 | 0.3 | Bartholomé | lecture du chat dans le log |
 | 0.4 | Chantiers | scan de zone, peut-être plugin Paper |

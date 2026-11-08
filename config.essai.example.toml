@@ -1,0 +1,36 @@
+# Configuration qui vise le serveur d'essai jetable (docker/essai.compose.yml).
+# Jamais le monde réel de l'enfant : port RCON 25576, mot de passe « essai ».
+#
+# Modèle versionné. La copie locale, ignorée par git, porte ton pseudo et ton Telegram :
+#
+#   cp config.essai.example.toml config.essai.toml
+#   uv run mine-de-rien --config config.essai.toml dire "<pseudo>" "bonjour"
+
+[enfant]
+pseudo_minecraft = "Steve"      # remplacer par le pseudo utilisé pour se connecter à l'essai
+
+[jeu]
+adaptateur = "java-rcon"
+hote = "localhost"
+port = 25576
+mot_de_passe = "essai"
+log = "data/essai/logs/latest.log"
+
+[atelier]
+# Monde plat de l'essai : la surface est à y = -60. À 8 blocs au sud du point d'apparition.
+x = 0
+y = -60
+z = 8
+
+[coffre]
+recompense = "minecraft:diamond"   # identique pour tous les coffres
+recompense_nombre = 3
+niveaux_offerts = 3                 # renommer sur l'enclume coûte un niveau par essai
+
+[canal]
+adaptateur = "telegram"
+jeton = ""        # "${TELEGRAM_BOT_TOKEN}" pour essayer Telegram (variable d'environnement)
+parents = []      # identifiants numériques, donnés par /start au bot : [123456789]
+
+[stockage]
+sqlite = "data/mine-de-rien-essai.sqlite"

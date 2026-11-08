@@ -13,20 +13,27 @@ le calcul est un moyen d'obtenir ce qu'il voulait déjà.
 
 ## 1. Coffre du soir (distorsion de lieu : le devoir est dans le butin)
 
-Chaque soir, un coffre verrouillé apparaît près de la base. Un coffre portant le tag `Lock`
-ne s'ouvre qu'en tenant un objet dont le nom est la clé, et la clé est la réponse. Un panneau
-à côté porte l'énoncé envoyé depuis Telegram. L'enfant renomme un objet sur une enclume.
+Chaque soir, un coffre verrouillé apparaît à l'atelier, près de la base. Un coffre portant un
+verrou ne s'ouvre qu'en tenant un objet dont le nom est la clé, et la clé est la réponse. Un
+panneau à côté porte l'énoncé envoyé depuis Telegram. L'enfant renomme sur une enclume la « Clé du
+coffre » que Mine de rien lui donne, dont la description explique les gestes.
+
+Commandes vérifiées sur Minecraft Java 26.3 : le verrou n'est plus la chaîne `Lock` des
+anciennes versions, mais un prédicat d'objet `lock`, et les textes s'écrivent en SNBT.
 
 ```
-/setblock X Y Z oak_sign{front_text:{messages:['"Le fermier a 348 œufs"','"en boîtes de 12."','"Combien de boîtes ?"','""']}}
-/data merge block X Y Z+1 {Lock:"29"}
-/item replace block X Y Z+1 container.13 with diamond 3
+/setblock X-1 Y Z oak_sign[rotation=0]{front_text:{messages:["348 ÷ 12 = ?","","",""]},is_waxed:1b}
+/data modify block X Y Z lock set value {components:{"minecraft:custom_name":"29"}}
+/item replace block X Y Z container.13 with minecraft:diamond 3
+/item replace block X Y Z container.11 with minecraft:paper[minecraft:custom_name="Preuve n°12",minecraft:custom_data={mdr_coffre:12}]
 ```
 
-Détection : le coffre contient un papier nommé « Preuve n°N » ; l'agent interroge l'inventaire
-et notifie Telegram quand il apparaît. Limites : un coffre verrouillé se casse et lâche son
-contenu, donc zone en mode aventure ou variante marchand dont l'échange exige l'objet renommé.
-On ne voit pas les tentatives ratées, seulement le temps de résolution.
+Détection : le coffre contient un papier « Preuve n°N » marqué d'un `custom_data` ; l'agent
+compte ce papier dans l'inventaire de l'enfant avec `clear <pseudo> <papier> 0` et notifie
+Telegram quand il apparaît. Limites : un coffre verrouillé se casse et lâche son contenu, d'où
+l'atelier fixe et la zone en mode aventure (le marchand a été écarté). On ne voit pas les
+tentatives ratées, seulement le temps de résolution. Détails dans
+`src/mine_de_rien/games/coffre_du_soir.py`.
 
 ## 2. Arbre de progrès (souhait : le cahier de textes et l'arbre des progrès sont le même objet)
 

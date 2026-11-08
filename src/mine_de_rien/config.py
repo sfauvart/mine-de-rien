@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 _VARIABLE = re.compile(r"\$\{([A-Z0-9_]+)\}")
+_OBJET = re.compile(r"(minecraft:)?[a-z0-9_]+")
 
 
 @dataclass
@@ -49,12 +50,40 @@ class Stockage:
 
 
 @dataclass
+class Atelier:
+    """Position du coffre au centre de l'atelier, relevée avec F3 près de la base."""
+
+    x: int
+    y: int
+    z: int
+
+
+@dataclass
+class Coffre:
+    """Récompense identique pour tous les coffres, et niveaux offerts pour les essais."""
+
+    recompense: str = "minecraft:diamond"
+    recompense_nombre: int = 3
+    niveaux_offerts: int = 3
+
+    def __post_init__(self) -> None:
+        if not _OBJET.fullmatch(self.recompense):
+            raise ValueError(f"[coffre] recompense invalide : {self.recompense!r}")
+        if not 1 <= self.recompense_nombre <= 64:
+            raise ValueError("[coffre] recompense_nombre doit être entre 1 et 64")
+        if not 0 <= self.niveaux_offerts <= 30:
+            raise ValueError("[coffre] niveaux_offerts doit être entre 0 et 30")
+
+
+@dataclass
 class Config:
     enfant: Enfant
     jeu: Jeu
     canal: Canal
     llm: Llm
     stockage: Stockage
+    atelier: Atelier | None = None
+    coffre: Coffre = field(default_factory=Coffre)
 
 
 def _substituer(valeur: Any) -> Any:
@@ -76,4 +105,6 @@ def charger_config(chemin: Path) -> Config:
         canal=Canal(**brut.get("canal", {})),
         llm=Llm(**brut.get("llm", {})),
         stockage=Stockage(**brut.get("stockage", {})),
+        atelier=Atelier(**brut["atelier"]) if "atelier" in brut else None,
+        coffre=Coffre(**brut.get("coffre", {})),
     )

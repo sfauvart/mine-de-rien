@@ -267,19 +267,12 @@ wheels = [
 ]
 
 [[package]]
-name = "mcrcon"
-version = "0.7.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/77/48/6aa55387b45cb8f8c69c4034b3438bb5c5b89e45d975ff60539e9ae7d8b7/mcrcon-0.7.0.tar.gz", hash = "sha256:c2f1caf2467e283e0ccd2436f1ce21f04242b03c5fafb3860e3924d764a910d4", size = 4219, upload-time = "2021-07-30T06:59:32.832Z" }
-
-[[package]]
 name = "mine-de-rien"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "httpx" },
-    { name = "mcrcon" },
     { name = "python-telegram-bot" },
 ]
 
@@ -293,7 +286,6 @@ dev = [
 requires-dist = [
     { name = "anthropic", specifier = ">=0.40" },
     { name = "httpx", specifier = ">=0.27" },
-    { name = "mcrcon", specifier = ">=0.7" },
     { name = "python-telegram-bot", specifier = ">=21" },
 ]
 

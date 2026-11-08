@@ -92,13 +92,18 @@ réserver une adresse fixe pour ce PC dans l'interface de la box.
 
 ## Activer la liste blanche
 
-Chaque joueur se connecte une première fois, puis on l'ajoute et on active la liste :
+La liste blanche est active dès le premier démarrage (`ENABLE_WHITELIST` et
+`ENFORCE_WHITELIST` dans `docker-compose.yml`), mais vide : personne n'entre tant qu'on n'a
+pas ajouté de pseudo. On ajoute chaque joueur avant sa première connexion :
 
 ```bash
 docker compose exec minecraft rcon-cli whitelist add <pseudo>
-docker compose exec minecraft rcon-cli whitelist on
 docker compose exec minecraft rcon-cli whitelist list
 ```
+
+En mode hors ligne, le serveur calcule lui-même l'identifiant du pseudo, sans rien
+demander à internet (vérifié en 26.3). La variable `WHITELIST` de l'image Docker n'est
+volontairement pas utilisée : elle ferait résoudre les pseudos par un service en ligne.
 
 Le serveur identifie un joueur par un identifiant unique, calculé différemment selon le
 mode. Une liste blanche remplie en mode en ligne ne reconnaît plus personne après le

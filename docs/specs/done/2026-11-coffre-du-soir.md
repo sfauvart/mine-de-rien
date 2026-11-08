@@ -42,6 +42,7 @@ l'enclume, ouvre le coffre, récupère sa récompense ; les deux parents reçoiv
 | Lieu | Un **atelier fixe**, construit par Mine de rien aux coordonnées données dans `config.toml`, près de la base de l'enfant. |
 | Protection | Un petit datapack met l'enfant en mode **aventure** quand il entre à moins de 6 blocs de l'atelier, et le remet en survie quand il en sort. En aventure, il ne peut ni casser le coffre ni poser d'entonnoir dessous. |
 | Coût d'un essai | Renommer sur une enclume coûte un niveau d'expérience. Mine de rien donne **3 niveaux** à chaque nouveau coffre. Au-delà, chaque essai au hasard se paie avec son expérience à lui : c'est la limite contre les réponses au hasard. |
+| Clé et mode d'emploi | Ajouté après le premier essai joué : sans connaître Minecraft, l'enclume ne s'explique pas (champ grisé tant que rien n'est posé à gauche, pas de bouton pour valider). Avec chaque coffre, Mine de rien donne une **clé** (`trial_key`) dont la description liste les gestes, seulement si l'enfant n'en a plus une ; le mode d'emploi est répété dans le chat à l'annonce et au rappel. N'importe quel objet renommé ouvre toujours le coffre. |
 | Un coffre à la fois | Un seul coffre actif. Les exercices suivants attendent dans une file et apparaissent quand le précédent est ouvert. |
 | Énoncé | Panneau, quatre lignes courtes, énoncé neutre. Aucun LLM dans cette spec. |
 | Récompense | Valeur par défaut dans `config.toml` (3 diamants), identique pour tous les coffres. |
@@ -84,16 +85,33 @@ l'enclume, ouvre le coffre, récupère sa récompense ; les deux parents reçoiv
 
 ## Statut
 
-**Branche** : `feat/coffre-du-soir`, pas encore créée, `/next` l'ouvre à la première phase.
+**Branche** : `feat/coffre-du-soir`.
 
-- [ ] **Phase 1 : Parler au serveur**
-- [ ] **Phase 2 : Saisir un exercice**
-- [ ] **Phase 3 : L'atelier**
-- [ ] **Phase 4 : Le coffre**
-- [ ] **Phase 5 : Telegram et rapport**
+- [x] **Phase 1 : Parler au serveur** (Minecraft Java 26.3, Paper build 244)
+- [x] **Phase 2 : Saisir un exercice**
+- [x] **Phase 3 : L'atelier**
+- [x] **Phase 4 : Le coffre**
+- [x] **Phase 5 : Telegram et rapport**
 
 Les phases 1 et 2 sont indépendantes. La phase 3 dépend de la 1, la phase 4 des
 phases 2 et 3, la phase 5 de la 4.
+
+Close le 2026-11-08.
+
+## Retours de jeu
+
+Joués par un parent sur le serveur d'essai, l'enfant n'a pas encore joué.
+
+- 2026-11-08 : sans connaître Minecraft, l'enclume bloque (champ grisé sans objet à
+  gauche, pas de bouton pour valider). Corrigé en phase 4 : une « Clé du coffre » avec son
+  mode d'emploi, répété dans le chat. Mécanique jugée plaisante ensuite.
+- 2026-11-08 : `/tp` refusé au testeur, qui n'est pas opérateur sur l'essai : les
+  commandes du scénario passent par `rcon-cli`.
+- 2026-11-08 : `config.essai.toml` versionné recevait pseudo et Telegram du testeur : devenu
+  un modèle, `config.essai.example.toml`.
+- 2026-11-08 : conformes : mauvaise réponse refusée, coffre suivant, rappel à la
+  reconnexion, `/coffre`, `/rapport`, compte non parent ignoré, second parent ajouté et
+  notifié.
 
 ## Conception
 
@@ -108,6 +126,9 @@ sûr, parce que les énoncés viennent des parents.
 - `src/mine_de_rien/minecraft/texte.py` (nouveau) : construction des composants
   texte et échappement, au format de la version épinglée.
 - `config.essai.toml` (nouveau, versionné) : config qui vise le serveur d'essai.
+  Devenu `config.essai.example.toml` après le premier essai joué : la copie
+  locale `config.essai.toml`, ignorée par git, porte le pseudo et le Telegram
+  du testeur.
 - `.env.example` : `MC_VERSION` épinglée.
 - `tests/test_texte.py`, `tests/test_java_rcon.py`.
 
@@ -234,8 +255,9 @@ de la CLI permet de tout jouer sans Telegram.
   plus, coupure sur les espaces) ; coffre verrouillé par la réponse ; dans le
   coffre, la récompense et un papier « Preuve n°N » portant
   `custom_data={mdr_coffre:N}` ; enclume neuve (une enclume s'abîme à l'usage) ;
-  `xp add <pseudo> 3 levels` ; message dans le chat et son de cloche si l'enfant
-  est connecté.
+  une clé avec son mode d'emploi si l'enfant n'en a plus, et
+  `xp add <pseudo> 3 levels` ; message, mode d'emploi dans le chat et son de
+  cloche si l'enfant est connecté.
 - **Surveiller**, toutes les 3 s quand l'enfant est dans `list` : compter les
   papiers de preuve dans son inventaire avec `clear <pseudo> <objet> 0`, qui
   compte sans retirer. Vérifier aussi que le coffre est toujours là.
@@ -243,7 +265,8 @@ de la CLI permet de tout jouer sans Telegram.
   inventaire, panneau et coffre vidés, puis exercice suivant après 10 secondes.
 - **Coffre disparu** sans être ouvert (explosion, créatif) : on le repose, et
   l'événement est noté pour le rapport.
-- **À la connexion** de l'enfant avec un coffre actif : rappel dans le chat.
+- **À la connexion** de l'enfant avec un coffre actif : rappel et mode d'emploi
+  dans le chat, et une clé s'il n'en a plus.
 - Les notifications vers les parents passent par une interface vide en phase 4
   (affichage dans la console), branchée sur Telegram en phase 5.
 
@@ -257,9 +280,10 @@ de la CLI permet de tout jouer sans Telegram.
 **Vérification en jeu.** Sur le serveur d'essai, en survie : lancer
 `uv run mine-de-rien --config config.essai.toml lancer`, puis dans un autre
 terminal `uv run mine-de-rien --config config.essai.toml coffre "division 2"`.
-Un message et une cloche annoncent le coffre. Le coffre refuse de s'ouvrir.
-Renommer un papier avec une mauvaise réponse : toujours fermé, un niveau
-dépensé. Renommer avec la bonne réponse : il s'ouvre, la récompense est là, la
+Un message, le mode d'emploi et une cloche annoncent le coffre ; une « Clé du
+coffre » est dans l'inventaire. Le coffre refuse de s'ouvrir. Renommer la clé
+avec une mauvaise réponse : toujours fermé, un niveau dépensé. Renommer avec la
+bonne réponse : il s'ouvre, la récompense est là, la
 console annonce « Coffre n°1 ouvert », et le second coffre apparaît. Se
 déconnecter puis se reconnecter : un rappel s'affiche.
 
