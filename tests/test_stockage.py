@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from mine_de_rien.exercises.base import Exercice
-from mine_de_rien.storage.sqlite import VERSION_SCHEMA, Depot, ErreurStockage
+from mine_de_rien.storage.sqlite import MIGRATIONS, SCHEMA, VERSION_SCHEMA, Depot, ErreurStockage
 
 T0 = datetime(2026, 11, 7, 18, 0, tzinfo=UTC)
 
@@ -91,3 +91,37 @@ def test_reouverture(tmp_path):
     d = Depot.ouvrir(chemin)
     assert len(d.en_file()) == 1
     d.fermer()
+
+
+def test_migration_2_vers_3_garde_les_exercices_et_admet_la_photo(tmp_path):
+    chemin = tmp_path / "v2.sqlite"
+    cx = sqlite3.connect(chemin)
+    cx.executescript(SCHEMA)
+    cx.executescript(MIGRATIONS[0])
+    cx.execute(
+        """INSERT INTO exercices (competence, enonce, reponse, jeu, source, statut, demande_par,
+               recompense, recompense_nombre, cree_le, niveaux_donnes)
+           VALUES ('maths/calcul', '1 + 1 = ?', '2', 'coffre-du-soir', 'expression', 'ouvert',
+                   'cli', 'minecraft:diamond', 3, '2026-11-01T18:00:00+00:00', 1)"""
+    )
+    cx.execute("INSERT INTO evenements (exercice_id, genre, quand) VALUES (1, 'x', 'q')")
+    cx.execute("PRAGMA user_version = 2")
+    cx.commit()
+    cx.close()
+
+    depot = Depot.ouvrir(chemin)
+    try:
+        assert depot.cx.execute("PRAGMA user_version").fetchone()[0] == 3
+        ancien = depot.lire(1)
+        assert ancien.statut == "ouvert" and ancien.niveaux_donnes
+        assert ancien.exercice.reponse == "2"
+        assert depot.cx.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert depot.cx.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+        numero = depot.ajouter(
+            Exercice("anglais/vocabulaire", "mai en anglais ?", "may"),
+            source="photo", demande_par="111", recompense="minecraft:diamond",
+            recompense_nombre=3,
+        )
+        assert depot.lire(numero).source == "photo"
+    finally:
+        depot.fermer()

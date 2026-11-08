@@ -107,7 +107,14 @@ async def _lancer(config: Config) -> None:
         notificateur = NotificateurConsole() if canal is None else NotificateurCanal(canal)
         taches.append(Orchestrateur(depot, coffre, notificateur).tourner())
     if canal is not None:
-        commandes = CommandesParents(depot, config.coffre, coffre, config.canal.parents)
+        try:
+            llm = creer_llm(config.llm)
+        except ValueError as e:
+            print(f"Lecture de photo désactivée : {e}", file=sys.stderr)
+            llm = None
+        commandes = CommandesParents(
+            depot, config.coffre, coffre, config.canal.parents, llm=llm
+        )
         taches.append(servir(canal, commandes))
     try:
         if not taches:

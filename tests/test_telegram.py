@@ -129,3 +129,62 @@ def test_servir_ne_repond_qu_aux_parents(commandes):
     canal = FauxCanal([MessageParent(333, "/coffre 1 + 1"), MessageParent(111, "/coffre 1 + 1")])
     asyncio.run(servir(canal, c))
     assert canal.reponses == [(111, "Coffre n°1 en file : 1 + 1 = ? (réponse 2)")]
+
+
+def _update_photo(expediteur: int, legende: str | None, chat: str = "private", echec=False):
+    from telegram.error import TelegramError
+
+    class Fichier:
+        async def download_as_bytearray(self):
+            return bytearray(b"\xff\xd8jpeg")
+
+    class Taille:
+        async def get_file(self):
+            if echec:
+                raise TelegramError("réseau")
+            return Fichier()
+
+    return SimpleNamespace(
+        effective_user=SimpleNamespace(id=expediteur),
+        effective_chat=SimpleNamespace(type=chat),
+        effective_message=SimpleNamespace(text=None, caption=legende, photo=[Taille(), Taille()]),
+    )
+
+
+def test_photo_d_un_parent_telechargee_en_memoire():
+    canal = Telegram("jeton", PARENTS)
+    asyncio.run(canal._photo(_update_photo(111, "5 exercice 7"), None))
+    assert canal._file.get_nowait() == MessageParent(111, "5 exercice 7", image=b"\xff\xd8jpeg")
+    asyncio.run(canal._photo(_update_photo(222, None), None))
+    assert canal._file.get_nowait().texte == ""
+
+
+def test_photo_d_un_inconnu_ou_d_un_groupe_ignoree():
+    canal = Telegram("jeton", PARENTS)
+    asyncio.run(canal._photo(_update_photo(333, "3"), None))
+    asyncio.run(canal._photo(_update_photo(111, "3", chat="group"), None))
+    assert canal._file.empty()
+
+
+def test_photo_non_telechargee_previent_le_parent():
+    canal = Telegram("jeton", PARENTS)
+    envoyes = []
+
+    async def repondre(destinataire, texte):
+        envoyes.append((destinataire, texte))
+
+    canal.repondre = repondre
+    asyncio.run(canal._photo(_update_photo(111, "3", echec=True), None))
+    assert canal._file.empty()
+    assert envoyes and envoyes[0][0] == 111
+
+
+def test_long_message_decoupe_sur_les_lignes():
+    from mine_de_rien.adapters.channel.telegram import decouper
+
+    texte = "\n".join(f"• Double de {n} = ? (réponse {2 * n})" for n in range(400))
+    morceaux = decouper(texte, taille=1000)
+    assert all(len(m) <= 1000 for m in morceaux)
+    assert "\n".join(morceaux) == texte
+    assert decouper("court") == ["court"]
+    assert all(len(m) <= 10 for m in decouper("x" * 25, taille=10))

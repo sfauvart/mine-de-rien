@@ -112,7 +112,7 @@ et les 5 coffres partent dans la file.
 - [x] **Phase 1 : Parler au LLM local**
 - [x] **Phase 2 : Le vocabulaire anglais**
 - [x] **Phase 3 : Lire une photo**
-- [ ] **Phase 4 : La photo depuis Telegram**
+- [x] **Phase 4 : La photo depuis Telegram**
 
 Les phases 1 et 2 sont indépendantes. La phase 3 dépend des deux, la phase 4 de la 3.
 

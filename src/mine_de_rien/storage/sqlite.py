@@ -16,7 +16,7 @@ from pathlib import Path
 
 from mine_de_rien.exercises.base import Exercice
 
-VERSION_SCHEMA = 2
+VERSION_SCHEMA = 3
 
 SCHEMA = """
 CREATE TABLE exercices (
@@ -57,6 +57,42 @@ MIGRATIONS = (
         genre       TEXT NOT NULL,
         quand       TEXT NOT NULL
     );
+    """,
+    # 3 : source « photo ». SQLite ne modifie pas une contrainte CHECK : la table est recréée
+    # et ses lignes recopiées (procédure de la documentation SQLite, clés étrangères coupées
+    # le temps de la recopie, puis vérifiées).
+    """
+    PRAGMA foreign_keys = OFF;
+    BEGIN;
+    CREATE TABLE exercices_v3 (
+        id                INTEGER PRIMARY KEY,
+        competence        TEXT NOT NULL,
+        enonce            TEXT NOT NULL,
+        reponse           TEXT NOT NULL,
+        donnees           TEXT NOT NULL DEFAULT '{}',
+        jeu               TEXT NOT NULL,
+        source            TEXT NOT NULL CHECK (source IN ('expression', 'competence', 'photo')),
+        statut            TEXT NOT NULL DEFAULT 'en_file'
+                          CHECK (statut IN ('en_file', 'pose', 'ouvert', 'annule')),
+        demande_par       TEXT NOT NULL,
+        recompense        TEXT NOT NULL,
+        recompense_nombre INTEGER NOT NULL,
+        cree_le           TEXT NOT NULL,
+        pose_le           TEXT,
+        ouvert_le         TEXT,
+        niveaux_donnes    INTEGER NOT NULL DEFAULT 0
+    );
+    INSERT INTO exercices_v3 (id, competence, enonce, reponse, donnees, jeu, source, statut,
+            demande_par, recompense, recompense_nombre, cree_le, pose_le, ouvert_le,
+            niveaux_donnes)
+        SELECT id, competence, enonce, reponse, donnees, jeu, source, statut, demande_par,
+            recompense, recompense_nombre, cree_le, pose_le, ouvert_le, niveaux_donnes
+        FROM exercices;
+    DROP TABLE exercices;
+    ALTER TABLE exercices_v3 RENAME TO exercices;
+    CREATE INDEX exercices_statut ON exercices (statut, id);
+    COMMIT;
+    PRAGMA foreign_keys = ON;
     """,
 )
 
