@@ -15,7 +15,8 @@ le calcul est un moyen d'obtenir ce qu'il voulait déjà.
 
 Chaque soir, un coffre verrouillé apparaît à l'atelier, près de la base. Un coffre portant un
 verrou ne s'ouvre qu'en tenant un objet dont le nom est la clé, et la clé est la réponse. Un
-panneau à côté porte l'énoncé envoyé depuis Telegram. L'enfant renomme un objet sur une enclume.
+panneau à côté porte l'énoncé envoyé depuis Telegram. L'enfant renomme sur une enclume la « Clé du
+coffre » que Mine de rien lui donne, dont la description explique les gestes.
 
 Commandes vérifiées sur Minecraft Java 26.3 : le verrou n'est plus la chaîne `Lock` des
 anciennes versions, mais un prédicat d'objet `lock`, et les textes s'écrivent en SNBT.

@@ -9,10 +9,12 @@ from mine_de_rien.exercises.base import Exercice
 from mine_de_rien.games.atelier import Atelier
 from mine_de_rien.games.coffre_du_soir import (
     ErreurCoffre,
+    commande_cle,
     commandes_pose,
     commandes_rangement,
     commandes_retrait,
     formater_duree,
+    predicat_cle,
 )
 from mine_de_rien.minecraft.texte import lignes_panneau
 from mine_de_rien.orchestrateur import Orchestrateur
@@ -99,6 +101,19 @@ def test_rangement_et_retrait():
         commandes_rangement(A, "@a", 12)
 
 
+def test_cle_avec_mode_d_emploi():
+    commande = commande_cle("Steve")
+    assert commande.startswith('give Steve minecraft:trial_key[minecraft:item_name="Clé du coffre",')
+    assert commande.endswith(",minecraft:custom_data={mdr_cle:1b}] 1")
+    lore = json.loads(re.search(r"minecraft:lore=(\[.*?\]),", commande).group(1))
+    assert len(lore) == 4
+    assert lore[0]["text"] == "1. Pose-moi à gauche sur l'enclume"
+    assert all(ligne["italic"] is False for ligne in lore)
+    assert predicat_cle() == "minecraft:trial_key[minecraft:custom_data={mdr_cle:1b}]"
+    with pytest.raises(ValueError):
+        commande_cle("@a")
+
+
 def test_formater_duree():
     assert formater_duree(timedelta(seconds=30)) == "moins d'une minute"
     assert formater_duree(timedelta(minutes=4, seconds=50)) == "4 min"
@@ -126,8 +141,8 @@ class FauxCoffre:
     async def annoncer(self, s):
         self.actions.append(f"annoncer {s.id}")
 
-    async def donner_niveaux(self):
-        self.actions.append("niveaux")
+    async def equiper(self):
+        self.actions.append("équiper")
 
     async def rappeler(self, s):
         self.actions.append(f"rappel {s.id}")
@@ -192,12 +207,12 @@ def test_scenario_complet(monde):
     assert notifs.messages == ["Coffre n°1 posé : 12 ÷ 12 = ? (réponse 1)."]
     assert depot.actif().id == 1
 
-    # Il se connecte : rappel et niveaux offerts une seule fois.
+    # Il se connecte : clé et niveaux une seule fois, puis rappel.
     coffre.en_ligne = True
     horloge.t += timedelta(minutes=1)
     _tour(orch)
     _tour(orch)
-    assert coffre.actions[1:] == ["niveaux", "rappel 1"]
+    assert coffre.actions[1:] == ["équiper", "rappel 1"]
 
     # Il ouvre : coffre rangé, parents prévenus avec la durée, pas encore de suivant.
     coffre.preuve = True
@@ -215,10 +230,10 @@ def test_scenario_complet(monde):
     assert coffre.actions.count("vider ?") == 1
     assert depot.actif() is None
 
-    # Vidé : le second coffre apparaît, annoncé, avec ses niveaux.
+    # Vidé : le second coffre apparaît, clé et niveaux donnés avant l'annonce.
     coffre.vide = True
     _tour(orch)
-    assert coffre.actions[-3:] == ["poser 2", "annoncer 2", "niveaux"]
+    assert coffre.actions[-3:] == ["poser 2", "équiper", "annoncer 2"]
     assert depot.actif().id == 2
     assert depot.actif().niveaux_donnes
 

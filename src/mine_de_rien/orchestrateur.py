@@ -2,7 +2,7 @@
 
 Toutes les 3 secondes :
 1. l'enfant est-il connecté (`list`) ? À sa connexion, un rappel s'il a un coffre actif ;
-2. un coffre est actif : s'il est connecté, niveaux offerts s'il ne les a pas eus, puis
+2. un coffre est actif : s'il est connecté, clé et niveaux s'il ne les a pas eus, puis
    recherche de la preuve dans son inventaire ; si le coffre a disparu sans être ouvert, il
    est reposé et l'événement noté ;
 3. pas de coffre actif : le suivant de la file est posé, 10 secondes au moins après
@@ -70,7 +70,7 @@ class Orchestrateur:
     async def _surveiller(self, actif, vient_de_se_connecter: bool) -> None:
         if self.en_ligne:
             if not actif.niveaux_donnes:
-                await self.coffre.donner_niveaux()
+                await self.coffre.equiper()
                 self.depot.marquer_niveaux_donnes(actif.id)
             if await self.coffre.preuve_trouvee(actif):
                 quand = self.horloge()
@@ -108,9 +108,10 @@ class Orchestrateur:
         await self.coffre.poser(suivant)
         self.depot.marquer_pose(suivant.id, self.horloge())
         if self.en_ligne:
-            await self.coffre.annoncer(suivant)
-            await self.coffre.donner_niveaux()
+            # La clé d'abord : le mode d'emploi de l'annonce en parle.
+            await self.coffre.equiper()
             self.depot.marquer_niveaux_donnes(suivant.id)
+            await self.coffre.annoncer(suivant)
         await self.notificateur.notifier(
             f"Coffre n°{suivant.id} posé : {suivant.exercice.enonce} "
             f"(réponse {suivant.exercice.reponse})."

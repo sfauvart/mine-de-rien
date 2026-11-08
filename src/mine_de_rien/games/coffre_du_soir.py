@@ -13,11 +13,22 @@ enclume (voir `atelier.py`) :
         minecraft:custom_data={mdr_coffre:12}]
     setblock P minecraft:oak_sign[rotation=0]{front_text:{messages:[...]},is_waxed:1b}
     setblock E minecraft:anvil[facing=east]      # enclume neuve, elle s'abîme à l'usage
+    give <pseudo> minecraft:trial_key[minecraft:item_name="Clé du coffre",
+        minecraft:lore=[...],minecraft:custom_data={mdr_cle:1b}] 1
     xp add <pseudo> 3 levels
     execute at <pseudo> run playsound minecraft:block.bell.use master <pseudo> ~ ~ ~ 1 1
 
 Le verrou est posé avant d'y mettre la récompense : à aucun moment le coffre n'est ouvert
 avec quelque chose dedans.
+
+**La clé** : une clé (`trial_key`) dont la description explique les gestes, donnée avec les
+niveaux si l'enfant n'en a plus une sur lui. C'est elle qu'il renomme : il n'a pas à deviner
+quel objet poser sur l'enclume. Elle sert d'un coffre à l'autre, renommée à chaque fois
+(un simple renommage coûte toujours un niveau, pas plus). N'importe quel autre objet renommé
+ouvre aussi le coffre : le verrou ne regarde que le nom. Le mode d'emploi est répété dans le
+chat à chaque annonce et à chaque rappel, car l'enclume ne s'explique pas d'elle-même : le
+champ du nom reste grisé tant que rien n'est posé à gauche, et il n'y a pas de bouton pour
+valider, on clique sur le résultat pour le prendre.
 
 **Détection**, toutes les 3 secondes quand l'enfant est connecté :
 
@@ -90,6 +101,37 @@ def _snbt(chaine: str) -> str:
 
 def predicat_preuve(numero: int) -> str:
     return f"minecraft:paper[minecraft:custom_data={{mdr_coffre:{numero}}}]"
+
+
+CLE = "minecraft:trial_key"
+NOM_CLE = "Clé du coffre"
+MODE_EMPLOI_CLE = (
+    "1. Pose-moi à gauche sur l'enclume",
+    "2. Remplace mon nom par la réponse",
+    "3. Clique sur moi à droite",
+    "4. Tiens-moi en main, ouvre le coffre",
+)
+MODE_EMPLOI = (
+    "Pour l'ouvrir : pose ta clé à gauche sur l'enclume, remplace son nom par la réponse "
+    "du panneau, clique sur la clé renommée à droite pour la prendre, puis ouvre le coffre "
+    "en la tenant en main."
+)
+
+
+def predicat_cle() -> str:
+    return f"{CLE}[minecraft:custom_data={{mdr_cle:1b}}]"
+
+
+def commande_cle(pseudo: str) -> str:
+    """`give` d'une clé neuve, avec son mode d'emploi dans sa description."""
+    lore = ",".join(
+        json.dumps({"text": ligne, "italic": False, "color": "gray"}, ensure_ascii=False)
+        for ligne in MODE_EMPLOI_CLE
+    )
+    return (
+        f"give {texte.verifier_pseudo(pseudo)} {CLE}[minecraft:item_name={_snbt(NOM_CLE)},"
+        f"minecraft:lore=[{lore}],minecraft:custom_data={{mdr_cle:1b}}] 1"
+    )
 
 
 def formater_duree(duree: timedelta | None) -> str:
@@ -185,23 +227,37 @@ class CoffreDuSoir:
             raise ErreurCoffre(f"le coffre n°{s.id} n'a pas été posé correctement")
 
     async def annoncer(self, s: ExerciceStocke) -> None:
-        """Message, cloche et niveaux offerts : l'enfant doit être connecté."""
+        """Message, mode d'emploi et cloche : l'enfant doit être connecté."""
         await self.jeu.dire(
             self.pseudo, "Un nouveau coffre est apparu à l'atelier !", color="gold"
         )
+        await self.jeu.dire(self.pseudo, MODE_EMPLOI, color="gray")
         await self.jeu.commande(
             f"execute at {self.pseudo} run playsound minecraft:block.bell.use master "
             f"{self.pseudo} ~ ~ ~ 1 1"
         )
 
-    async def donner_niveaux(self) -> None:
+    async def a_une_cle(self) -> bool:
+        reponse = await self.jeu.commande(f"clear {self.pseudo} {predicat_cle()} 0")
+        return reponse.strip().startswith("Found")
+
+    async def donner_cle(self) -> None:
+        """Une clé seulement s'il n'en a plus : elle sert d'un coffre à l'autre."""
+        if not await self.a_une_cle():
+            await self._executer([commande_cle(self.pseudo)])
+
+    async def equiper(self) -> None:
+        """Pour un nouveau coffre : la clé s'il n'en a plus, et les niveaux offerts."""
+        await self.donner_cle()
         if self.niveaux_offerts:
             await self.jeu.commande(f"xp add {self.pseudo} {self.niveaux_offerts} levels")
 
     async def rappeler(self, s: ExerciceStocke) -> None:
+        await self.donner_cle()
         await self.jeu.dire(
             self.pseudo, f"Un coffre t'attend à l'atelier : {s.exercice.enonce}", color="gold"
         )
+        await self.jeu.dire(self.pseudo, MODE_EMPLOI, color="gray")
 
     async def demander_de_vider(self) -> None:
         await self.jeu.dire(

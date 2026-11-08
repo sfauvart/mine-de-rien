@@ -171,8 +171,10 @@ Depuis le téléphone d'un parent :
 ```
 
 Les deux parents reçoivent « Coffre n°1 posé ». Dans le jeu, l'enfant entend une cloche et
-lit le message ; à l'atelier, le panneau porte l'énoncé. Il renomme un objet « 29 » sur
-l'enclume, le tient en main et ouvre le coffre. Les parents reçoivent « Coffre n°1 ouvert ».
+lit le message ; à l'atelier, le panneau porte l'énoncé. Il a reçu une « Clé du coffre »
+dont la description, comme le message du chat, explique les gestes : poser la clé à gauche
+sur l'enclume, remplacer son nom par « 29 », cliquer sur la clé renommée à droite pour la
+prendre, puis ouvrir le coffre en la tenant en main. Les parents reçoivent « Coffre n°1 ouvert ».
 
 Commandes des parents :
 
