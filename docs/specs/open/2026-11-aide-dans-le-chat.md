@@ -122,7 +122,7 @@ chaque demande, sans jamais la réponse ; les parents lisent « ouvert en 12 min
 **Branche** : `feat/aide-dans-le-chat`, créée le 2026-11-08 depuis `main`.
 
 - [x] **Phase 1 : Lire le chat**
-- [ ] **Phase 2 : Les indices par paliers**
+- [x] **Phase 2 : Les indices par paliers**
 - [ ] **Phase 3 : Pixel répond dans le chat**
 - [ ] **Phase 4 : Les parents voient les indices**
 
