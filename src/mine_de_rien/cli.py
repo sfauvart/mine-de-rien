@@ -12,6 +12,8 @@ from mine_de_rien import __version__
 from mine_de_rien.adapters.channel.telegram import Telegram
 from mine_de_rien.adapters.game.java_rcon import JavaRcon
 from mine_de_rien.adapters.game.rcon import ErreurRcon
+from mine_de_rien.adapters.llm import creer as creer_llm
+from mine_de_rien.adapters.llm.base import ErreurLlm
 from mine_de_rien.config import Config, charger_config
 from mine_de_rien.games import atelier
 from mine_de_rien.games.coffre_du_soir import CoffreDuSoir, NotificateurConsole
@@ -59,6 +61,12 @@ async def _atelier(config: Config) -> str:
         return await atelier.construire(jeu, a)
     finally:
         await jeu.fermer()
+
+
+async def _llm(config: Config, consigne: str, image: Path | None) -> str:
+    llm = creer_llm(config.llm)
+    octets = image.read_bytes() if image is not None else None
+    return await llm.completer("Tu réponds en français.", consigne, octets)
 
 
 async def _lancer(config: Config) -> None:
@@ -112,6 +120,9 @@ def main(argv: list[str] | None = None) -> int:
     coffre = sous.add_parser("coffre", help="met un exercice dans la file des coffres")
     coffre.add_argument("texte", help="un calcul (« 348 ÷ 12 ») ou une compétence (« division 2 »)")
     sous.add_parser("lancer", help="surveille l'atelier et pose les coffres de la file")
+    llm = sous.add_parser("llm", help="pose une question au LLM configuré, pour l'essayer")
+    llm.add_argument("consigne")
+    llm.add_argument("--image", type=Path, help="photo JPEG jointe à la question")
     args = parser.parse_args(argv)
 
     config = charger_config(args.config)
@@ -141,6 +152,14 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         finally:
             depot.fermer()
+        return 0
+
+    if args.action == "llm":
+        try:
+            print(asyncio.run(_llm(config, args.consigne, args.image)))
+        except (ErreurLlm, ValueError, OSError) as e:
+            print(f"Erreur : {e}", file=sys.stderr)
+            return 1
         return 0
 
     if args.action == "lancer":

@@ -108,7 +108,7 @@ et les 5 coffres partent dans la file.
 
 **Branche** : `feat/photo-du-cahier`, pas encore créée, `/next` l'ouvre à la première phase.
 
-- [ ] **Phase 1 : Parler au LLM local**
+- [x] **Phase 1 : Parler au LLM local**
 - [ ] **Phase 2 : Le vocabulaire anglais**
 - [ ] **Phase 3 : Lire une photo**
 - [ ] **Phase 4 : La photo depuis Telegram**
