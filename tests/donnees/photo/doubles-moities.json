@@ -1,0 +1,330 @@
+[
+ {
+  "lignes": [
+   {
+    "genre": "mot",
+    "texte": "Je m'orise Les doubles"
+   },
+   {
+    "genre": "mot",
+    "texte": "► Partie 1"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 1"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 2"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 3"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 4"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 5"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 6"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 7"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 8"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 9"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 10"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 11"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 12"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 13"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 14"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 15"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 16"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 17"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 18"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 19"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 20"
+   },
+   {
+    "genre": "mot",
+    "texte": "► Partie 2"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 20"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 25"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 30"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 35"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 40"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 45"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 50"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 60"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 75"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 100"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 150"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 200"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 250"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 300"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 400"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 500"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 600"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 1 000"
+   }
+  ]
+ },
+ {
+  "lignes": [
+   {
+    "genre": "mot",
+    "texte": "Je mérise"
+   },
+   {
+    "genre": "mot",
+    "texte": "Les moitiés"
+   },
+   {
+    "genre": "mot",
+    "texte": "Partie 1"
+   },
+   {
+    "genre": "mot",
+    "texte": "Partie 2"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 2"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 4"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 6"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 8"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 10"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 12"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 14"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 16"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 18"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 20"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 22"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 24"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 26"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 28"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 30"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 32"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 34"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 36"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 38"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 40"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 50"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 60"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 70"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 80"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 90"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 100"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 120"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 150"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 200"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 300"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 400"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 500"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 600"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 1 000"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 1 200"
+   }
+  ]
+ }
+]

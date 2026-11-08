@@ -1,0 +1,66 @@
+[
+ {
+  "lignes": [
+   {
+    "genre": "mot",
+    "texte": "Problèmes additifs"
+   },
+   {
+    "genre": "mot",
+    "texte": "Stratégie 2 Je cherche une partie d'un tout."
+   },
+   {
+    "genre": "mot",
+    "texte": "Cas 1 Je connais le tout et une partie je cherche une partie manquante."
+   },
+   {
+    "genre": "mot",
+    "texte": "Je paie 799 à la caisse pour un ordinateur à 760 €"
+   },
+   {
+    "genre": "mot",
+    "texte": "et une souris."
+   },
+   {
+    "genre": "calcul",
+    "texte": "799 - 760"
+   },
+   {
+    "genre": "mot",
+    "texte": "Je fais une soustraction :"
+   },
+   {
+    "genre": "mot",
+    "texte": "La souris coûte 39."
+   },
+   {
+    "genre": "mot",
+    "texte": "Cas 2 Je cherche ce qu'il reste après une dépense, une perte."
+   },
+   {
+    "genre": "mot",
+    "texte": "Les cheveux de la petite fille mesuraient 75,5 cm."
+   },
+   {
+    "genre": "mot",
+    "texte": "En coupant, ils mesurent 50."
+   },
+   {
+    "genre": "mot",
+    "texte": "Quelle longueur de cheveux a-t-il coupé ?"
+   },
+   {
+    "genre": "calcul",
+    "texte": "75,5 - 50"
+   },
+   {
+    "genre": "mot",
+    "texte": "Je fais une soustraction :"
+   },
+   {
+    "genre": "mot",
+    "texte": "Le coiffeur a coupé 25,5."
+   }
+  ]
+ }
+]

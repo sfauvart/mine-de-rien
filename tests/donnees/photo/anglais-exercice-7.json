@@ -1,0 +1,86 @@
+[
+ {
+  "lignes": [
+   {
+    "genre": "mot",
+    "texte": "Days & months. What date is today?"
+   },
+   {
+    "genre": "mot",
+    "texte": "Wednesday"
+   },
+   {
+    "genre": "mot",
+    "texte": "Saturday"
+   },
+   {
+    "genre": "mot",
+    "texte": "Monday"
+   },
+   {
+    "genre": "mot",
+    "texte": "Tuesday"
+   },
+   {
+    "genre": "mot",
+    "texte": "Friday"
+   },
+   {
+    "genre": "mot",
+    "texte": "Sunday"
+   },
+   {
+    "genre": "mot",
+    "texte": "Thursday"
+   },
+   {
+    "genre": "mot",
+    "texte": "March"
+   },
+   {
+    "genre": "mot",
+    "texte": "November"
+   },
+   {
+    "genre": "mot",
+    "texte": "July"
+   },
+   {
+    "genre": "mot",
+    "texte": "January"
+   },
+   {
+    "genre": "mot",
+    "texte": "August"
+   },
+   {
+    "genre": "mot",
+    "texte": "December"
+   },
+   {
+    "genre": "mot",
+    "texte": "October"
+   },
+   {
+    "genre": "mot",
+    "texte": "June"
+   },
+   {
+    "genre": "mot",
+    "texte": "April"
+   },
+   {
+    "genre": "mot",
+    "texte": "February"
+   },
+   {
+    "genre": "mot",
+    "texte": "May"
+   },
+   {
+    "genre": "mot",
+    "texte": "September"
+   }
+  ]
+ }
+]

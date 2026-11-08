@@ -1,0 +1,502 @@
+[
+ {
+  "lignes": [
+   {
+    "genre": "mot",
+    "texte": "Je mémorise"
+   },
+   {
+    "genre": "mot",
+    "texte": "Les doubles"
+   },
+   {
+    "genre": "mot",
+    "texte": "Je mémorise"
+   },
+   {
+    "genre": "mot",
+    "texte": "Les moitiés"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 1"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 2"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 3"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 4"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 5"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 6"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 7"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 8"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 9"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 10"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 11"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 12"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 13"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 14"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 15"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 16"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 17"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 18"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 19"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 20"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 21"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 22"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 23"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 24"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 25"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 26"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 27"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 28"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 29"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 30"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 1"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 2"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 3"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 4"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 5"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 6"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 7"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 8"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 9"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 10"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 11"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 12"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 13"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 14"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 15"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 16"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 17"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 18"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 19"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 20"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 21"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 22"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 23"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 24"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 25"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 26"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 27"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 28"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 29"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Double de 30"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 1"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 2"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 3"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 4"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 5"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 6"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 7"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 8"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 9"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 10"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 11"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 12"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 13"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 14"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 15"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 16"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 17"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 18"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 19"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 20"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 21"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 22"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 23"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 24"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 25"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 26"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 27"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 28"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 29"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 30"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 1"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 2"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 3"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 4"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 5"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 6"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 7"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 8"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 9"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 10"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 11"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 12"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 13"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 14"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 15"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 16"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 17"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 18"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 19"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 20"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 21"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 22"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 23"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 24"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 25"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 26"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 27"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 28"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 29"
+   },
+   {
+    "genre": "calcul",
+    "texte": "Moitié de 30"
+   }
+  ]
+ }
+]
