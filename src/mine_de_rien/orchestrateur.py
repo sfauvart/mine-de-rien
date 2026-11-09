@@ -8,15 +8,15 @@ Toutes les 3 secondes :
 3. pas de coffre actif : le suivant de la file est posé, 10 secondes au moins après
    l'ouverture du précédent, et seulement quand le coffre est vide.
 
-Si l'atelier attendu n'est pas celui de ce monde, aucun coffre n'est posé, et l'enfant n'est
-pas envoyé vers un coffre inaccessible : les parents sont prévenus une fois par problème
-différent, et la boucle réessaie à chaque tour.
+La position de l'atelier est relue dans le monde à chaque tour. S'il n'y en a pas, aucun coffre
+n'est posé, et l'enfant n'est pas envoyé vers un coffre inaccessible : les parents sont prévenus
+une fois, et la boucle réessaie à chaque tour.
 
 La boucle ne s'arrête pas sur une erreur du serveur (redémarrage, RCON coupé) : elle la
 signale et réessaie au tour suivant.
 
-Les commandes des parents (`/coffre`, `/file`, `/annuler`, `/rapport`, une photo de fiche
-puis `/oui` ou `/non`) arrivent par un canal ; `CommandesParents` les traite,
+Les commandes des parents (`/atelier`, `/coffre`, `/file`, `/annuler`, `/rapport`, une photo de
+fiche puis `/oui` ou `/non`) arrivent par un canal ; `CommandesParents` les traite,
 indépendamment de Telegram.
 """
 
@@ -36,6 +36,7 @@ from mine_de_rien.adapters.game.rcon import ErreurRcon
 from mine_de_rien.adapters.llm.base import ErreurLlm, Llm
 from mine_de_rien.config import Coffre as ConfigCoffre
 from mine_de_rien.exercises.base import Exercice
+from mine_de_rien.games.atelier import ErreurAtelier
 from mine_de_rien.games.coffre_du_soir import (
     AtelierAbsent,
     CoffreDuSoir,
@@ -43,6 +44,7 @@ from mine_de_rien.games.coffre_du_soir import (
     Notificateur,
     formater_duree,
 )
+from mine_de_rien.games.emplacement import construire_pres_de, deplacer_pres_de
 from mine_de_rien.games.pixel import EVENEMENT_INDICE
 from mine_de_rien.rapport import nombre_indices, rapport
 from mine_de_rien.saisie import NOMBRE_MAX, ErreurSaisie, interpreter
@@ -71,9 +73,14 @@ class Orchestrateur:
         self._atelier_signale: str | None = None
 
     async def tour(self) -> None:
+        async with self.coffre.verrou:
+            await self._tour()
+
+    async def _tour(self) -> None:
         en_ligne = await self.coffre.joueur_en_ligne()
         vient_de_se_connecter = en_ligne and not self.en_ligne
         self.en_ligne = en_ligne
+        await self.coffre.actualiser_atelier()
 
         actif = self.depot.actif()
         try:
@@ -104,7 +111,7 @@ class Orchestrateur:
                     f"({actif.exercice.enonce} → {actif.exercice.reponse})."
                 )
                 return
-        await self.coffre.verifier_atelier()
+        self.coffre.verifier_atelier()
         if not await self.coffre.coffre_present():
             await self.coffre.poser(actif)
             self.depot.noter("coffre_disparu", actif.id, self.horloge())
@@ -120,7 +127,7 @@ class Orchestrateur:
         if suivant is None:
             return
         # Avant d'attendre le coffre vide : celui d'un autre monde ne le sera jamais.
-        await self.coffre.verifier_atelier()
+        self.coffre.verifier_atelier()
         dernier = self.depot.dernier_ouvert()
         if dernier is not None and self.horloge() - dernier.ouvert_le < DELAI_SUIVANT:
             return
@@ -180,6 +187,7 @@ NOMBRE_PHOTO = 3
 DUREE_ATTENTE = timedelta(minutes=30)
 _LEGENDE = re.compile(r"\s*(\d+)?\s*(.*)", re.DOTALL)
 LECTURE_EN_COURS = "Je lis la photo… (jusqu'à deux minutes)"
+RECHERCHE_EN_COURS = "Je cherche un emplacement près de l'enfant…"
 RAPPEL_FIDELITE = (
     "Compare cette liste à la fiche : si elle ne correspond pas, réponds /non et renvoie la "
     "photo à l'endroit."
@@ -194,6 +202,7 @@ class LectureEnAttente:
 
 AIDE = (
     "Commandes :\n"
+    "/atelier : construit l'atelier près de l'enfant connecté, ou l'y déplace\n"
     "/coffre 348 ÷ 12 : un calcul recopié du cahier\n"
     "/coffre division 3 : trois exercices d'une compétence (division, anglais)\n"
     "Photo d'une fiche, « 5 » en légende : cinq exercices tirés au hasard, "
@@ -203,6 +212,12 @@ AIDE = (
     "/annuler tout : retire le coffre actif et vide la file\n"
     "/rapport : les 7 derniers jours"
 )
+
+
+def _commande(texte: str) -> tuple[str, str]:
+    """La commande en minuscules et son argument (« /coffre@MonBot 12 » dans certains clients)."""
+    commande, _, argument = texte.strip().partition(" ")
+    return commande.split("@", 1)[0].lower(), argument.strip()
 
 
 class CommandesParents:
@@ -236,6 +251,8 @@ class CommandesParents:
             and not self.llm.distant
         ):
             return LECTURE_EN_COURS
+        if message.expediteur in self.parents and _commande(message.texte)[0] == "/atelier":
+            return RECHERCHE_EN_COURS
         return None
 
     async def traiter(self, message: MessageParent) -> str | None:
@@ -243,10 +260,9 @@ class CommandesParents:
             return None
         if message.image is not None:
             return await self._photo(message)
-        commande, _, argument = message.texte.strip().partition(" ")
-        # « /coffre@MonBot 12 x 7 » dans certains clients Telegram.
-        commande = commande.split("@", 1)[0].lower()
-        argument = argument.strip()
+        commande, argument = _commande(message.texte)
+        if commande == "/atelier":
+            return await self._atelier()
         if commande == "/coffre":
             try:
                 lignes = mettre_en_file(
@@ -268,6 +284,40 @@ class CommandesParents:
                 return "Aucune lecture de photo en attente."
             return "Abandonné : rien n'a été mis en file."
         return AIDE
+
+    async def _atelier(self) -> str:
+        if self.coffre is None:
+            return "Aucun serveur Minecraft configuré."
+        async with self.coffre.verrou:
+            await self.coffre.actualiser_atelier()
+            ancien = self.coffre.atelier
+            try:
+                if ancien is None:
+                    c = await construire_pres_de(self.coffre.jeu, self.coffre.pseudo)
+                else:
+                    refus = await self._refus_de_deplacer()
+                    if refus:
+                        return refus
+                    c = await deplacer_pres_de(self.coffre.jeu, self.coffre.pseudo, ancien)
+            except ErreurAtelier as e:
+                return str(e)
+        x, y, z = c.atelier.coffre
+        verbe = "construit" if ancien is None else "déplacé"
+        return f"Atelier {verbe} en {x} {y} {z}, à {c.distance} blocs de l'enfant."
+
+    async def _refus_de_deplacer(self) -> str | None:
+        actif = self.depot.actif()
+        if actif is not None:
+            return (
+                f"Le coffre n°{actif.id} est en cours : l'annuler avec /annuler {actif.id}, "
+                "ou attendre qu'il soit ouvert, puis relancer /atelier."
+            )
+        if not await self.coffre.coffre_vide():
+            return (
+                "Le coffre de l'atelier contient encore des objets : l'enfant doit le vider, "
+                "puis relancer /atelier."
+            )
+        return None
 
     async def _photo(self, message: MessageParent) -> str:
         if self.llm is None:

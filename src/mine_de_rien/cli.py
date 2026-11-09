@@ -39,7 +39,9 @@ def _depot(config: Config) -> Depot:
 
 def _atelier_config(config: Config) -> atelier.Atelier:
     if config.atelier is None:
-        raise atelier.ErreurAtelier("Section [atelier] absente de la configuration.")
+        raise atelier.ErreurAtelier(
+            "Section [atelier] absente de config.toml. Sans coordonnées : /atelier sur Telegram."
+        )
     a = config.atelier
     return atelier.Atelier(a.x, a.y, a.z)
 
@@ -91,16 +93,11 @@ async def _lire_photo(config: Config, image: Path, consigne: str, nombre: int) -
 async def _lancer(config: Config) -> None:
     jeu = _jeu(config)
     depot = _depot(config)
-    coffre = None
-    pixel_actif = config.assistant.actif and bool(config.jeu.log) and config.atelier is not None
-    if config.atelier is not None:
-        coffre = CoffreDuSoir(
-            jeu, _atelier_config(config), config.enfant.pseudo_minecraft,
-            config.coffre.niveaux_offerts,
-            assistant=config.assistant.nom if pixel_actif else None,
-        )
-    else:
-        print("Pas de section [atelier] : aucun coffre ne sera posé (docs/installation.md).")
+    pixel_actif = config.assistant.actif and bool(config.jeu.log)
+    coffre = CoffreDuSoir(
+        jeu, config.enfant.pseudo_minecraft, config.coffre.niveaux_offerts,
+        assistant=config.assistant.nom if pixel_actif else None,
+    )
     print(f"Surveillance de l'atelier, coffres dans {config.stockage.sqlite}. Ctrl+C pour arrêter.")
     canal = None
     if config.canal.jeton:
@@ -116,15 +113,10 @@ async def _lancer(config: Config) -> None:
     except ValueError as e:
         print(f"LLM désactivé (photos, Pixel en mots-clés) : {e}", file=sys.stderr)
         llm = None
-    taches = []
-    if coffre is not None:
-        notificateur = NotificateurConsole() if canal is None else NotificateurCanal(canal)
-        taches.append(Orchestrateur(depot, coffre, notificateur).tourner())
+    notificateur = NotificateurConsole() if canal is None else NotificateurCanal(canal)
+    taches = [Orchestrateur(depot, coffre, notificateur).tourner()]
     if pixel_actif:
-        pixel = Pixel(
-            jeu, depot, _atelier_config(config), config.enfant.pseudo_minecraft,
-            config.assistant.nom, llm,
-        )
+        pixel = Pixel(jeu, depot, config.enfant.pseudo_minecraft, config.assistant.nom, llm)
         mode = "LLM local" if pixel.llm is not None else "mots-clés"
         print(f"{config.assistant.nom} écoute le chat ({mode}).")
         taches.append(pixel.ecouter())
@@ -134,8 +126,6 @@ async def _lancer(config: Config) -> None:
         )
         taches.append(servir(canal, commandes))
     try:
-        if not taches:
-            raise atelier.ErreurAtelier("ni atelier ni jeton Telegram : rien à faire.")
         await asyncio.gather(*taches)
     finally:
         if canal is not None:
@@ -244,9 +234,6 @@ def main(argv: list[str] | None = None) -> int:
             asyncio.run(_lancer(config))
         except KeyboardInterrupt:
             pass
-        except atelier.ErreurAtelier as e:
-            print(f"Erreur : {e}", file=sys.stderr)
-            return 1
         return 0
 
     print(

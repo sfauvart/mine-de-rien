@@ -96,7 +96,7 @@ def _poser(depot: Depot, texte: str = "Double de 17") -> int:
 def _pixel(depot, llm=None, jeu=None, horloge=None):
     jeu = jeu or FauxJeu()
     temps = horloge or [DEBUT + timedelta(minutes=1)]
-    return Pixel(jeu, depot, ATELIER, PSEUDO, "Pixel", llm, lambda: temps[0]), jeu, temps
+    return Pixel(jeu, depot, PSEUDO, "Pixel", llm, lambda: temps[0]), jeu, temps
 
 
 def _dit(pixel, texte: str, joueur: str = PSEUDO) -> None:
@@ -169,11 +169,17 @@ def test_teleportation_sans_coffre_refusee(depot):
     assert jeu.commandes == [] and "Pas de coffre" in jeu.dits[-1]
 
 
-@pytest.mark.parametrize("atelier", [None, (0, -60, 8)], ids=["jamais-construit", "ailleurs"])
-def test_teleportation_refusee_sans_atelier_construit_ici(depot, atelier):
-    """Nouveau monde, `mine-de-rien atelier` pas lancé : le bloc d'arrivée peut être de la roche."""
+def test_teleportation_vers_la_position_du_monde(depot):
+    _poser(depot)
+    pixel, jeu, _ = _pixel(depot, None, FauxJeu(atelier=(0, -60, 8)))
+    _dit(pixel, "Pixel, ramène-moi au coffre")
+    assert jeu.commandes == [commande_teleportation(Atelier(0, -60, 8), PSEUDO)]
+
+
+def test_teleportation_refusee_sans_atelier_dans_le_monde(depot):
+    """Nouveau monde, atelier jamais construit : le bloc d'arrivée peut être de la roche."""
     ident = _poser(depot)
-    pixel, jeu, _ = _pixel(depot, None, FauxJeu(atelier=atelier))
+    pixel, jeu, _ = _pixel(depot, None, FauxJeu(atelier=None))
     _dit(pixel, "Pixel, ramène-moi au coffre")
     assert jeu.commandes == []
     assert "pas encore construit" in jeu.dits[-1]
@@ -303,7 +309,7 @@ def test_l_annonce_presente_pixel():
     jeu = FauxJeu()
 
     async def scenario(assistant):
-        coffre = CoffreDuSoir(jeu, ATELIER, PSEUDO, assistant=assistant)
+        coffre = CoffreDuSoir(jeu, PSEUDO, assistant=assistant)
         await coffre.annoncer(type("S", (), {"id": 1})())
 
     asyncio.run(scenario("Pixel"))

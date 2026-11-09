@@ -18,9 +18,8 @@ enclume (voir `atelier.py`) :
     xp add <pseudo> 3 levels
     execute at <pseudo> run playsound minecraft:block.bell.use master <pseudo> ~ ~ ~ 1 1
 
-Avant chaque pose, l'agent vérifie que l'atelier a été construit dans ce monde
-(`atelier.probleme_atelier`) ; sinon il refuse avec `AtelierAbsent`, sans rien poser : un coffre
-posé aux coordonnées d'un autre monde finirait dans la roche, et Pixel y emmurerait l'enfant.
+L'atelier est relu dans le monde à chaque tour de surveillance (`actualiser_atelier`). S'il
+n'y en a pas, tout ce qui a besoin de sa position refuse avec `AtelierAbsent`, sans rien poser.
 
 Le verrou est posé avant d'y mettre la récompense : à aucun moment le coffre n'est ouvert
 avec quelque chose dedans.
@@ -65,13 +64,14 @@ reposé. Jamais le pseudo de l'enfant.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from datetime import timedelta
 from typing import Protocol
 
 from mine_de_rien.adapters.game.base import AdaptateurJeu
-from mine_de_rien.games.atelier import Atelier, probleme_atelier
+from mine_de_rien.games.atelier import PAS_CONSTRUIT, Atelier, lire_atelier
 from mine_de_rien.minecraft import texte
 from mine_de_rien.storage.sqlite import ExerciceStocke
 
@@ -83,7 +83,7 @@ class ErreurCoffre(RuntimeError):
 
 
 class AtelierAbsent(ErreurCoffre):
-    """L'atelier attendu n'est pas celui de ce monde ; le message va aux parents."""
+    """Ce monde n'a pas d'atelier ; le message va aux parents."""
 
 
 class Notificateur(Protocol):
@@ -202,13 +202,15 @@ class CoffreDuSoir:
     def __init__(
         self,
         jeu: AdaptateurJeu,
-        atelier: Atelier,
         pseudo: str,
         niveaux_offerts: int = 3,
         assistant: str | None = None,
     ) -> None:
         self.jeu = jeu
-        self.atelier = atelier
+        self.atelier: Atelier | None = None
+        # Tenu pendant un tour de surveillance et pendant /atelier : pas de pose en plein
+        # déplacement.
+        self.verrou = asyncio.Lock()
         self.pseudo = texte.verifier_pseudo(pseudo)
         self.niveaux_offerts = niveaux_offerts
         # Nom de Pixel s'il écoute le chat : le mode d'emploi dit qu'on peut l'appeler.
@@ -240,15 +242,19 @@ class CoffreDuSoir:
         noms = {nom.strip() for nom in reponse.rsplit(":", 1)[1].split(",")}
         return self.pseudo in noms
 
-    async def verifier_atelier(self) -> None:
-        probleme = await probleme_atelier(self.jeu, self.atelier)
-        if probleme:
-            raise AtelierAbsent(probleme)
+    async def actualiser_atelier(self) -> None:
+        """Relit la position dans le monde : elle peut changer pendant que l'agent tourne."""
+        self.atelier = await lire_atelier(self.jeu)
+
+    def verifier_atelier(self) -> Atelier:
+        if self.atelier is None:
+            raise AtelierAbsent(PAS_CONSTRUIT)
+        return self.atelier
 
     async def poser(self, s: ExerciceStocke) -> None:
-        await self.verifier_atelier()
-        await self._executer(commandes_pose(self.atelier, s))
-        c = _pos(self.atelier.coffre)
+        a = self.verifier_atelier()
+        await self._executer(commandes_pose(a, s))
+        c = _pos(a.coffre)
         if not (
             await self._teste(f"execute if data block {c} lock")
             and await self._teste(
@@ -302,16 +308,18 @@ class CoffreDuSoir:
         return reponse.strip().startswith("Found")
 
     async def coffre_present(self) -> bool:
-        return await self._teste(f"execute if block {_pos(self.atelier.coffre)} minecraft:chest")
+        c = _pos(self.verifier_atelier().coffre)
+        return await self._teste(f"execute if block {c} minecraft:chest")
 
     async def coffre_vide(self) -> bool:
-        c = _pos(self.atelier.coffre)
+        c = _pos(self.verifier_atelier().coffre)
         if not await self.coffre_present():
             return True
         return not await self._teste(f"execute if data block {c} Items[0]")
 
     async def ranger(self, s: ExerciceStocke) -> None:
-        await self._executer(commandes_rangement(self.atelier, self.pseudo, s.id))
+        await self._executer(commandes_rangement(self.verifier_atelier(), self.pseudo, s.id))
 
     async def retirer(self) -> None:
-        await self._executer(commandes_retrait(self.atelier))
+        await self.actualiser_atelier()  # appelé depuis /annuler, hors de la boucle
+        await self._executer(commandes_retrait(self.verifier_atelier()))

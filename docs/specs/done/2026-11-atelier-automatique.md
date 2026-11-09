@@ -71,20 +71,23 @@ Minecraft, et aucun LLM n'intervient. Telegram reçoit les coordonnées de l'ate
 
 ## Statut
 
-**Branche** : `feat/atelier-automatique`, pas encore créée, `/next` l'ouvre à la première phase.
+**Branche** : `feat/atelier-automatique`.
 
-- [ ] **Phase 1 : Le monde fait foi**
-- [ ] **Phase 2 : Trouver un emplacement**
-- [ ] **Phase 3 : /atelier sur Telegram**
-- [ ] **Phase 4 : Déplacer l'atelier**
+- [x] **Phase 1 : Le monde fait foi**
+- [x] **Phase 2 : Trouver un emplacement**
+- [x] **Phase 3 : /atelier sur Telegram**
+- [x] **Phase 4 : Déplacer l'atelier**
+
+Close le 2026-11-09.
 
 Chaque phase dépend de la précédente. La phase 1 est utile seule : elle supprime le blocage après
 un changement de coordonnées.
 
 ## Conception
 
-Toutes les commandes Minecraft de cette spec sont **à vérifier sur la version du serveur**
-(Paper 26.3 à ce jour) tant que `/essai-en-jeu` ne les a pas exécutées.
+Les commandes de cette spec ont été exécutées sur Paper 26.3 avec `/essai-en-jeu`. Sans joueur
+sur le serveur d'essai, `data get entity <pseudo> Pos` et le sélecteur `@a[name=…,distance=0..]`
+n'ont été vérifiés que sur un marqueur : le test en jeu de la phase 3 les confirme avec un joueur.
 
 ### Phase 1 : Le monde fait foi
 
@@ -129,7 +132,8 @@ environ 125 tests de blocs en 32 ms.
 **Fichiers.** `src/mine_de_rien/games/emplacement.py` (nouveau), `tests/test_emplacement.py`
 (nouveau).
 
-**Conception.** Fonction `chercher(jeu, x, y, z) -> Atelier | None`, sans rien construire :
+**Conception.** Fonction `chercher(jeu, x, y, z) -> Atelier | None`, sans rien construire
+(commandes vérifiées sur Paper 26.3) :
 
 ```
 summon minecraft:marker <x> <y> <z> {Tags:["mdr_sonde"]}
@@ -147,8 +151,8 @@ kill @e[type=minecraft:marker,tag=mdr_sonde]
   écartés par les listes `LIBRE` et `SOL` existantes.
 - Un chunk non chargé (« not loaded ») écarte le centre : autour d'un joueur connecté la zone est
   chargée, la recherche n'a donc pas besoin de `forceload`.
-- Si la sonde n'est plus trouvée après un `tp` vers un chunk non chargé, remplacer par
-  `summon` + `data get entity … Pos` + `kill` à chaque colonne.
+- Vers un chunk non chargé, le serveur répond « That position is not loaded » et la sonde ne
+  bouge pas. Pire cas mesuré à l'essai (aucun centre valide) : 1 seconde.
 
 **Vérification automatique.**
 - `uv run pytest` : monde simulé avec plat, bosses d'un bloc, eau, arbre, construction, zone trop
@@ -167,8 +171,9 @@ position en dernier : la boucle de surveillance ne voit donc pas d'atelier à mo
 (étape 7 réécrite), `config.example.toml`, `README.md`, `tests/test_orchestrateur.py`.
 
 **Conception.**
-- Position et dimension de l'enfant :
-  `data get entity <pseudo> Pos` et `data get entity <pseudo> Dimension`.
+- Position de l'enfant : `data get entity <pseudo> Pos`. Dimension :
+  `execute in minecraft:overworld if entity @a[name=<pseudo>,distance=0..]`, le champ `Dimension`
+  n'étant pas vérifiable sans joueur connecté, alors que `distance` a été validé sur un marqueur.
 - Si un atelier existe déjà, réponse « déjà construit en X Y Z » (remplacé en phase 4).
 - Sinon : accusé, `chercher`, `construire`, réponse aux parents, ligne dans le chat de l'enfant
   avec la distance et la direction (nord, sud, est, ouest, calculées en Python).
@@ -212,6 +217,9 @@ remet en survie un joueur qui n'est plus dans une zone (`tick.mcfunction`) : ret
    `data remove storage mine_de_rien:atelier pos`.
 4. `construire` au nouvel endroit, qui écrit la position en dernier. En cas d'interruption après
    l'étape 3, le monde n'a plus d'atelier et `/atelier` en reconstruit un.
+
+Un verrou (`CoffreDuSoir.verrou`), tenu pendant chaque tour de surveillance et pendant `/atelier`,
+empêche de poser un coffre à l'ancien endroit en plein déplacement.
 
 Les coffres en file seront posés au nouvel endroit, sans autre geste (phase 1).
 

@@ -52,7 +52,7 @@ class Stockage:
 
 @dataclass
 class Atelier:
-    """Position du coffre au centre de l'atelier, relevée avec F3 près de la base."""
+    """Facultatif : où `mine-de-rien atelier` construit. Ensuite, le monde fait foi."""
 
     x: int
     y: int

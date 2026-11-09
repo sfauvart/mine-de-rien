@@ -31,8 +31,8 @@ erreur, les mots-clés suffisent et l'indice part tel quel.
 
 depuis n'importe quelle dimension : l'enfant arrive au centre du bloc, sur le plancher au sud
 du coffre, face à lui (« Teleported … », ou « No entity was found » s'il est déconnecté).
-Seulement si l'atelier est construit dans ce monde (`atelier.probleme_atelier`) : ailleurs,
-rien ne garantit que ce bloc soit de l'air.
+La position est relue dans le monde (`atelier.lire_atelier`) : sans atelier construit, rien ne
+garantit que ce bloc soit de l'air, et Pixel refuse.
 
 **Rapport.** Chaque indice et chaque téléportation est noté dans `evenements` avec le numéro
 du coffre ; aucun texte du chat n'est gardé.
@@ -62,7 +62,7 @@ from mine_de_rien.adapters.game.rcon import ErreurRcon
 from mine_de_rien.adapters.llm.base import ErreurLlm, Llm, lire_json
 from mine_de_rien.exercises.base import normaliser
 from mine_de_rien.exercises.indices import contient_la_reponse, indices
-from mine_de_rien.games.atelier import Atelier, probleme_atelier
+from mine_de_rien.games.atelier import PAS_CONSTRUIT, Atelier, lire_atelier
 from mine_de_rien.minecraft import texte
 from mine_de_rien.storage.sqlite import Depot, ErreurStockage, maintenant
 
@@ -188,7 +188,6 @@ class Pixel:
         self,
         jeu: AdaptateurJeu,
         depot: Depot,
-        atelier: Atelier,
         pseudo: str,
         nom: str = NOM_DEFAUT,
         llm: Llm | None = None,
@@ -196,7 +195,6 @@ class Pixel:
     ) -> None:
         self.jeu = jeu
         self.depot = depot
-        self.atelier = atelier
         self.pseudo = texte.verifier_pseudo(pseudo)
         self.nom = verifier_nom(nom)
         # Le message de l'enfant ne part jamais vers un LLM distant.
@@ -274,12 +272,12 @@ class Pixel:
         if any(e.genre == EVENEMENT_TELEPORTATION for e in recents):
             await self.dire(PATIENCE)
             return
-        probleme = await probleme_atelier(self.jeu, self.atelier)
-        if probleme:
-            journal.warning("téléportation refusée : %s", probleme)
+        atelier = await lire_atelier(self.jeu)
+        if atelier is None:
+            journal.warning("téléportation refusée : %s", PAS_CONSTRUIT)
             await self.dire(ATELIER_ABSENT)
             return
-        reponse = await self.jeu.commande(commande_teleportation(self.atelier, self.pseudo))
+        reponse = await self.jeu.commande(commande_teleportation(atelier, self.pseudo))
         if not reponse.startswith("Teleported"):
             await self.dire(HORS_LIGNE)
             return

@@ -25,14 +25,20 @@ Le marqueur `mdr_atelier` est lu par le datapack (`datapacks/mine_de_rien`), qui
 aventure les joueurs en survie autour de lui : en aventure, on ne casse pas le coffre et on ne
 pose pas d'entonnoir dessous.
 
+**Déplacement** (`demonter`, appelé par `/atelier`) : coffre, panneau, enclume et lanterne
+laissent place à de l'air, le plancher devient de la terre (le sol d'origine n'est pas connu),
+puis marqueur, `forceload remove` et position enregistrée, en dernier. Interrompu, il laisse
+un monde sans atelier, que `/atelier` sait reconstruire.
+
 Avant de construire, l'agent vérifie que le volume au-dessus du plancher est de l'air ou de
 l'herbe, et que le plancher est du sol naturel ; sinon il refuse, sans rien casser, en disant
 où est le bloc qui gêne. Relancé, il répare sans dupliquer : il reconnaît alors ses propres
 blocs, et ne touche pas au contenu d'un coffre déjà posé.
 
-La position écrite dans `mine_de_rien:atelier` fait foi : tant qu'elle ne correspond pas à
-`[atelier]`, l'agent ne peut pas s'y fier (`probleme_atelier`). Le coffre du soir ne s'y pose
-pas et Pixel n'y téléporte pas : aux coordonnées d'un autre monde, l'enfant serait emmuré.
+La position écrite dans `mine_de_rien:atelier` fait foi (`lire_atelier`) : l'agent la relit
+au lieu de garder celle de `config.toml`, qui ne sert plus qu'à la construction. Sans position
+dans le monde, le coffre du soir ne se pose pas et Pixel ne téléporte pas : l'enfant serait
+emmuré.
 """
 
 from __future__ import annotations
@@ -163,12 +169,41 @@ def commandes_construction(a: Atelier) -> list[str]:
     ]
 
 
+def commandes_demontage(a: Atelier) -> list[str]:
+    """Retire tout ce que l'atelier a posé ; la position enregistrée disparaît en dernier."""
+    return [
+        *(f"setblock {_pos(p)} minecraft:air" for p in a.blocs_propres()),
+        f"fill {a.x - 2} {a.y - 1} {a.z - 2} {a.x + 2} {a.y - 1} {a.z + 2} minecraft:dirt",
+        f"kill @e[type=minecraft:marker,tag={TAG_MARQUEUR}]",
+        commande_forceload(a).replace(" add ", " remove "),
+        f"data remove storage {STOCKAGE} pos",
+    ]
+
+
+def _refuse(reponse: str) -> bool:
+    return "rror" in reponse or "nknown" in reponse or "Incorrect" in reponse
+
+
 def _passe(reponse: str) -> bool:
     return reponse.strip().startswith("Test passed")
 
 
 def _non_charge(reponse: str) -> bool:
     return "not loaded" in reponse
+
+
+async def place_libre(jeu: AdaptateurJeu, a: Atelier) -> bool:
+    """Un atelier neuf tient ici sans rien casser. Un chunk non chargé compte comme non."""
+    for _position, tests in verifications_de_place(a, deja_construit=False):
+        for test in tests:
+            reponse = await jeu.commande(test)
+            if _non_charge(reponse):
+                return False
+            if _passe(reponse):
+                break
+        else:
+            return False
+    return True
 
 
 async def position_enregistree(jeu: AdaptateurJeu) -> Position | None:
@@ -184,26 +219,17 @@ async def position_enregistree(jeu: AdaptateurJeu) -> Position | None:
     return (x, y, z)
 
 
-async def probleme_atelier(jeu: AdaptateurJeu, a: Atelier) -> str | None:
-    """Ce qui empêche d'utiliser cet atelier dans ce monde, dit aux parents ; None si tout va.
+async def lire_atelier(jeu: AdaptateurJeu) -> Atelier | None:
+    """L'atelier construit dans le monde du serveur, s'il y en a un."""
+    position = await position_enregistree(jeu)
+    return Atelier(*position) if position is not None else None
 
-    `a` est la position lue au démarrage de l'agent : `config.toml` modifié ensuite n'est pas
-    pris en compte tant qu'il n'a pas redémarré, d'où le second message.
-    """
-    enregistree = await position_enregistree(jeu)
-    if enregistree is None:
-        return (
-            f"l'atelier n'est pas construit en {_pos(a.coffre)} dans ce monde. "
-            "Le construire avec la commande « mine-de-rien atelier » (docs/installation.md, "
-            "étape 7)."
-        )
-    if enregistree != a.coffre:
-        return (
-            f"l'atelier de ce monde est en {_pos(enregistree)}, mais l'agent attend "
-            f"{_pos(a.coffre)}. Mettre {_pos(enregistree)} dans [atelier] de config.toml si ce "
-            "n'est pas déjà fait, puis redémarrer l'agent (docker compose restart agent)."
-        )
-    return None
+
+# Pour les parents : quoi faire quand le monde n'a pas d'atelier.
+PAS_CONSTRUIT = (
+    "l'atelier n'est pas construit dans ce monde. Taper /atelier ici pendant que l'enfant "
+    "est connecté, près de sa base."
+)
 
 
 async def construire(jeu: AdaptateurJeu, a: Atelier) -> str:
@@ -211,8 +237,8 @@ async def construire(jeu: AdaptateurJeu, a: Atelier) -> str:
     ancienne = await position_enregistree(jeu)
     if ancienne is not None and ancienne != a.coffre:
         raise ErreurAtelier(
-            f"Un atelier existe déjà en {_pos(ancienne)}. Le déplacer n'est pas prévu : "
-            "remettre ces coordonnées dans config.toml."
+            f"Un atelier existe déjà en {_pos(ancienne)}. Pour le déplacer : /atelier sur "
+            "Telegram, ou remettre ces coordonnées dans config.toml."
         )
     deja_construit = ancienne == a.coffre
 
@@ -238,8 +264,16 @@ async def construire(jeu: AdaptateurJeu, a: Atelier) -> str:
 
     for commande in commandes_construction(a):
         reponse = await jeu.commande(commande)
-        if "rror" in reponse or "nknown" in reponse or "Incorrect" in reponse:
+        if _refuse(reponse):
             raise ErreurAtelier(f"Le serveur a refusé « {commande} » : {reponse.strip()}")
 
     verbe = "réparé" if deja_construit else "construit"
     return f"Atelier {verbe} en {_pos(a.coffre)}."
+
+
+async def demonter(jeu: AdaptateurJeu, a: Atelier) -> None:
+    """Retire l'atelier du monde. À n'appeler que le coffre vide : son contenu serait perdu."""
+    for commande in commandes_demontage(a):
+        reponse = await jeu.commande(commande)
+        if _refuse(reponse):
+            raise ErreurAtelier(f"Le serveur a refusé « {commande} » : {reponse.strip()}")
