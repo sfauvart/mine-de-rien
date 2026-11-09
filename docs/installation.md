@@ -186,6 +186,12 @@ que Mine de rien construit une fois pour toutes. Les coffres apparaîtront toujo
    est ce bloc : choisir un autre emplacement ou dégager. La commande peut être relancée
    sans risque : elle répare sans dupliquer.
 
+   Tant que cette commande n'a pas réussi sur le monde du serveur, aucun coffre n'est posé
+   et Pixel ne téléporte pas : un message sur Telegram le rappelle. C'est aussi le cas
+   après un changement de monde (nouveau serveur, monde importé), même si `[atelier]`
+   n'a pas changé : relancer alors l'étape 7 en entier, car les coordonnées de l'ancien
+   monde peuvent tomber dans la roche du nouveau.
+
 Autour de l'atelier, un joueur en survie passe en mode aventure : il ne peut ni casser le
 coffre ni creuser dessous. Il repasse en survie en s'éloignant de quelques blocs.
 

@@ -8,6 +8,10 @@ Toutes les 3 secondes :
 3. pas de coffre actif : le suivant de la file est posé, 10 secondes au moins après
    l'ouverture du précédent, et seulement quand le coffre est vide.
 
+Si l'atelier attendu n'est pas celui de ce monde, aucun coffre n'est posé, et l'enfant n'est
+pas envoyé vers un coffre inaccessible : les parents sont prévenus une fois par problème
+différent, et la boucle réessaie à chaque tour.
+
 La boucle ne s'arrête pas sur une erreur du serveur (redémarrage, RCON coupé) : elle la
 signale et réessaie au tour suivant.
 
@@ -33,6 +37,7 @@ from mine_de_rien.adapters.llm.base import ErreurLlm, Llm
 from mine_de_rien.config import Coffre as ConfigCoffre
 from mine_de_rien.exercises.base import Exercice
 from mine_de_rien.games.coffre_du_soir import (
+    AtelierAbsent,
     CoffreDuSoir,
     ErreurCoffre,
     Notificateur,
@@ -63,6 +68,7 @@ class Orchestrateur:
         self.horloge = horloge
         self.en_ligne = False
         self._vider_demande = False
+        self._atelier_signale: str | None = None
 
     async def tour(self) -> None:
         en_ligne = await self.coffre.joueur_en_ligne()
@@ -70,10 +76,17 @@ class Orchestrateur:
         self.en_ligne = en_ligne
 
         actif = self.depot.actif()
-        if actif is not None:
-            await self._surveiller(actif, vient_de_se_connecter)
-        else:
-            await self._poser_suivant()
+        try:
+            if actif is not None:
+                await self._surveiller(actif, vient_de_se_connecter)
+            else:
+                await self._poser_suivant()
+        except AtelierAbsent as e:
+            if str(e) != self._atelier_signale:
+                self._atelier_signale = str(e)
+                await self.notificateur.notifier(f"Aucun coffre ne peut être posé : {e}")
+            return
+        self._atelier_signale = None
 
     async def _surveiller(self, actif, vient_de_se_connecter: bool) -> None:
         if self.en_ligne:
@@ -91,6 +104,7 @@ class Orchestrateur:
                     f"({actif.exercice.enonce} → {actif.exercice.reponse})."
                 )
                 return
+        await self.coffre.verifier_atelier()
         if not await self.coffre.coffre_present():
             await self.coffre.poser(actif)
             self.depot.noter("coffre_disparu", actif.id, self.horloge())
@@ -105,6 +119,8 @@ class Orchestrateur:
         suivant = self.depot.suivant()
         if suivant is None:
             return
+        # Avant d'attendre le coffre vide : celui d'un autre monde ne le sera jamais.
+        await self.coffre.verifier_atelier()
         dernier = self.depot.dernier_ouvert()
         if dernier is not None and self.horloge() - dernier.ouvert_le < DELAI_SUIVANT:
             return

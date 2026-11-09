@@ -32,12 +32,21 @@ DEBUT = datetime(2026, 11, 8, 18, 0)
 
 
 class FauxJeu:
-    def __init__(self, reponse_tp: str = "Teleported Steve_42 to 10.5, 64.0, -2.5") -> None:
+    def __init__(
+        self,
+        reponse_tp: str = "Teleported Steve_42 to 10.5, 64.0, -2.5",
+        atelier: tuple[int, int, int] | None = (10, 64, -5),
+    ) -> None:
         self.commandes: list[str] = []
         self.dits: list[str] = []
         self.reponse_tp = reponse_tp
+        self.atelier = atelier
 
     async def commande(self, commande: str) -> str:
+        if commande == "data get storage mine_de_rien:atelier pos":
+            if self.atelier is None:
+                return "Found no elements matching pos"
+            return f"Storage mine_de_rien:atelier has the following contents: {list(self.atelier)}"
         self.commandes.append(commande)
         return self.reponse_tp if " tp " in commande else ""
 
@@ -158,6 +167,17 @@ def test_teleportation_sans_coffre_refusee(depot):
     pixel, jeu, _ = _pixel(depot, FauxLlm(intention=TELEPORTER))
     _dit(pixel, "Pixel, tp")
     assert jeu.commandes == [] and "Pas de coffre" in jeu.dits[-1]
+
+
+@pytest.mark.parametrize("atelier", [None, (0, -60, 8)], ids=["jamais-construit", "ailleurs"])
+def test_teleportation_refusee_sans_atelier_construit_ici(depot, atelier):
+    """Nouveau monde, `mine-de-rien atelier` pas lancé : le bloc d'arrivée peut être de la roche."""
+    ident = _poser(depot)
+    pixel, jeu, _ = _pixel(depot, None, FauxJeu(atelier=atelier))
+    _dit(pixel, "Pixel, ramène-moi au coffre")
+    assert jeu.commandes == []
+    assert "pas encore construit" in jeu.dits[-1]
+    assert depot.compter("teleportation", ident) == 0
 
 
 def test_teleportation_enfant_deconnecte(depot):

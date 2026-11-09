@@ -8,6 +8,8 @@ import pytest
 from mine_de_rien.exercises.base import Exercice
 from mine_de_rien.games.atelier import Atelier
 from mine_de_rien.games.coffre_du_soir import (
+    AtelierAbsent,
+    CoffreDuSoir,
     ErreurCoffre,
     commande_cle,
     commandes_pose,
@@ -129,12 +131,18 @@ class FauxCoffre:
         self.present = True
         self.vide = True
         self.preuve = False
+        self.probleme = None
         self.actions: list[str] = []
 
     async def joueur_en_ligne(self):
         return self.en_ligne
 
+    async def verifier_atelier(self):
+        if self.probleme:
+            raise AtelierAbsent(self.probleme)
+
     async def poser(self, s):
+        await self.verifier_atelier()
         self.actions.append(f"poser {s.id}")
         self.present, self.vide, self.preuve = True, False, False
 
@@ -271,3 +279,92 @@ def test_preuve_ignoree_hors_ligne(monde):
     coffre.preuve = True  # impossible en vrai, mais l'orchestrateur ne doit pas interroger
     _tour(orch)
     assert depot.actif().id == 1
+
+
+PAS_CONSTRUIT = "l'atelier n'est pas construit en 0 -60 8 dans ce monde."
+AILLEURS = "l'atelier de ce monde est en 120 64 -35, mais l'agent attend 0 -60 8."
+
+
+class MondeSansAtelier:
+    """Serveur neuf : `mine-de-rien atelier` n'a jamais été lancé, rien n'est enregistré."""
+
+    def __init__(self, pos=None):
+        self.pos = pos
+        self.recues: list[str] = []
+
+    async def commande(self, c):
+        self.recues.append(c)
+        if c == "data get storage mine_de_rien:atelier pos":
+            if self.pos is None:
+                return "Found no elements matching pos"
+            return f"Storage mine_de_rien:atelier has the following contents: {self.pos}"
+        return ""
+
+
+@pytest.mark.parametrize(
+    "pos, consigne",
+    [(None, "mine-de-rien atelier"), ([120, 64, -35], "docker compose restart agent")],
+    ids=["jamais-construit", "ailleurs"],
+)
+def test_pose_refusee_sans_atelier_construit_ici(pos, consigne):
+    monde = MondeSansAtelier(pos)
+    coffre = CoffreDuSoir(monde, A, "Steve")
+    with pytest.raises(AtelierAbsent, match=consigne):
+        asyncio.run(coffre.poser(_stocke()))
+    assert monde.recues == ["data get storage mine_de_rien:atelier pos"]
+
+
+def test_sans_atelier_parents_prevenus_une_fois_puis_pose_quand_il_existe(monde):
+    depot, coffre, notifs, _horloge, orch = monde
+    coffre.probleme = PAS_CONSTRUIT
+    _tour(orch)
+    _tour(orch)
+    assert coffre.actions == [] and depot.actif() is None
+    assert notifs.messages == [f"Aucun coffre ne peut être posé : {PAS_CONSTRUIT}"]
+    coffre.probleme = None
+    _tour(orch)
+    assert coffre.actions == ["poser 1"] and depot.actif().id == 1
+
+
+def test_coffre_actif_d_un_autre_monde_jamais_repose_dans_la_roche(monde):
+    """Le cas de l'essai du 2026-11-09 : nouveau serveur, coffre actif, atelier jamais construit."""
+    _depot, coffre, notifs, _horloge, orch = monde
+    _tour(orch)
+    coffre.present, coffre.probleme = False, PAS_CONSTRUIT
+    _tour(orch)
+    _tour(orch)
+    assert coffre.actions == ["poser 1"]
+    assert notifs.messages[-1].startswith("Aucun coffre ne peut être posé")
+    assert sum(m.startswith("Aucun coffre") for m in notifs.messages) == 1
+
+
+def test_coffre_plein_d_un_autre_monde_ne_fait_pas_attendre(monde):
+    """L'essai du 2026-11-09 : un coffre emmuré, plein, ne doit pas retarder le message."""
+    _depot, coffre, notifs, _horloge, orch = monde
+    coffre.en_ligne, coffre.vide, coffre.probleme = True, False, PAS_CONSTRUIT
+    _tour(orch)
+    assert coffre.actions == []  # pas de « vide le coffre » pour un coffre inaccessible
+    assert notifs.messages == [f"Aucun coffre ne peut être posé : {PAS_CONSTRUIT}"]
+
+
+def test_coffre_actif_present_mais_atelier_absent_parents_prevenus_sans_rappel(monde):
+    _depot, coffre, notifs, _horloge, orch = monde
+    _tour(orch)
+    coffre.en_ligne, coffre.probleme = True, PAS_CONSTRUIT
+    _tour(orch)
+    assert "rappel 1" not in coffre.actions
+    assert notifs.messages[-1] == f"Aucun coffre ne peut être posé : {PAS_CONSTRUIT}"
+
+
+def test_un_nouveau_probleme_d_atelier_est_signale_meme_apres_le_premier(monde):
+    """Config modifiée sans redémarrer : le premier message ne doit pas rendre l'agent muet."""
+    _depot, coffre, notifs, _horloge, orch = monde
+    coffre.probleme = PAS_CONSTRUIT
+    _tour(orch)
+    coffre.probleme = AILLEURS
+    _tour(orch)
+    _tour(orch)
+    assert notifs.messages == [
+        f"Aucun coffre ne peut être posé : {PAS_CONSTRUIT}",
+        f"Aucun coffre ne peut être posé : {AILLEURS}",
+    ]
