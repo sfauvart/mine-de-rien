@@ -72,7 +72,7 @@ coffre et aux durées. Jamais le pseudo ni le prénom de l'enfant.
   compte Microsoft ou du compte hors ligne. Il ne quitte jamais la maison.
 - **`[coffre]`** : la récompense de chaque coffre (3 diamants par défaut) et les niveaux
   d'expérience offerts pour les essais (3 par défaut, un renommage coûte un niveau).
-- **`[atelier]`** : on y reviendra à l'étape 7, une fois dans le jeu.
+- **`[atelier]`** : à laisser commenté, l'étape 7 trouve l'emplacement toute seule.
 - **`[canal] parents`** : on y reviendra à l'étape 6.
 - **`[llm]`** : facultatif, pour lire les photos de fiches (étape 10). Un serveur local
   compatible OpenAI avec un modèle qui voit les images : `llama-server` de llama.cpp,
@@ -156,13 +156,32 @@ Redémarrer l'agent pour qu'il lise la liste :
 docker compose restart agent
 ```
 
-## 7. Choisir l'emplacement de l'atelier
+## 7. Construire l'atelier
 
-L'atelier est un plancher de 5 × 5 avec un coffre, une enclume, une lanterne et un panneau,
-que Mine de rien construit une fois pour toutes. Les coffres apparaîtront toujours là.
+L'atelier est un plancher de 5 × 5 avec un coffre, une enclume, une lanterne et un panneau.
+Les coffres apparaîtront toujours là. Mine de rien cherche lui-même où le construire, autour
+de l'enfant.
 
-1. Dans le jeu, aller près de la base de l'enfant, sur du sol naturel dégagé (herbe, terre,
-   sable, pierre), avec 3 blocs d'air au-dessus.
+1. L'enfant se connecte au serveur et va **près de sa base**, à la surface, dans le monde
+   normal (ni dans une grotte, ni dans le Nether).
+2. Sur Telegram, envoyer au bot : `/atelier`.
+3. Le bot répond qu'il cherche, puis où il a construit (entre 8 et 32 blocs de l'enfant).
+   Dans le jeu, une ligne dans le chat lui indique la distance et la direction.
+
+Il lui faut un carré de 5 × 5 parfaitement plat, sur du sol naturel, sans rien au-dessus ;
+rien n'est cassé. S'il n'en trouve pas, le bot dit quoi faire : souvent, emmener l'enfant vers
+un terrain plus dégagé et relancer `/atelier`.
+
+Tant qu'il n'y a pas d'atelier dans le monde, aucun coffre n'est posé et Pixel ne téléporte
+pas : un message sur Telegram le rappelle. Après un changement de monde (nouveau serveur, monde
+importé), relancer simplement `/atelier`.
+
+### Imposer un endroit précis (facultatif)
+
+Pour choisir l'emplacement exact au lieu de le laisser chercher :
+
+1. Dans le jeu, aller sur du sol naturel dégagé (herbe, terre, sable, pierre), avec 3 blocs
+   d'air au-dessus.
 2. Appuyer sur **F3** : la ligne « Block » donne les coordonnées du bloc visé. Se placer
    au centre de l'emplacement et relever x, y, z du bloc **juste au-dessus du sol** : c'est
    là que sera le coffre.
@@ -185,12 +204,6 @@ que Mine de rien construit une fois pour toutes. Les coffres apparaîtront toujo
    Si un bloc gêne (arbre, construction), Mine de rien refuse sans rien casser et dit où
    est ce bloc : choisir un autre emplacement ou dégager. La commande peut être relancée
    sans risque : elle répare sans dupliquer.
-
-   Tant que cette commande n'a pas réussi sur le monde du serveur, aucun coffre n'est posé
-   et Pixel ne téléporte pas : un message sur Telegram le rappelle. C'est aussi le cas
-   après un changement de monde (nouveau serveur, monde importé), même si `[atelier]`
-   n'a pas changé : relancer alors l'étape 7 en entier, car les coordonnées de l'ancien
-   monde peuvent tomber dans la roche du nouveau.
 
 Autour de l'atelier, un joueur en survie passe en mode aventure : il ne peut ni casser le
 coffre ni creuser dessous. Il repasse en survie en s'éloignant de quelques blocs.
@@ -219,6 +232,7 @@ Commandes des parents :
 
 | Commande | Effet |
 |---|---|
+| `/atelier` | construit l'atelier près de l'enfant, qui doit être connecté (étape 7) |
 | `/coffre 348 ÷ 12` | un calcul recopié du cahier, recalculé par Mine de rien |
 | `/coffre division 3` | trois exercices d'une compétence (`division`, `anglais`) |
 | photo d'une fiche | voir l'étape 10 |

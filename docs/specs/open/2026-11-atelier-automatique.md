@@ -75,7 +75,7 @@ Minecraft, et aucun LLM n'intervient. Telegram reçoit les coordonnées de l'ate
 
 - [x] **Phase 1 : Le monde fait foi**
 - [x] **Phase 2 : Trouver un emplacement**
-- [ ] **Phase 3 : /atelier sur Telegram**
+- [x] **Phase 3 : /atelier sur Telegram**
 - [ ] **Phase 4 : Déplacer l'atelier**
 
 Chaque phase dépend de la précédente. La phase 1 est utile seule : elle supprime le blocage après
@@ -168,8 +168,9 @@ position en dernier : la boucle de surveillance ne voit donc pas d'atelier à mo
 (étape 7 réécrite), `config.example.toml`, `README.md`, `tests/test_orchestrateur.py`.
 
 **Conception.**
-- Position et dimension de l'enfant :
-  `data get entity <pseudo> Pos` et `data get entity <pseudo> Dimension`.
+- Position de l'enfant : `data get entity <pseudo> Pos`. Dimension :
+  `execute in minecraft:overworld if entity @a[name=<pseudo>,distance=0..]`, le champ `Dimension`
+  n'étant pas vérifiable sans joueur connecté, alors que `distance` a été validé sur un marqueur.
 - Si un atelier existe déjà, réponse « déjà construit en X Y Z » (remplacé en phase 4).
 - Sinon : accusé, `chercher`, `construire`, réponse aux parents, ligne dans le chat de l'enfant
   avec la distance et la direction (nord, sud, est, ouest, calculées en Python).

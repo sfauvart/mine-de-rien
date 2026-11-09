@@ -207,8 +207,8 @@ async def lire_atelier(jeu: AdaptateurJeu) -> Atelier | None:
 
 # Pour les parents : quoi faire quand le monde n'a pas d'atelier.
 PAS_CONSTRUIT = (
-    "l'atelier n'est pas construit dans ce monde. Le construire avec la commande "
-    "« mine-de-rien atelier » (docs/installation.md, étape 7)."
+    "l'atelier n'est pas construit dans ce monde. Taper /atelier ici pendant que l'enfant "
+    "est connecté, près de sa base."
 )
 
 

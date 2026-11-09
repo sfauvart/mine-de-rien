@@ -12,11 +12,10 @@ port = 25575
 mot_de_passe = "${RCON_PASSWORD}"
 log = "/minecraft/logs/latest.log"   # pour lire le chat sans plugin
 
-# Où Mine de rien construit l'atelier des coffres : un plancher de 5 × 5 près de la base,
-# sur du sol naturel dégagé. Relever avec F3 le bloc juste au-dessus du sol, au centre :
-# c'est là que sera le coffre. À décommenter une fois les coordonnées relevées
-# (docs/installation.md, étape 7). Cette section ne sert qu'à la commande
-# « mine-de-rien atelier » : une fois construit, l'agent lit la position dans le monde.
+# Facultatif : par défaut, taper /atelier sur Telegram pendant que l'enfant joue, et l'agent
+# trouve lui-même l'emplacement (docs/installation.md, étape 7).
+# Cette section ne sert qu'à imposer un endroit précis avec la commande « mine-de-rien atelier »
+# : le bloc juste au-dessus du sol, au centre d'un plancher de 5 × 5, relevé avec F3.
 # [atelier]
 # x = 120
 # y = 64

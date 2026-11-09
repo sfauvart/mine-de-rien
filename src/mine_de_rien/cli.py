@@ -40,7 +40,7 @@ def _depot(config: Config) -> Depot:
 def _atelier_config(config: Config) -> atelier.Atelier:
     if config.atelier is None:
         raise atelier.ErreurAtelier(
-            "Section [atelier] absente de config.toml : la renseigner pour cette commande."
+            "Section [atelier] absente de config.toml. Sans coordonnées : /atelier sur Telegram."
         )
     a = config.atelier
     return atelier.Atelier(a.x, a.y, a.z)

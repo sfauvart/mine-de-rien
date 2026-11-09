@@ -13,8 +13,15 @@ from PIL import Image
 
 from mine_de_rien.adapters.channel.base import MessageParent
 from mine_de_rien.config import Coffre
-from mine_de_rien.orchestrateur import LECTURE_EN_COURS, CommandesParents, servir
+from mine_de_rien.games.emplacement import ENFANT_ABSENT
+from mine_de_rien.orchestrateur import (
+    LECTURE_EN_COURS,
+    RECHERCHE_EN_COURS,
+    CommandesParents,
+    servir,
+)
 from mine_de_rien.storage.sqlite import Depot
+from tests.test_emplacement import Terrain
 
 PARENTS = [111, 222]
 DOUBLES = {"lignes": [{"genre": "calcul", "texte": f"Double de {n}"} for n in range(1, 21)]}
@@ -178,3 +185,52 @@ def test_servir_previent_avant_de_lire(depot):
     asyncio.run(servir(canal, c))
     assert canal.reponses[0] == (111, LECTURE_EN_COURS)
     assert "Tirés au hasard (2)" in canal.reponses[1][1]
+
+
+class CoffreDeTerrain:
+    """Juste ce que /atelier demande au coffre : le jeu et le pseudo."""
+
+    def __init__(self, jeu):
+        self.jeu = jeu
+        self.pseudo = "Steve_42"
+
+
+def _atelier(depot, terrain):
+    return CommandesParents(depot, Coffre(), CoffreDeTerrain(terrain), PARENTS)
+
+
+def test_atelier_construit_sans_le_pseudo_dans_la_reponse(depot):
+    terrain = Terrain()
+    reponse = _texte(_atelier(depot, terrain), "/atelier")
+    assert reponse == "Atelier construit en 92 64 192, à 11 blocs de l'enfant."
+    assert "Steve" not in reponse
+
+
+def test_atelier_inconnu_ignore(depot):
+    terrain = Terrain()
+    c = _atelier(depot, terrain)
+    assert _texte(c, "/atelier", expediteur=333) is None
+    assert c.accuse_reception(MessageParent(333, "/atelier")) is None
+    assert terrain.recues == []
+
+
+def test_atelier_accuse_reception_pour_un_parent(depot):
+    c = _atelier(depot, Terrain())
+    assert c.accuse_reception(MessageParent(111, "/atelier")) == RECHERCHE_EN_COURS
+    assert c.accuse_reception(MessageParent(111, "/rapport")) is None
+
+
+def test_atelier_enfant_hors_ligne_dit_quoi_faire(depot):
+    assert _texte(_atelier(depot, Terrain(joueur=None)), "/atelier") == ENFANT_ABSENT
+
+
+def test_atelier_deja_construit_n_y_touche_pas(depot):
+    class Construit(Terrain):
+        async def commande(self, c):
+            if c.startswith("data get storage"):
+                return "Storage mine_de_rien:atelier has the following contents: [1, 64, 2]"
+            return await super().commande(c)
+
+    terrain = Construit()
+    assert _texte(_atelier(depot, terrain), "/atelier") == "L'atelier est déjà construit en 1 64 2."
+    assert not any(c.startswith(("fill", "setblock", "summon")) for c in terrain.recues)

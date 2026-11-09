@@ -7,21 +7,34 @@ import pytest
 
 from mine_de_rien.games.atelier import Atelier, ErreurAtelier
 from mine_de_rien.games.emplacement import (
+    AUCUN_TERRAIN,
+    AUTRE_DIMENSION,
     DISTANCE_MIN,
     ECART_VERTICAL,
+    ENFANT_ABSENT,
     RAYON,
     centres,
     chercher,
     commande_hauteur,
+    construire_pres_de,
+    direction,
+    position_de,
 )
 
 X, Y, Z = 100, 64, 200
+PSEUDO = "Steve_42"
 
 
 class Terrain:
     """Sol à `Y` partout, sauf les colonnes de `sols` ; `blocs` pour le reste."""
 
-    def __init__(self, sols=None, blocs=None, charge=lambda x, z: True, summon="Summoned new Marker"):
+    def __init__(
+        self, sols=None, blocs=None, charge=lambda x, z: True, summon="Summoned new Marker",
+        joueur=(X + 0.5, float(Y), Z + 0.5), dimension=True,
+    ):
+        self.joueur = joueur
+        self.dimension = dimension
+        self.dits: list[tuple[str, str]] = []
         self.sols = sols or {}
         self.blocs = blocs or {}
         self.charge = charge
@@ -37,8 +50,22 @@ class Terrain:
             return self.blocs[(x, y, z)]
         return "minecraft:air" if y >= self.sol(x, z) else "minecraft:grass_block"
 
+    async def dire(self, joueur, texte, **style):
+        self.dits.append((joueur, texte))
+
     async def commande(self, c: str) -> str:
         self.recues.append(c)
+        if c.startswith(f"data get entity {PSEUDO} Pos"):
+            if self.joueur is None:
+                return "No entity was found"
+            x, y, z = self.joueur
+            return f"{PSEUDO} has the following entity data: [{x}d, {y}d, {z}d]"
+        if c.startswith("execute in minecraft:overworld if entity"):
+            return "Test passed. Count: 1" if self.dimension else "Test failed"
+        if c.startswith("data get storage"):
+            return "Found no elements matching pos"
+        if c.startswith("forceload"):
+            return "Marked 2 chunks to be force loaded"
         if c.startswith("kill"):
             self.sondes = 0
             return "Killed Marker"
@@ -124,8 +151,10 @@ def test_surface_trop_loin_verticalement_refusee():
             return haut
 
     terrain = Mine()
-    assert _chercher(terrain) is None
+    with pytest.raises(ErreurAtelier, match="sous terre"):
+        _chercher(terrain)
     assert not any("execute if block" in c for c in terrain.recues)
+    assert terrain.sondes == 0
 
 
 def test_ecart_vertical_limite_accepte():
@@ -185,3 +214,55 @@ def test_hauteurs_lues_une_seule_fois():
     _chercher(terrain)
     hauteurs = [c for c in terrain.recues if "positioned over" in c]
     assert len(hauteurs) == len(set(hauteurs))
+
+
+@pytest.mark.parametrize(
+    "dx, dz, attendu",
+    [(10, 3, "l'est"), (-10, 3, "l'ouest"), (2, 9, "le sud"), (2, -9, "le nord")],
+)
+def test_direction(dx, dz, attendu):
+    assert direction(dx, dz) == attendu
+
+
+def test_position_arrondie_vers_le_bas_en_negatif():
+    terrain = Terrain(joueur=(-27.5, 68.0, -0.25))
+    assert asyncio.run(position_de(terrain, PSEUDO)) == (-28, 68, -1)
+
+
+def test_position_refuse_un_pseudo_dangereux():
+    with pytest.raises(ValueError):
+        asyncio.run(position_de(Terrain(), "@a"))
+
+
+def test_enfant_hors_ligne():
+    terrain = Terrain(joueur=None)
+    with pytest.raises(ErreurAtelier, match=ENFANT_ABSENT):
+        asyncio.run(construire_pres_de(terrain, PSEUDO))
+    assert not any(c.startswith("summon") for c in terrain.recues)
+
+
+def test_enfant_dans_une_autre_dimension():
+    with pytest.raises(ErreurAtelier, match=AUTRE_DIMENSION):
+        asyncio.run(construire_pres_de(Terrain(dimension=False), PSEUDO))
+
+
+def test_rien_trouve_rien_construit():
+    class Bosselé(Terrain):
+        def sol(self, x, z):
+            return Y + (x + z) % 2
+
+    terrain = Bosselé()
+    with pytest.raises(ErreurAtelier, match="Pas de terrain plat") as e:
+        asyncio.run(construire_pres_de(terrain, PSEUDO))
+    assert str(e.value) == AUCUN_TERRAIN
+    assert not any(c.startswith(("fill", "setblock", "forceload")) for c in terrain.recues)
+    assert terrain.dits == []
+
+
+def test_construit_et_previent_l_enfant():
+    terrain = Terrain()
+    c = asyncio.run(construire_pres_de(terrain, PSEUDO))
+    assert c.atelier == Atelier(X - 8, Y, Z - 8)
+    assert c.distance == 11
+    assert terrain.recues[-1].startswith("data modify storage")
+    assert terrain.dits == [(PSEUDO, "Ton atelier vient d'apparaître, à 11 blocs vers l'ouest.")]
