@@ -91,11 +91,13 @@ Chaque tag git `vX.Y.Z` publie l'image pour amd64 et arm64.
 
 ## Statut
 
-**Branche** : `feat/image-publiee`, créée depuis `main` à la phase 1.
+**Branche** : `feat/image-publiee`, créée depuis `main` à la phase 1, fusionnée à la clôture.
 
 - [x] **Phase 1 : une image qui porte l'agent et son datapack**
 - [x] **Phase 2 : un tag git publie l'image sur ghcr.io**
 - [x] **Phase 3 : le compose et le guide utilisent l'image publiée**
+
+Close le 2026-11-09.
 
 La phase 2 construit l'image de la phase 1. La phase 3 a besoin d'une image réellement
 publiée, donc d'un premier tag poussé à la main après la phase 2.
@@ -279,3 +281,7 @@ le monde de l'enfant conservé dans `data/minecraft` :
 3. Depuis Telegram, `/coffre 348 ÷ 12` : le coffre apparaît, s'ouvre avec la clé renommée
    « 29 », et les parents reçoivent « Coffre ouvert ». L'agent qui tourne vient de l'image
    publiée (`docker compose images agent` affiche `ghcr.io/sfauvart/mine-de-rien` `0.1.0`).
+
+## Retours de jeu
+
+- 2026-11-09 : scénario de la phase 3 joué sur l'installation locale, conforme.
