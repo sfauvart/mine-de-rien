@@ -71,12 +71,14 @@ Minecraft, et aucun LLM n'intervient. Telegram reçoit les coordonnées de l'ate
 
 ## Statut
 
-**Branche** : `feat/atelier-automatique`, pas encore créée, `/next` l'ouvre à la première phase.
+**Branche** : `feat/atelier-automatique`.
 
 - [x] **Phase 1 : Le monde fait foi**
 - [x] **Phase 2 : Trouver un emplacement**
 - [x] **Phase 3 : /atelier sur Telegram**
 - [x] **Phase 4 : Déplacer l'atelier**
+
+Close le 2026-11-09.
 
 Chaque phase dépend de la précédente. La phase 1 est utile seule : elle supprime le blocage après
 un changement de coordonnées.
