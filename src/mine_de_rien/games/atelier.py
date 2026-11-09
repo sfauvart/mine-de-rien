@@ -172,6 +172,20 @@ def _non_charge(reponse: str) -> bool:
     return "not loaded" in reponse
 
 
+async def place_libre(jeu: AdaptateurJeu, a: Atelier) -> bool:
+    """Un atelier neuf tient ici sans rien casser. Un chunk non chargé compte comme non."""
+    for _position, tests in verifications_de_place(a, deja_construit=False):
+        for test in tests:
+            reponse = await jeu.commande(test)
+            if _non_charge(reponse):
+                return False
+            if _passe(reponse):
+                break
+        else:
+            return False
+    return True
+
+
 async def position_enregistree(jeu: AdaptateurJeu) -> Position | None:
     reponse = await jeu.commande(f"data get storage {STOCKAGE} pos")
     # « Storage mine_de_rien:atelier has the following contents: [0, -60, 8] »

@@ -74,7 +74,7 @@ Minecraft, et aucun LLM n'intervient. Telegram reçoit les coordonnées de l'ate
 **Branche** : `feat/atelier-automatique`, pas encore créée, `/next` l'ouvre à la première phase.
 
 - [x] **Phase 1 : Le monde fait foi**
-- [ ] **Phase 2 : Trouver un emplacement**
+- [x] **Phase 2 : Trouver un emplacement**
 - [ ] **Phase 3 : /atelier sur Telegram**
 - [ ] **Phase 4 : Déplacer l'atelier**
 
@@ -129,7 +129,8 @@ environ 125 tests de blocs en 32 ms.
 **Fichiers.** `src/mine_de_rien/games/emplacement.py` (nouveau), `tests/test_emplacement.py`
 (nouveau).
 
-**Conception.** Fonction `chercher(jeu, x, y, z) -> Atelier | None`, sans rien construire :
+**Conception.** Fonction `chercher(jeu, x, y, z) -> Atelier | None`, sans rien construire
+(commandes vérifiées sur Paper 26.3) :
 
 ```
 summon minecraft:marker <x> <y> <z> {Tags:["mdr_sonde"]}
@@ -147,8 +148,8 @@ kill @e[type=minecraft:marker,tag=mdr_sonde]
   écartés par les listes `LIBRE` et `SOL` existantes.
 - Un chunk non chargé (« not loaded ») écarte le centre : autour d'un joueur connecté la zone est
   chargée, la recherche n'a donc pas besoin de `forceload`.
-- Si la sonde n'est plus trouvée après un `tp` vers un chunk non chargé, remplacer par
-  `summon` + `data get entity … Pos` + `kill` à chaque colonne.
+- Vers un chunk non chargé, le serveur répond « That position is not loaded » et la sonde ne
+  bouge pas. Pire cas mesuré à l'essai (aucun centre valide) : 1 seconde.
 
 **Vérification automatique.**
 - `uv run pytest` : monde simulé avec plat, bosses d'un bloc, eau, arbre, construction, zone trop
