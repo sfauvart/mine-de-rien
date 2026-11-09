@@ -89,6 +89,21 @@ class Assistant:
 
 
 @dataclass
+class Paisible:
+    """Serveur en paisible tant qu'il reste un coffre à faire."""
+
+    actif: bool = True
+    difficulte_normale: str = "easy"
+
+    def __post_init__(self) -> None:
+        if self.difficulte_normale not in ("easy", "normal", "hard"):
+            raise ValueError(
+                "[paisible] difficulte_normale doit valoir easy, normal ou hard "
+                f"({self.difficulte_normale!r})"
+            )
+
+
+@dataclass
 class Config:
     enfant: Enfant
     jeu: Jeu
@@ -98,6 +113,7 @@ class Config:
     atelier: Atelier | None = None
     coffre: Coffre = field(default_factory=Coffre)
     assistant: Assistant = field(default_factory=Assistant)
+    paisible: Paisible = field(default_factory=Paisible)
 
 
 def _substituer(valeur: Any) -> Any:
@@ -122,4 +138,5 @@ def charger_config(chemin: Path) -> Config:
         atelier=Atelier(**brut["atelier"]) if "atelier" in brut else None,
         coffre=Coffre(**brut.get("coffre", {})),
         assistant=Assistant(**brut.get("assistant", {})),
+        paisible=Paisible(**brut.get("paisible", {})),
     )

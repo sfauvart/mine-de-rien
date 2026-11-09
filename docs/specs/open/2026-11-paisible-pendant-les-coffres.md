@@ -65,7 +65,7 @@ Rien ne sort de la maison. Le pseudo n'apparaît que dans les commandes RCON loc
 **Branche** : `feat/paisible-pendant-les-coffres`, pas encore créée, `/next` l'ouvre à la
 première phase.
 
-- [ ] **Phase 1 : la difficulté suit les coffres**
+- [x] **Phase 1 : la difficulté suit les coffres**
 - [ ] **Phase 2 : l'enfant est prévenu, la doc suit**
 
 La phase 2 dépend de la phase 1, qui lui fournit le moment exact de la bascule.
@@ -98,13 +98,12 @@ Comparer à chaque tour plutôt que réagir aux événements couvre sans code de
 - Une erreur RCON remonte à `tourner`, qui réessaie au tour suivant.
 - `cli.py` ne crée `ModePaisible` que si `config.paisible.actif`.
 
-Commandes, **à vérifier sur la version du serveur** par `/essai-en-jeu`. Lecture et
-passage en paisible ont été observés sur Paper 26.3 lors d'un essai jetable, le retour
-à `easy` et la réponse quand rien ne change ne l'ont pas été :
+Commandes vérifiées par `/essai-en-jeu` sur Minecraft 26.3 (Paper) :
 
 ```
 difficulty                 → « The difficulty is Peaceful »
 difficulty peaceful        → « The difficulty has been set to Peaceful »
+difficulty peaceful        → « The difficulty did not change; it is already set to Peaceful »
 ```
 
 **Vérification automatique.**

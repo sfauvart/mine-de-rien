@@ -45,6 +45,7 @@ from mine_de_rien.games.coffre_du_soir import (
     formater_duree,
 )
 from mine_de_rien.games.emplacement import construire_pres_de, deplacer_pres_de
+from mine_de_rien.games.paisible import ModePaisible
 from mine_de_rien.games.pixel import EVENEMENT_INDICE
 from mine_de_rien.rapport import nombre_indices, rapport
 from mine_de_rien.saisie import NOMBRE_MAX, ErreurSaisie, interpreter
@@ -63,11 +64,13 @@ class Orchestrateur:
         coffre: CoffreDuSoir,
         notificateur: Notificateur,
         horloge: Callable[[], datetime] = maintenant,
+        paisible: ModePaisible | None = None,
     ) -> None:
         self.depot = depot
         self.coffre = coffre
         self.notificateur = notificateur
         self.horloge = horloge
+        self.paisible = paisible
         self.en_ligne = False
         self._vider_demande = False
         self._atelier_signale: str | None = None
@@ -92,8 +95,16 @@ class Orchestrateur:
             if str(e) != self._atelier_signale:
                 self._atelier_signale = str(e)
                 await self.notificateur.notifier(f"Aucun coffre ne peut être posé : {e}")
+        else:
+            self._atelier_signale = None
+        await self._ajuster_difficulte()
+
+    async def _ajuster_difficulte(self) -> None:
+        """Relu après la pose ou l'ouverture de ce tour. Sans atelier, aucun coffre n'existe."""
+        if self.paisible is None:
             return
-        self._atelier_signale = None
+        reste_un_coffre = self.depot.actif() is not None or self.depot.suivant() is not None
+        await self.paisible.appliquer(self.coffre.atelier is not None and reste_un_coffre)
 
     async def _surveiller(self, actif, vient_de_se_connecter: bool) -> None:
         if self.en_ligne:
