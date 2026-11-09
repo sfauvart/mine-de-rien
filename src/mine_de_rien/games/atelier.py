@@ -30,9 +30,10 @@ l'herbe, et que le plancher est du sol naturel ; sinon il refuse, sans rien cass
 où est le bloc qui gêne. Relancé, il répare sans dupliquer : il reconnaît alors ses propres
 blocs, et ne touche pas au contenu d'un coffre déjà posé.
 
-La position écrite dans `mine_de_rien:atelier` fait foi : tant qu'elle ne correspond pas à
-`[atelier]`, l'agent ne peut pas s'y fier (`probleme_atelier`). Le coffre du soir ne s'y pose
-pas et Pixel n'y téléporte pas : aux coordonnées d'un autre monde, l'enfant serait emmuré.
+La position écrite dans `mine_de_rien:atelier` fait foi (`lire_atelier`) : l'agent la relit
+au lieu de garder celle de `config.toml`, qui ne sert plus qu'à la construction. Sans position
+dans le monde, le coffre du soir ne se pose pas et Pixel ne téléporte pas : l'enfant serait
+emmuré.
 """
 
 from __future__ import annotations
@@ -184,26 +185,17 @@ async def position_enregistree(jeu: AdaptateurJeu) -> Position | None:
     return (x, y, z)
 
 
-async def probleme_atelier(jeu: AdaptateurJeu, a: Atelier) -> str | None:
-    """Ce qui empêche d'utiliser cet atelier dans ce monde, dit aux parents ; None si tout va.
+async def lire_atelier(jeu: AdaptateurJeu) -> Atelier | None:
+    """L'atelier construit dans le monde du serveur, s'il y en a un."""
+    position = await position_enregistree(jeu)
+    return Atelier(*position) if position is not None else None
 
-    `a` est la position lue au démarrage de l'agent : `config.toml` modifié ensuite n'est pas
-    pris en compte tant qu'il n'a pas redémarré, d'où le second message.
-    """
-    enregistree = await position_enregistree(jeu)
-    if enregistree is None:
-        return (
-            f"l'atelier n'est pas construit en {_pos(a.coffre)} dans ce monde. "
-            "Le construire avec la commande « mine-de-rien atelier » (docs/installation.md, "
-            "étape 7)."
-        )
-    if enregistree != a.coffre:
-        return (
-            f"l'atelier de ce monde est en {_pos(enregistree)}, mais l'agent attend "
-            f"{_pos(a.coffre)}. Mettre {_pos(enregistree)} dans [atelier] de config.toml si ce "
-            "n'est pas déjà fait, puis redémarrer l'agent (docker compose restart agent)."
-        )
-    return None
+
+# Pour les parents : quoi faire quand le monde n'a pas d'atelier.
+PAS_CONSTRUIT = (
+    "l'atelier n'est pas construit dans ce monde. Le construire avec la commande "
+    "« mine-de-rien atelier » (docs/installation.md, étape 7)."
+)
 
 
 async def construire(jeu: AdaptateurJeu, a: Atelier) -> str:

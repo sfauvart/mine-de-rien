@@ -6,7 +6,6 @@ import pytest
 from mine_de_rien.adapters.channel.base import MessageParent
 from mine_de_rien.config import Coffre
 from mine_de_rien.exercises.base import Exercice
-from mine_de_rien.games.atelier import Atelier
 from mine_de_rien.games.coffre_du_soir import CoffreDuSoir
 from mine_de_rien.orchestrateur import CommandesParents, Orchestrateur
 from mine_de_rien.rapport import a_retravailler, rapport
@@ -104,7 +103,7 @@ class FauxServeur:
 
 def test_aucun_message_aux_parents_ne_contient_le_pseudo(depot):
     serveur = FauxServeur()
-    coffre = CoffreDuSoir(serveur, Atelier(0, -60, 8), PSEUDO)
+    coffre = CoffreDuSoir(serveur, PSEUDO)
     envoyes: list[str] = []
 
     class Canal:
@@ -139,7 +138,7 @@ def _indices(depot, ident, n):
 @pytest.mark.parametrize("n, texte", [(0, "sans indice"), (1, "1 indice"), (3, "3 indices")])
 def test_notification_d_ouverture_compte_les_indices(depot, n, texte):
     serveur = FauxServeur()
-    coffre = CoffreDuSoir(serveur, Atelier(0, -60, 8), PSEUDO)
+    coffre = CoffreDuSoir(serveur, PSEUDO)
     envoyes: list[str] = []
 
     class Notif:

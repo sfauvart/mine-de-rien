@@ -132,17 +132,21 @@ class FauxCoffre:
         self.vide = True
         self.preuve = False
         self.probleme = None
+        self.actualisations = 0
         self.actions: list[str] = []
 
     async def joueur_en_ligne(self):
         return self.en_ligne
 
-    async def verifier_atelier(self):
+    async def actualiser_atelier(self):
+        self.actualisations += 1
+
+    def verifier_atelier(self):
         if self.probleme:
             raise AtelierAbsent(self.probleme)
 
     async def poser(self, s):
-        await self.verifier_atelier()
+        self.verifier_atelier()
         self.actions.append(f"poser {s.id}")
         self.present, self.vide, self.preuve = True, False, False
 
@@ -301,17 +305,29 @@ class MondeSansAtelier:
         return ""
 
 
-@pytest.mark.parametrize(
-    "pos, consigne",
-    [(None, "mine-de-rien atelier"), ([120, 64, -35], "docker compose restart agent")],
-    ids=["jamais-construit", "ailleurs"],
-)
-def test_pose_refusee_sans_atelier_construit_ici(pos, consigne):
-    monde = MondeSansAtelier(pos)
-    coffre = CoffreDuSoir(monde, A, "Steve")
-    with pytest.raises(AtelierAbsent, match=consigne):
+def test_pose_refusee_sans_atelier_dans_le_monde():
+    monde = MondeSansAtelier()
+    coffre = CoffreDuSoir(monde, "Steve")
+    asyncio.run(coffre.actualiser_atelier())
+    with pytest.raises(AtelierAbsent, match="pas construit"):
         asyncio.run(coffre.poser(_stocke()))
     assert monde.recues == ["data get storage mine_de_rien:atelier pos"]
+
+
+def test_la_position_suit_le_monde_sans_recreer_le_coffre():
+    """Atelier construit ou déplacé pendant que l'agent tourne : pas de redémarrage."""
+    monde = MondeSansAtelier([120, 64, -35])
+    coffre = CoffreDuSoir(monde, "Steve")
+    asyncio.run(coffre.actualiser_atelier())
+    assert coffre.verifier_atelier() == Atelier(120, 64, -35)
+    monde.pos = [-27, 68, -16]
+    asyncio.run(coffre.actualiser_atelier())
+    assert coffre.verifier_atelier() == Atelier(-27, 68, -16)
+    assert any("-27 68 -16" in c for c in commandes_pose(coffre.atelier, _stocke()))
+    monde.pos = None
+    asyncio.run(coffre.actualiser_atelier())
+    with pytest.raises(AtelierAbsent):
+        coffre.verifier_atelier()
 
 
 def test_sans_atelier_parents_prevenus_une_fois_puis_pose_quand_il_existe(monde):
@@ -356,8 +372,15 @@ def test_coffre_actif_present_mais_atelier_absent_parents_prevenus_sans_rappel(m
     assert notifs.messages[-1] == f"Aucun coffre ne peut être posé : {PAS_CONSTRUIT}"
 
 
+def test_chaque_tour_relit_l_atelier(monde):
+    _depot, coffre, _notifs, _horloge, orch = monde
+    _tour(orch)
+    _tour(orch)
+    assert coffre.actualisations == 2
+
+
 def test_un_nouveau_probleme_d_atelier_est_signale_meme_apres_le_premier(monde):
-    """Config modifiée sans redémarrer : le premier message ne doit pas rendre l'agent muet."""
+    """Le premier message ne doit pas rendre l'agent muet sur un problème différent."""
     _depot, coffre, notifs, _horloge, orch = monde
     coffre.probleme = PAS_CONSTRUIT
     _tour(orch)

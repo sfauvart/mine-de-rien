@@ -15,7 +15,8 @@ log = "/minecraft/logs/latest.log"   # pour lire le chat sans plugin
 # Où Mine de rien construit l'atelier des coffres : un plancher de 5 × 5 près de la base,
 # sur du sol naturel dégagé. Relever avec F3 le bloc juste au-dessus du sol, au centre :
 # c'est là que sera le coffre. À décommenter une fois les coordonnées relevées
-# (docs/installation.md, étape 7) ; sans elle, l'agent ne fait que répondre sur Telegram.
+# (docs/installation.md, étape 7). Cette section ne sert qu'à la commande
+# « mine-de-rien atelier » : une fois construit, l'agent lit la position dans le monde.
 # [atelier]
 # x = 120
 # y = 64
@@ -27,7 +28,7 @@ recompense_nombre = 3
 niveaux_offerts = 3                 # renommer sur l'enclume coûte un niveau par essai
 
 # Pixel : l'enfant l'appelle dans le chat (« Pixel, aide-moi », « Pixel, ramène-moi au
-# coffre »). Il demande [jeu] log et [atelier]. Son message ne part qu'à un LLM local ;
+# coffre »). Il demande [jeu] log. Son message ne part qu'à un LLM local ;
 # sans lui, des mots-clés suffisent et les indices partent tels quels.
 [assistant]
 nom = "Pixel"

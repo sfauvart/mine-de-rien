@@ -73,7 +73,7 @@ Minecraft, et aucun LLM n'intervient. Telegram reçoit les coordonnées de l'ate
 
 **Branche** : `feat/atelier-automatique`, pas encore créée, `/next` l'ouvre à la première phase.
 
-- [ ] **Phase 1 : Le monde fait foi**
+- [x] **Phase 1 : Le monde fait foi**
 - [ ] **Phase 2 : Trouver un emplacement**
 - [ ] **Phase 3 : /atelier sur Telegram**
 - [ ] **Phase 4 : Déplacer l'atelier**

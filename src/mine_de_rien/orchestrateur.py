@@ -8,9 +8,9 @@ Toutes les 3 secondes :
 3. pas de coffre actif : le suivant de la file est posé, 10 secondes au moins après
    l'ouverture du précédent, et seulement quand le coffre est vide.
 
-Si l'atelier attendu n'est pas celui de ce monde, aucun coffre n'est posé, et l'enfant n'est
-pas envoyé vers un coffre inaccessible : les parents sont prévenus une fois par problème
-différent, et la boucle réessaie à chaque tour.
+La position de l'atelier est relue dans le monde à chaque tour. S'il n'y en a pas, aucun coffre
+n'est posé, et l'enfant n'est pas envoyé vers un coffre inaccessible : les parents sont prévenus
+une fois, et la boucle réessaie à chaque tour.
 
 La boucle ne s'arrête pas sur une erreur du serveur (redémarrage, RCON coupé) : elle la
 signale et réessaie au tour suivant.
@@ -74,6 +74,7 @@ class Orchestrateur:
         en_ligne = await self.coffre.joueur_en_ligne()
         vient_de_se_connecter = en_ligne and not self.en_ligne
         self.en_ligne = en_ligne
+        await self.coffre.actualiser_atelier()
 
         actif = self.depot.actif()
         try:
@@ -104,7 +105,7 @@ class Orchestrateur:
                     f"({actif.exercice.enonce} → {actif.exercice.reponse})."
                 )
                 return
-        await self.coffre.verifier_atelier()
+        self.coffre.verifier_atelier()
         if not await self.coffre.coffre_present():
             await self.coffre.poser(actif)
             self.depot.noter("coffre_disparu", actif.id, self.horloge())
@@ -120,7 +121,7 @@ class Orchestrateur:
         if suivant is None:
             return
         # Avant d'attendre le coffre vide : celui d'un autre monde ne le sera jamais.
-        await self.coffre.verifier_atelier()
+        self.coffre.verifier_atelier()
         dernier = self.depot.dernier_ouvert()
         if dernier is not None and self.horloge() - dernier.ouvert_le < DELAI_SUIVANT:
             return
