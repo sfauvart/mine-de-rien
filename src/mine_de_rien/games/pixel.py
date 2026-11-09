@@ -31,6 +31,8 @@ erreur, les mots-clés suffisent et l'indice part tel quel.
 
 depuis n'importe quelle dimension : l'enfant arrive au centre du bloc, sur le plancher au sud
 du coffre, face à lui (« Teleported … », ou « No entity was found » s'il est déconnecté).
+Seulement si l'atelier est construit dans ce monde (`atelier.probleme_atelier`) : ailleurs,
+rien ne garantit que ce bloc soit de l'air.
 
 **Rapport.** Chaque indice et chaque téléportation est noté dans `evenements` avec le numéro
 du coffre ; aucun texte du chat n'est gardé.
@@ -60,7 +62,7 @@ from mine_de_rien.adapters.game.rcon import ErreurRcon
 from mine_de_rien.adapters.llm.base import ErreurLlm, Llm, lire_json
 from mine_de_rien.exercises.base import normaliser
 from mine_de_rien.exercises.indices import contient_la_reponse, indices
-from mine_de_rien.games.atelier import Atelier
+from mine_de_rien.games.atelier import Atelier, probleme_atelier
 from mine_de_rien.minecraft import texte
 from mine_de_rien.storage.sqlite import Depot, ErreurStockage, maintenant
 
@@ -114,6 +116,9 @@ PAS_DE_COFFRE = "Pas de coffre en ce moment. Je te préviendrai par l'annonce."
 PATIENCE = "Encore un peu de patience : une téléportation toutes les 5 minutes."
 TELEPORTE = "Te voilà devant le coffre !"
 HORS_LIGNE = "Je n'arrive pas à te déplacer, réessaie dans un instant."
+ATELIER_ABSENT = (
+    "L'atelier n'est pas encore construit, je ne peux pas t'y emmener. Préviens tes parents."
+)
 PHRASE_CALCUL = (
     "Je ne fais pas les calculs, mais je peux t'aider pour le coffre : dis « {nom}, aide-moi »."
 )
@@ -268,6 +273,11 @@ class Pixel:
         recents = self.depot.evenements_entre(maintenant_ - DELAI_TELEPORTATION, maintenant_)
         if any(e.genre == EVENEMENT_TELEPORTATION for e in recents):
             await self.dire(PATIENCE)
+            return
+        probleme = await probleme_atelier(self.jeu, self.atelier)
+        if probleme:
+            journal.warning("téléportation refusée : %s", probleme)
+            await self.dire(ATELIER_ABSENT)
             return
         reponse = await self.jeu.commande(commande_teleportation(self.atelier, self.pseudo))
         if not reponse.startswith("Teleported"):

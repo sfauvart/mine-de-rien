@@ -86,6 +86,8 @@ class FauxServeur:
     async def commande(self, c: str) -> str:
         if c == "list":
             return f"There are 1 of a max of 20 players online: {PSEUDO}"
+        if c == "data get storage mine_de_rien:atelier pos":
+            return "Storage mine_de_rien:atelier has the following contents: [0, -60, 8]"
         if c.startswith(f"clear {PSEUDO}") and c.endswith(" 0"):
             return f"Found 1 matching item(s) on player {PSEUDO}" if self.ouvert else (
                 f"No items were found on player {PSEUDO}"

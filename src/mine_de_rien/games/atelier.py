@@ -29,6 +29,10 @@ Avant de construire, l'agent vérifie que le volume au-dessus du plancher est de
 l'herbe, et que le plancher est du sol naturel ; sinon il refuse, sans rien casser, en disant
 où est le bloc qui gêne. Relancé, il répare sans dupliquer : il reconnaît alors ses propres
 blocs, et ne touche pas au contenu d'un coffre déjà posé.
+
+La position écrite dans `mine_de_rien:atelier` fait foi : tant qu'elle ne correspond pas à
+`[atelier]`, l'agent ne peut pas s'y fier (`probleme_atelier`). Le coffre du soir ne s'y pose
+pas et Pixel n'y téléporte pas : aux coordonnées d'un autre monde, l'enfant serait emmuré.
 """
 
 from __future__ import annotations
@@ -167,7 +171,7 @@ def _non_charge(reponse: str) -> bool:
     return "not loaded" in reponse
 
 
-async def _position_enregistree(jeu: AdaptateurJeu) -> Position | None:
+async def position_enregistree(jeu: AdaptateurJeu) -> Position | None:
     reponse = await jeu.commande(f"data get storage {STOCKAGE} pos")
     # « Storage mine_de_rien:atelier has the following contents: [0, -60, 8] »
     if "[" not in reponse:
@@ -180,9 +184,31 @@ async def _position_enregistree(jeu: AdaptateurJeu) -> Position | None:
     return (x, y, z)
 
 
+async def probleme_atelier(jeu: AdaptateurJeu, a: Atelier) -> str | None:
+    """Ce qui empêche d'utiliser cet atelier dans ce monde, dit aux parents ; None si tout va.
+
+    `a` est la position lue au démarrage de l'agent : `config.toml` modifié ensuite n'est pas
+    pris en compte tant qu'il n'a pas redémarré, d'où le second message.
+    """
+    enregistree = await position_enregistree(jeu)
+    if enregistree is None:
+        return (
+            f"l'atelier n'est pas construit en {_pos(a.coffre)} dans ce monde. "
+            "Le construire avec la commande « mine-de-rien atelier » (docs/installation.md, "
+            "étape 7)."
+        )
+    if enregistree != a.coffre:
+        return (
+            f"l'atelier de ce monde est en {_pos(enregistree)}, mais l'agent attend "
+            f"{_pos(a.coffre)}. Mettre {_pos(enregistree)} dans [atelier] de config.toml si ce "
+            "n'est pas déjà fait, puis redémarrer l'agent (docker compose restart agent)."
+        )
+    return None
+
+
 async def construire(jeu: AdaptateurJeu, a: Atelier) -> str:
     """Construit ou répare l'atelier. Renvoie un compte rendu ; lève `ErreurAtelier` si refusé."""
-    ancienne = await _position_enregistree(jeu)
+    ancienne = await position_enregistree(jeu)
     if ancienne is not None and ancienne != a.coffre:
         raise ErreurAtelier(
             f"Un atelier existe déjà en {_pos(ancienne)}. Le déplacer n'est pas prévu : "

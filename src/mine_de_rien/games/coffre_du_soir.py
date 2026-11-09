@@ -18,6 +18,10 @@ enclume (voir `atelier.py`) :
     xp add <pseudo> 3 levels
     execute at <pseudo> run playsound minecraft:block.bell.use master <pseudo> ~ ~ ~ 1 1
 
+Avant chaque pose, l'agent vérifie que l'atelier a été construit dans ce monde
+(`atelier.probleme_atelier`) ; sinon il refuse avec `AtelierAbsent`, sans rien poser : un coffre
+posé aux coordonnées d'un autre monde finirait dans la roche, et Pixel y emmurerait l'enfant.
+
 Le verrou est posé avant d'y mettre la récompense : à aucun moment le coffre n'est ouvert
 avec quelque chose dedans.
 
@@ -67,7 +71,7 @@ from datetime import timedelta
 from typing import Protocol
 
 from mine_de_rien.adapters.game.base import AdaptateurJeu
-from mine_de_rien.games.atelier import Atelier
+from mine_de_rien.games.atelier import Atelier, probleme_atelier
 from mine_de_rien.minecraft import texte
 from mine_de_rien.storage.sqlite import ExerciceStocke
 
@@ -76,6 +80,10 @@ _ERREUR_SYNTAXE = re.compile(r"<--\[HERE\]|Unknown|Incorrect argument|Expected|I
 
 class ErreurCoffre(RuntimeError):
     pass
+
+
+class AtelierAbsent(ErreurCoffre):
+    """L'atelier attendu n'est pas celui de ce monde ; le message va aux parents."""
 
 
 class Notificateur(Protocol):
@@ -232,7 +240,13 @@ class CoffreDuSoir:
         noms = {nom.strip() for nom in reponse.rsplit(":", 1)[1].split(",")}
         return self.pseudo in noms
 
+    async def verifier_atelier(self) -> None:
+        probleme = await probleme_atelier(self.jeu, self.atelier)
+        if probleme:
+            raise AtelierAbsent(probleme)
+
     async def poser(self, s: ExerciceStocke) -> None:
+        await self.verifier_atelier()
         await self._executer(commandes_pose(self.atelier, s))
         c = _pos(self.atelier.coffre)
         if not (
