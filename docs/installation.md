@@ -10,14 +10,27 @@ Il faut :
 - Minecraft **Java Edition** sur l'ordinateur de l'enfant (pas Bedrock, pas de console) ;
 - un compte Telegram par parent.
 
-## 1. Récupérer le projet et préparer les fichiers
+## 1. Récupérer les fichiers
+
+Trois fichiers suffisent. Docker téléchargera le reste : l'image de l'agent
+(`ghcr.io/sfauvart/mine-de-rien`, avec le datapack) et celle du serveur Minecraft.
+
+Choisir la dernière version dans la liste https://github.com/sfauvart/mine-de-rien/tags
+(par exemple `v0.2.0`, à écrire sans le `v` ci-dessous), puis :
 
 ```bash
-git clone <adresse du dépôt> mine-de-rien
-cd mine-de-rien
+mkdir mine-de-rien && cd mine-de-rien
+VERSION=X.Y.Z    # la version choisie, sans le v
+for f in docker-compose.yml .env.example config.example.toml; do
+  curl -fsSLO "https://raw.githubusercontent.com/sfauvart/mine-de-rien/v$VERSION/$f"
+done
 cp .env.example .env
 cp config.example.toml config.toml
 ```
+
+Pour lire ou modifier le code, cloner le dépôt fait aussi l'affaire
+(`git clone https://github.com/sfauvart/mine-de-rien.git`) : la suite est identique, et
+`docker compose build agent` construit l'agent depuis le clone au lieu de le télécharger.
 
 ## 2. Créer le bot Telegram
 
@@ -99,6 +112,9 @@ docker compose up -d minecraft
 docker compose logs -f minecraft    # attendre « Done », puis Ctrl+C
 ```
 
+Avant le serveur, un petit service `datapack` recopie le datapack de Mine de rien dans
+`data/datapacks`, puis s'arrête : c'est normal qu'il apparaisse « Exited (0) ».
+
 Ajouter l'enfant à la liste blanche, déjà active mais vide :
 
 ```bash
@@ -120,7 +136,7 @@ et passer en créatif : le jeu n'aurait plus de sens. Si un pseudo apparaît, le
 Démarrer l'agent :
 
 ```bash
-docker compose up -d --build agent
+docker compose up -d agent
 ```
 
 Chaque parent ouvre une conversation avec le bot et envoie `/start`. Le bot répond
@@ -273,13 +289,43 @@ actif = false
 Pour le renommer : `nom = "Bob"` dans la même section (2 à 16 lettres), puis redémarrer
 l'agent (`docker compose restart agent`).
 
+## Mettre à jour
+
+Le monde, la base des coffres, `.env` et `config.toml` sont conservés.
+
+1. Faire une copie de `data/` : une nouvelle version peut changer celle du serveur
+   Minecraft, qui convertit alors le monde.
+2. Remplacer `docker-compose.yml` par celui de la nouvelle version, qui ne contient aucun
+   réglage personnel :
+
+   ```bash
+   VERSION=X.Y.Z    # la nouvelle version, sans le v
+   curl -fsSLO "https://raw.githubusercontent.com/sfauvart/mine-de-rien/v$VERSION/docker-compose.yml"
+   ```
+
+3. Comparer `config.toml` à `config.example.toml` de la même version, pour une section
+   nouvelle à recopier.
+4. Télécharger les images et redémarrer. Le datapack suit l'agent :
+
+   ```bash
+   docker compose pull
+   docker compose up -d
+   ```
+
 ## En cas de souci
 
 ```bash
-docker compose ps                  # les deux services tournent-ils ?
+docker compose ps -a               # minecraft et agent tournent, datapack est « Exited (0) »
 docker compose logs --tail 50 agent
 docker compose logs --tail 50 minecraft
 ```
+
+- **La zone de l'atelier ne passe plus en mode aventure** : vérifier que
+  `data/datapacks/mine_de_rien` existe et que `docker compose logs datapack` affiche
+  « Datapack recopié ». Dans le log du serveur, chercher `Copying datapack`.
+- **Une image construite en local reste en place** : une image construite par
+  `docker compose build agent` porte le même nom que l'image publiée, et `up` la garde.
+  `docker compose pull` remet l'image publiée.
 
 - **Le serveur ne télécharge pas Paper** (« Failed to download paper ») : souvent un souci
   de DNS avec Docker rootless. Ajouter le serveur DNS de la maison dans

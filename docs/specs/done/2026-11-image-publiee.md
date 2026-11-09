@@ -91,11 +91,13 @@ Chaque tag git `vX.Y.Z` publie l'image pour amd64 et arm64.
 
 ## Statut
 
-**Branche** : `feat/image-publiee`, pas encore créée, `/next` l'ouvre à la première phase.
+**Branche** : `feat/image-publiee`, créée depuis `main` à la phase 1, fusionnée à la clôture.
 
-- [ ] **Phase 1 : une image qui porte l'agent et son datapack**
-- [ ] **Phase 2 : un tag git publie l'image sur ghcr.io**
-- [ ] **Phase 3 : le compose et le guide utilisent l'image publiée**
+- [x] **Phase 1 : une image qui porte l'agent et son datapack**
+- [x] **Phase 2 : un tag git publie l'image sur ghcr.io**
+- [x] **Phase 3 : le compose et le guide utilisent l'image publiée**
+
+Close le 2026-11-09.
 
 La phase 2 construit l'image de la phase 1. La phase 3 a besoin d'une image réellement
 publiée, donc d'un premier tag poussé à la main après la phase 2.
@@ -131,8 +133,8 @@ sous-commande sans `config.toml` doit être traitée avant cette ligne.
   - *Garde-fous.* Elle refuse une source sans `pack.mcmeta` et une destination qui est la
     source elle-même. Elle crée `<dossier>` s'il manque.
 - **Dockerfile.**
-  - Images de base figées (`python:3.12.x-slim-<debian>`, `ghcr.io/astral-sh/uv:0.x.y`),
-    versions relevées au moment de la phase.
+  - Images de base figées : `python:3.12.16-slim-trixie` et `ghcr.io/astral-sh/uv:0.13.7`,
+    relevées le 2026-11-08, publiées toutes deux pour amd64 et arm64.
   - `COPY datapacks ./datapacks`.
   - `ENV PATH=/app/.venv/bin:$PATH`, pour que `mine-de-rien` se lance directement. Les
     commandes `uv run --no-sync mine-de-rien …` du guide continuent de marcher.
@@ -166,8 +168,9 @@ sous-commande sans `config.toml` doit être traitée avant cette ligne.
 ### Phase 2 : un tag git publie l'image sur ghcr.io
 
 **Contexte.** Le dépôt est sur GitHub (`git@github.com:sfauvart/mine-de-rien.git`) et n'a
-encore aucun tag ; `pyproject.toml` est en `0.1.0`. Un paquet ghcr.io est **privé** à sa
-première publication : il faut le passer en public une fois, à la main.
+encore aucun tag ; `pyproject.toml` est en `0.1.0`. On croyait qu'un paquet ghcr.io serait
+privé à sa première publication ; à la publication de v0.1.0, il a pris la visibilité
+publique du dépôt, sans rien régler.
 
 **Fichiers.**
 - `.github/workflows/publier.yml` (nouveau)
@@ -177,9 +180,10 @@ première publication : il faut le passer en public une fois, à la main.
 - **Déclencheur.** `on: push: tags: ["v*.*.*"]`.
 - **Job `verifier`.**
   - `uv sync`, `uv run pytest`, `uv run ruff check`.
-  - Contrôle de cohérence : la version du tag (sans le `v`) doit égaler `version` dans
-    `pyproject.toml`. La phase 3 ajoutera le tag d'image de `docker-compose.yml` à ce
-    contrôle.
+  - Contrôle de cohérence (`scripts/verifier_version.py`) : la version du tag (sans le `v`)
+    doit égaler `version` dans `pyproject.toml` et `__version__` dans
+    `src/mine_de_rien/__init__.py`, que la phase a trouvé en double. La phase 3 ajoutera le
+    tag d'image de `docker-compose.yml` à ce contrôle.
 - **Job `publier`**, qui dépend de `verifier`.
   - `permissions: packages: write, contents: read`, connexion à ghcr.io avec `GITHUB_TOKEN`.
   - `docker/setup-qemu-action`, `docker/setup-buildx-action`, `docker/metadata-action`
@@ -195,8 +199,7 @@ première publication : il faut le passer en public une fois, à la main.
   3. `git tag vX.Y.Z` puis `git push origin vX.Y.Z` ;
   4. suivre le workflow.
 
-  La première fois seulement : GitHub → Packages → `mine-de-rien` → Package settings →
-  Change visibility → Public.
+  Visibilité : héritée du dépôt public, rien à régler (constaté sur v0.1.0).
 
 **Vérification automatique.**
 - `actionlint` sur le workflow, lancé par conteneur : `docker run --rm -v "$PWD:/repo"
@@ -207,7 +210,7 @@ première publication : il faut le passer en public une fois, à la main.
 **Vérification manuelle** (après la phase : le tag se pousse seulement quand le parent le
 demande).
 - Pousser `v0.1.0`. Le workflow est vert dans l'onglet Actions.
-- Passer le paquet en public.
+- ~~Passer le paquet en public.~~ Inutile : il l'était déjà, hérité du dépôt.
 - Depuis une machine non connectée à ghcr.io :
   `docker buildx imagetools inspect ghcr.io/sfauvart/mine-de-rien:0.1.0` liste `linux/amd64`
   et `linux/arm64`, et `docker run --rm ghcr.io/sfauvart/mine-de-rien:0.1.0 mine-de-rien
@@ -233,14 +236,15 @@ demande).
     volume `./data/datapacks:/datapacks`, pas de `restart`.
   - `minecraft` : volume `./data/datapacks:/datapacks:ro` à la place de `./datapacks`,
     `depends_on: datapack: condition: service_completed_successfully`, image
-    `itzg/minecraft-server:<tag>` figée (le tag sous lequel tourne le serveur d'essai au
-    moment de la phase).
+    `itzg/minecraft-server:2026.10.1-java25` figée. Le serveur d'essai tourne sur `latest`,
+    un build du 2026-11-06 sans tag versionné : on a pris la dernière version publiée,
+    même Java 25, et vérifié qu'elle sert Paper 26.3 (essai sur dossier vide ci-dessous).
   - `agent` : `image: ghcr.io/sfauvart/mine-de-rien:0.1.0`, en gardant le `build:` actuel.
-- **Comportement à vérifier** (Compose, version installée sur le poste) : avec `image:` et
-  `build:` ensemble, `docker compose up -d` doit télécharger l'image publiée sans
-  construire, et `docker compose build agent` doit construire en local sous le même nom. Si
-  `up -d` construit au lieu de télécharger, ajouter `pull_policy: missing` ou séparer
-  `build:` dans un fichier `docker-compose.build.yml` ; la solution retenue est notée ici.
+- **Comportement vérifié** (2026-11-08) : avec `image:` et `build:` ensemble,
+  `docker compose up -d` télécharge l'image publiée sans construire (essai sur un dossier
+  sans Dockerfile), et `docker compose build agent` construit en local sous le même nom ;
+  `docker compose pull agent` remet ensuite l'image publiée. Ni `pull_policy` ni fichier
+  séparé.
 - **Contrôle de cohérence** du workflow : le tag d'image `mine-de-rien` des services `agent`
   et `datapack` doit égaler la version du tag git.
 - **`docs/installation.md`.**
@@ -263,8 +267,7 @@ demande).
   - faire sortir `datapack` avec le code 0 ;
   - démarrer `minecraft` jusqu'à « Done » ;
   - montrer dans le log de `minecraft` que `world/datapacks/mine_de_rien` est copié ;
-  - laisser `rcon-cli datapack list` citer `file/mine_de_rien` parmi les packs actifs
-    (à vérifier sur la version du serveur).
+  - laisser `rcon-cli datapack list` citer `file/mine_de_rien` parmi les packs actifs.
 - Version modifiée par erreur dans le compose : le script de cohérence de la phase 2
   échoue.
 
@@ -278,3 +281,7 @@ le monde de l'enfant conservé dans `data/minecraft` :
 3. Depuis Telegram, `/coffre 348 ÷ 12` : le coffre apparaît, s'ouvre avec la clé renommée
    « 29 », et les parents reçoivent « Coffre ouvert ». L'agent qui tourne vient de l'image
    publiée (`docker compose images agent` affiche `ghcr.io/sfauvart/mine-de-rien` `0.1.0`).
+
+## Retours de jeu
+
+- 2026-11-09 : scénario de la phase 3 joué sur l'installation locale, conforme.

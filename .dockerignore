@@ -1,0 +1,19 @@
+# Rien de la maison n'entre dans le contexte de construction : monde, base, secrets, config.
+data/
+.env
+.env.*
+config.toml
+config.essai.toml
+
+# Inutile à l'image
+.git/
+.github/
+.claude/
+.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+tests/
+docs/

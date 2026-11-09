@@ -39,19 +39,23 @@ Détail des idées et des choix : [docs/idees.md](docs/idees.md), [docs/architec
 - **Java Edition uniquement** pour l'instant. Bedrock (tablette, console, Minecraft pour
   Windows) n'est pas pris en charge : voir [docs/architecture.md](docs/architecture.md).
 - **Python 3.12+**, `uv`, SQLite.
-- `docker compose` qui lance Paper et l'agent d'un coup.
+- `docker compose` qui lance Paper et l'agent d'un coup. L'agent et son datapack sont
+  publiés en une image, `ghcr.io/sfauvart/mine-de-rien`, pour amd64 et arm64.
 
 ## Installation
 
 Le guide pas à pas, du bot Telegram au premier coffre : [docs/installation.md](docs/installation.md).
 
-En résumé :
+En résumé, sans cloner le dépôt : récupérer `docker-compose.yml`, `.env.example` et
+`config.example.toml` d'une version taguée, puis
 
 ```bash
 cp .env.example .env            # EULA, version, mot de passe RCON, jeton Telegram
 cp config.example.toml config.toml
-docker compose up -d            # serveur Minecraft + agent
+docker compose up -d            # télécharge les images, datapack, serveur Minecraft, agent
 ```
+
+Publier une nouvelle version de l'image : [docs/publier-une-version.md](docs/publier-une-version.md).
 
 Pour se connecter au serveur depuis le lanceur officiel ou un lanceur hors ligne comme XMCL,
 voir [docs/rejoindre-le-serveur.md](docs/rejoindre-le-serveur.md).
