@@ -11,9 +11,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from PIL import Image
 
+from mine_de_rien import photo
 from mine_de_rien.adapters.channel.base import MessageParent
 from mine_de_rien.config import Coffre
-from mine_de_rien.games.emplacement import ENFANT_ABSENT
+from mine_de_rien.games.coffre_du_soir import CoffreDuSoir
+from mine_de_rien.games.emplacement import AUCUN_TERRAIN, ENFANT_ABSENT
 from mine_de_rien.orchestrateur import (
     LECTURE_EN_COURS,
     RECHERCHE_EN_COURS,
@@ -21,7 +23,7 @@ from mine_de_rien.orchestrateur import (
     servir,
 )
 from mine_de_rien.storage.sqlite import Depot
-from tests.test_emplacement import Terrain
+from tests.test_emplacement import Terrain, Y
 
 PARENTS = [111, 222]
 DOUBLES = {"lignes": [{"genre": "calcul", "texte": f"Double de {n}"} for n in range(1, 21)]}
@@ -187,16 +189,8 @@ def test_servir_previent_avant_de_lire(depot):
     assert "Tirés au hasard (2)" in canal.reponses[1][1]
 
 
-class CoffreDeTerrain:
-    """Juste ce que /atelier demande au coffre : le jeu et le pseudo."""
-
-    def __init__(self, jeu):
-        self.jeu = jeu
-        self.pseudo = "Steve_42"
-
-
 def _atelier(depot, terrain):
-    return CommandesParents(depot, Coffre(), CoffreDeTerrain(terrain), PARENTS)
+    return CommandesParents(depot, Coffre(), CoffreDuSoir(terrain, "Steve_42"), PARENTS)
 
 
 def test_atelier_construit_sans_le_pseudo_dans_la_reponse(depot):
@@ -224,13 +218,80 @@ def test_atelier_enfant_hors_ligne_dit_quoi_faire(depot):
     assert _texte(_atelier(depot, Terrain(joueur=None)), "/atelier") == ENFANT_ABSENT
 
 
-def test_atelier_deja_construit_n_y_touche_pas(depot):
-    class Construit(Terrain):
-        async def commande(self, c):
-            if c.startswith("data get storage"):
-                return "Storage mine_de_rien:atelier has the following contents: [1, 64, 2]"
-            return await super().commande(c)
+ANCIEN = [40, 64, 40]
+MODIFIANTES = (
+    "fill", "setblock", "data modify", "data remove", "forceload",
+    "kill @e[type=minecraft:marker,tag=mdr_atelier",
+)
 
-    terrain = Construit()
-    assert _texte(_atelier(depot, terrain), "/atelier") == "L'atelier est déjà construit en 1 64 2."
-    assert not any(c.startswith(("fill", "setblock", "summon")) for c in terrain.recues)
+
+def _pose(depot):
+    ident = depot.ajouter(photo._calcul("Double de 17"), source="photo", demande_par="1",
+                          recompense="minecraft:diamond", recompense_nombre=3)
+    depot.marquer_pose(ident, Horloge()())
+    return ident
+
+
+def test_deplacement_dans_l_ordre(depot):
+    terrain = Terrain(atelier=ANCIEN)
+    reponse = _texte(_atelier(depot, terrain), "/atelier")
+    assert reponse == "Atelier déplacé en 92 64 192, à 11 blocs de l'enfant."
+    assert terrain.atelier == [92, 64, 192]
+    modifs = [c for c in terrain.recues if c.startswith(MODIFIANTES)]
+    assert modifs[:4] == [f"setblock {p} minecraft:air" for p in
+                          ("40 64 40", "39 64 40", "41 64 40", "42 64 38")]
+    assert modifs[4] == "fill 38 63 38 42 63 42 minecraft:dirt"
+    assert modifs[5].startswith("kill") and "mdr_atelier" in modifs[5]
+    assert modifs[6] == "forceload remove 38 38 42 42"
+    assert modifs[7] == "data remove storage mine_de_rien:atelier pos"
+    assert modifs[8] == "forceload add 90 190 94 194"
+    assert modifs[-1] == "data modify storage mine_de_rien:atelier pos set value [92, 64, 192]"
+    assert terrain.dits == [
+        ("Steve_42", "Ton atelier vient d'apparaître, à 11 blocs vers l'ouest.")
+    ]
+
+
+def test_deplacement_refuse_avec_un_coffre_actif(depot):
+    ident = _pose(depot)
+    terrain = Terrain(atelier=ANCIEN)
+    reponse = _texte(_atelier(depot, terrain), "/atelier")
+    assert f"coffre n°{ident} est en cours" in reponse
+    assert not any(c.startswith(MODIFIANTES) for c in terrain.recues)
+    assert terrain.atelier == ANCIEN
+
+
+def test_deplacement_refuse_avec_un_coffre_plein(depot):
+    class AvecCoffre(Terrain):
+        def bloc(self, x, y, z):
+            return "minecraft:chest" if [x, y, z] == ANCIEN else super().bloc(x, y, z)
+
+    terrain = AvecCoffre(atelier=ANCIEN, coffre_plein=True)
+    assert "contient encore des objets" in _texte(_atelier(depot, terrain), "/atelier")
+    assert not any(c.startswith(MODIFIANTES) for c in terrain.recues)
+
+
+def test_ancien_atelier_intact_si_rien_ne_convient(depot):
+    class Bossele(Terrain):
+        def sol(self, x, z):
+            return Y + (x + z) % 2
+
+    terrain = Bossele(atelier=ANCIEN)
+    assert _texte(_atelier(depot, terrain), "/atelier") == AUCUN_TERRAIN
+    assert not any(c.startswith(MODIFIANTES) for c in terrain.recues)
+    assert terrain.atelier == ANCIEN
+
+
+def test_atelier_attend_la_fin_du_tour_de_surveillance(depot):
+    """Pas de coffre posé à l'ancien endroit pendant le déplacement."""
+    terrain = Terrain(atelier=ANCIEN)
+    c = _atelier(depot, terrain)
+
+    async def scenario():
+        await c.coffre.verrou.acquire()
+        tache = asyncio.create_task(c.traiter(MessageParent(111, "/atelier")))
+        await asyncio.sleep(0)
+        assert not tache.done() and terrain.recues == []
+        c.coffre.verrou.release()
+        return await tache
+
+    assert asyncio.run(scenario()).startswith("Atelier déplacé")

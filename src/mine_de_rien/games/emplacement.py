@@ -2,8 +2,8 @@
 
 **Le désir.** Le parent ne connaît pas Minecraft : pas de F3, pas de coordonnées à recopier.
 L'agent cherche lui-même, près de l'enfant, un endroit où l'atelier tient sans rien casser.
-`chercher` ne construit rien ; `construire_pres_de` enchaîne position de l'enfant, recherche et
-construction, pour la commande `/atelier` des parents.
+`chercher` ne construit rien ; `construire_pres_de` et `deplacer_pres_de` enchaînent position
+de l'enfant, recherche et construction, pour la commande `/atelier` des parents.
 
 **Commandes**, vérifiées sur Minecraft Java 26.3 (Paper) :
 
@@ -54,7 +54,13 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 
 from mine_de_rien.adapters.game.base import AdaptateurJeu
-from mine_de_rien.games.atelier import Atelier, ErreurAtelier, construire, place_libre
+from mine_de_rien.games.atelier import (
+    Atelier,
+    ErreurAtelier,
+    construire,
+    demonter,
+    place_libre,
+)
 from mine_de_rien.minecraft import texte
 
 DISTANCE_MIN = 8
@@ -201,6 +207,15 @@ async def annoncer(jeu: AdaptateurJeu, pseudo: str, c: Construction) -> None:
 async def construire_pres_de(jeu: AdaptateurJeu, pseudo: str) -> Construction:
     """Construit l'atelier près du joueur et le lui dit."""
     c = await trouver_pres_de(jeu, pseudo)
+    await construire(jeu, c.atelier)
+    await annoncer(jeu, pseudo, c)
+    return c
+
+
+async def deplacer_pres_de(jeu: AdaptateurJeu, pseudo: str, ancien: Atelier) -> Construction:
+    """Déplace l'atelier près du joueur. Recherche d'abord : sans résultat, rien ne bouge."""
+    c = await trouver_pres_de(jeu, pseudo)
+    await demonter(jeu, ancien)
     await construire(jeu, c.atelier)
     await annoncer(jeu, pseudo, c)
     return c

@@ -30,8 +30,10 @@ class Terrain:
 
     def __init__(
         self, sols=None, blocs=None, charge=lambda x, z: True, summon="Summoned new Marker",
-        joueur=(X + 0.5, float(Y), Z + 0.5), dimension=True,
+        joueur=(X + 0.5, float(Y), Z + 0.5), dimension=True, atelier=None, coffre_plein=False,
     ):
+        self.atelier = atelier
+        self.coffre_plein = coffre_plein
         self.joueur = joueur
         self.dimension = dimension
         self.dits: list[tuple[str, str]] = []
@@ -63,7 +65,17 @@ class Terrain:
         if c.startswith("execute in minecraft:overworld if entity"):
             return "Test passed. Count: 1" if self.dimension else "Test failed"
         if c.startswith("data get storage"):
-            return "Found no elements matching pos"
+            if self.atelier is None:
+                return "Found no elements matching pos"
+            return f"Storage mine_de_rien:atelier has the following contents: {list(self.atelier)}"
+        if c.startswith("data remove storage"):
+            self.atelier = None
+            return "Modified storage mine_de_rien:atelier"
+        if c.startswith("data modify storage"):
+            self.atelier = [int(v) for v in re.search(r"\[(.*)\]", c)[1].split(",")]
+            return "Modified storage mine_de_rien:atelier"
+        if "Items[0]" in c:
+            return "Test passed. Count: 1" if self.coffre_plein else "Test failed"
         if c.startswith("forceload"):
             return "Marked 2 chunks to be force loaded"
         if c.startswith("kill"):

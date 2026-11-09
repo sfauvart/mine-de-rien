@@ -64,6 +64,7 @@ reposé. Jamais le pseudo de l'enfant.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from datetime import timedelta
@@ -207,6 +208,9 @@ class CoffreDuSoir:
     ) -> None:
         self.jeu = jeu
         self.atelier: Atelier | None = None
+        # Tenu pendant un tour de surveillance et pendant /atelier : pas de pose en plein
+        # déplacement.
+        self.verrou = asyncio.Lock()
         self.pseudo = texte.verifier_pseudo(pseudo)
         self.niveaux_offerts = niveaux_offerts
         # Nom de Pixel s'il écoute le chat : le mode d'emploi dit qu'on peut l'appeler.

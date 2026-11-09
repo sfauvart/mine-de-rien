@@ -133,6 +133,7 @@ class FauxCoffre:
         self.preuve = False
         self.probleme = None
         self.actualisations = 0
+        self.verrou = asyncio.Lock()
         self.actions: list[str] = []
 
     async def joueur_en_ligne(self):

@@ -172,6 +172,10 @@ Il lui faut un carré de 5 × 5 parfaitement plat, sur du sol naturel, sans rien
 rien n'est cassé. S'il n'en trouve pas, le bot dit quoi faire : souvent, emmener l'enfant vers
 un terrain plus dégagé et relancer `/atelier`.
 
+Si l'emplacement ne convient pas, emmener l'enfant ailleurs et relancer `/atelier` : l'atelier
+se déplace, à condition qu'aucun coffre ne soit en cours et que le coffre de l'atelier soit
+vide. L'ancien emplacement redevient un carré de terre.
+
 Tant qu'il n'y a pas d'atelier dans le monde, aucun coffre n'est posé et Pixel ne téléporte
 pas : un message sur Telegram le rappelle. Après un changement de monde (nouveau serveur, monde
 importé), relancer simplement `/atelier`.
@@ -232,7 +236,7 @@ Commandes des parents :
 
 | Commande | Effet |
 |---|---|
-| `/atelier` | construit l'atelier près de l'enfant, qui doit être connecté (étape 7) |
+| `/atelier` | construit l'atelier près de l'enfant connecté, ou l'y déplace (étape 7) |
 | `/coffre 348 ÷ 12` | un calcul recopié du cahier, recalculé par Mine de rien |
 | `/coffre division 3` | trois exercices d'une compétence (`division`, `anglais`) |
 | photo d'une fiche | voir l'étape 10 |

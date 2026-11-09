@@ -36,7 +36,7 @@ from mine_de_rien.adapters.game.rcon import ErreurRcon
 from mine_de_rien.adapters.llm.base import ErreurLlm, Llm
 from mine_de_rien.config import Coffre as ConfigCoffre
 from mine_de_rien.exercises.base import Exercice
-from mine_de_rien.games.atelier import ErreurAtelier, lire_atelier
+from mine_de_rien.games.atelier import ErreurAtelier
 from mine_de_rien.games.coffre_du_soir import (
     AtelierAbsent,
     CoffreDuSoir,
@@ -44,7 +44,7 @@ from mine_de_rien.games.coffre_du_soir import (
     Notificateur,
     formater_duree,
 )
-from mine_de_rien.games.emplacement import construire_pres_de
+from mine_de_rien.games.emplacement import construire_pres_de, deplacer_pres_de
 from mine_de_rien.games.pixel import EVENEMENT_INDICE
 from mine_de_rien.rapport import nombre_indices, rapport
 from mine_de_rien.saisie import NOMBRE_MAX, ErreurSaisie, interpreter
@@ -73,6 +73,10 @@ class Orchestrateur:
         self._atelier_signale: str | None = None
 
     async def tour(self) -> None:
+        async with self.coffre.verrou:
+            await self._tour()
+
+    async def _tour(self) -> None:
         en_ligne = await self.coffre.joueur_en_ligne()
         vient_de_se_connecter = en_ligne and not self.en_ligne
         self.en_ligne = en_ligne
@@ -198,7 +202,7 @@ class LectureEnAttente:
 
 AIDE = (
     "Commandes :\n"
-    "/atelier : construit l'atelier près de l'enfant, qui doit être connecté\n"
+    "/atelier : construit l'atelier près de l'enfant connecté, ou l'y déplace\n"
     "/coffre 348 ÷ 12 : un calcul recopié du cahier\n"
     "/coffre division 3 : trois exercices d'une compétence (division, anglais)\n"
     "Photo d'une fiche, « 5 » en légende : cinq exercices tirés au hasard, "
@@ -284,16 +288,36 @@ class CommandesParents:
     async def _atelier(self) -> str:
         if self.coffre is None:
             return "Aucun serveur Minecraft configuré."
-        try:
-            existant = await lire_atelier(self.coffre.jeu)
-            if existant is not None:
-                x, y, z = existant.coffre
-                return f"L'atelier est déjà construit en {x} {y} {z}."
-            c = await construire_pres_de(self.coffre.jeu, self.coffre.pseudo)
-        except ErreurAtelier as e:
-            return str(e)
+        async with self.coffre.verrou:
+            await self.coffre.actualiser_atelier()
+            ancien = self.coffre.atelier
+            try:
+                if ancien is None:
+                    c = await construire_pres_de(self.coffre.jeu, self.coffre.pseudo)
+                else:
+                    refus = await self._refus_de_deplacer()
+                    if refus:
+                        return refus
+                    c = await deplacer_pres_de(self.coffre.jeu, self.coffre.pseudo, ancien)
+            except ErreurAtelier as e:
+                return str(e)
         x, y, z = c.atelier.coffre
-        return f"Atelier construit en {x} {y} {z}, à {c.distance} blocs de l'enfant."
+        verbe = "construit" if ancien is None else "déplacé"
+        return f"Atelier {verbe} en {x} {y} {z}, à {c.distance} blocs de l'enfant."
+
+    async def _refus_de_deplacer(self) -> str | None:
+        actif = self.depot.actif()
+        if actif is not None:
+            return (
+                f"Le coffre n°{actif.id} est en cours : l'annuler avec /annuler {actif.id}, "
+                "ou attendre qu'il soit ouvert, puis relancer /atelier."
+            )
+        if not await self.coffre.coffre_vide():
+            return (
+                "Le coffre de l'atelier contient encore des objets : l'enfant doit le vider, "
+                "puis relancer /atelier."
+            )
+        return None
 
     async def _photo(self, message: MessageParent) -> str:
         if self.llm is None:
