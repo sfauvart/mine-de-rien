@@ -111,7 +111,7 @@ Deux points à tenir pendant le port :
 **Branche** : `feat/agent-en-rust`, pas encore créée, `/next` l'ouvre à la première phase.
 
 - [x] **Phase 1 : Le crate, la configuration et le datapack embarqué**
-- [ ] **Phase 2 : Texte Minecraft, expressions et division**
+- [x] **Phase 2 : Texte Minecraft, expressions et division**
 - [ ] **Phase 3 : Anglais, indices, registre et saisie**
 - [ ] **Phase 4 : La base SQLite et le rapport**
 - [ ] **Phase 5 : Parler au serveur : RCON et log**
@@ -551,3 +551,14 @@ de route, taille de l'image.)*
 - Le runtime `tokio` n'est pas encore démarré dans `main` : il le sera à la phase 5, la
   première qui en a besoin.
 - `pytest` annonce 860 tests passés : les 261 fonctions de test sont paramétrées.
+
+**Phase 2.**
+- Défaut du Python trouvé par l'oracle et **reproduit tel quel** : après un opérateur, la
+  parenthèse ouvrante est suivie d'une espace (« (1 + 2) × ( 3 + 4) = ? »). À corriger dans
+  un autre chantier, pas ici.
+- Écart assumé : seuls `0` à `9` sont des chiffres. Le Python lisait aussi les chiffres
+  d'autres écritures (« ٣ + 1 » valait 4) ; Rust répond « Caractère non reconnu ».
+- `src/alea.rs` enveloppe `rand` : les générateurs ne voient que `Alea`, ce qui isole le
+  projet des changements d'API de `rand` (0.10 a renommé ses traits).
+- Les composants texte sont écrits par un sérialiseur maison qui reproduit `json.dumps` de
+  Python (séparateurs `", "` et `": "`), pour que les commandes soient identiques à l'octet.
