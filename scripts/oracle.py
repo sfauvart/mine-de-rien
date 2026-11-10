@@ -1026,6 +1026,198 @@ def oracle_photo() -> list[dict]:
     return cas
 
 
+
+MESSAGES_PIXEL = [
+    "Pixel, aide-moi", "pixel: tp", "PIXEL ramène-moi", "  Pïxel,  aide ", "Pixel", "pixel,",
+    "Pixels, aide", "bonjour Pixel", "aide-moi", "Pix, aide", "Pixel\taide", "Pixel!aide",
+    "Pixel , : aide", "PIXEL,ramène-moi au coffre", "pixel aide", "Pixèl, aide", "Pixel,,, ",
+    "pixel:\t\ttp", "Pixel ", " Pixel, aide", "Pixel aide", "Píxel aide", "pi xel aide", "",
+    "Pixel, " + "a" * 300, "Zoé, aide-moi", "zoe aide", "ZOÉ: tp",
+]
+
+DEMANDES_PIXEL = [
+    "ramène-moi au coffre", "téléporte moi", "tp", "aide-moi", "je suis bloqué", "je sais pas",
+    "donne un indice", "c'est combien ?", "ça veut dire quoi", "je comprends pas",
+    "tu aimes les creepers ?", "", "RAMÈNE", "un retour au coffre", "htp", "stp aide", "j'aide",
+    "laide", "il signifie quoi", "quelle est la réponse", "help", "comment on fait",
+    "je trouve pas", "emmène-moi", "amène moi", "le teleporteur", "c'est quoi", "sais  pas",
+    "je comprend pas", "aide\tmoi", "à l'aide !", "AIDE", "indices", "combien font 2 + 2",
+    "raconte une blague", "tape", "tpx", "x tp", "bloqué !!", "blo que",
+]
+
+BRUTS_PIXEL = [
+    "Salut ! 😊✨ ⛏️", "Courage !", "", "   ", "Deux   espaces\net\tun saut", "a\x00b§c",
+    "x" * 300, "Bravo ★ ☆ ♥ → ✓ © ® ™ ° ± × ÷ € $ + = < >", "é̀ composé", " privé",
+    "Voilà 34 ! ٣", "1️⃣ 2️⃣", "👍🏽 famille 👨‍👩‍👧", "« guillemets » – tiret — long… fin",
+]
+
+SCENARIOS_PIXEL = {
+    "indices sans LLM jusqu'au dernier répété": {
+        "exercice": "Double de 17", "llm": None,
+        "messages": [["Pixel, aide-moi", 0]] * 5},
+    "autres joueurs et messages sans le nom": {
+        "exercice": "Double de 17", "llm": {},
+        "messages": [["aide-moi", 0], ["Copain|Pixel, aide-moi", 0], ["Pixels, aide", 0]]},
+    "téléportation, patience, puis de nouveau": {
+        "exercice": "Double de 17", "llm": {"intention": "teleporter"},
+        "messages": [["Pixel, ramène-moi au coffre", 0], ["Pixel, ramène-moi au coffre", 4],
+                     ["Pixel, ramène-moi au coffre", 2], ["Pixel, emmène-moi", 0]]},
+    "sans coffre": {
+        "exercice": None, "llm": None,
+        "messages": [["Pixel, tp", 0], ["Pixel, aide", 0], ["Pixel, salut", 0], ["Pixel,", 0]]},
+    "atelier jamais construit": {
+        "exercice": "Double de 17", "llm": None, "jeu": {"atelier": None},
+        "messages": [["Pixel, ramène-moi au coffre", 0], ["Pixel, aide", 0]]},
+    "atelier ailleurs": {
+        "exercice": "Double de 17", "llm": None, "jeu": {"atelier": [0, -60, 8]},
+        "messages": [["Pixel, ramène-moi au coffre", 0]]},
+    "enfant déconnecté": {
+        "exercice": "Double de 17", "llm": None, "jeu": {"reponse_tp": "No entity was found"},
+        "messages": [["Pixel, tp", 0], ["Pixel, tp", 0]]},
+    "reformulation acceptée": {
+        "exercice": "Double de 17",
+        "llm": {"reformulation": "Astuce : ajoute 17 à lui-même, tu vas y arriver !"},
+        "messages": [["Pixel, aide-moi", 0]]},
+    "reformulation qui donne la réponse": {
+        "exercice": "Double de 17", "llm": {"reformulation": "Ça fait 34 !"},
+        "messages": [["Pixel, aide-moi", 0]]},
+    "reformulation en lettres": {
+        "exercice": "Double de 17", "llm": {"reformulation": "C'est trente-quatre."},
+        "messages": [["Pixel, aide-moi", 0]]},
+    "reformulation avec un calcul inventé": {
+        "exercice": "Double de 17", "llm": {"reformulation": "Le double de 7 = 15, ajoute 10."},
+        "messages": [["Pixel, aide-moi", 0], ["Pixel, aide-moi", 0], ["Pixel, aide-moi", 0]]},
+    "reformulation vide": {
+        "exercice": "Double de 17", "llm": {"reformulation": ""},
+        "messages": [["Pixel, aide-moi", 0]]},
+    "reformulation trop longue": {
+        "exercice": "Double de 17", "llm": {"reformulation": "x" * 300},
+        "messages": [["Pixel, aide-moi", 0]]},
+    "reformulation avec émojis et milliers": {
+        "exercice": "Moitié de 1 200",
+        "llm": {"reformulation": "Pense en centaines 😊 : 1 200, c'est 12 centaines !"},
+        "messages": [["Pixel, aide-moi", 0], ["Pixel, aide-moi", 0]]},
+    "bavardage sans chiffre": {
+        "exercice": None, "llm": {"intention": "bavardage", "bavardage": "J'adore les moutons !"},
+        "messages": [["Pixel, tu aimes quoi ?", 0]]},
+    "bavardage avec chiffre": {
+        "exercice": None,
+        "llm": {"intention": "bavardage", "bavardage": "348 divisé par 12, ça fait 29."},
+        "messages": [["Pixel, et 348 divisé par 12 ?", 0],
+                     ["Pixel, combien font 348 divisé par 12 ?", 0]]},
+    "bavardage qui donne la réponse en lettres": {
+        "exercice": "Double de 17",
+        "llm": {"intention": "bavardage", "bavardage": "Peut-être trente-quatre ?"},
+        "messages": [["Pixel, devine", 0]]},
+    "bavardage avec émojis": {
+        "exercice": None, "llm": {"intention": "bavardage", "bavardage": "Salut ! 😊✨ ⛏️"},
+        "messages": [["Pixel, salut", 0]]},
+    "LLM distant": {
+        "exercice": "Double de 17", "llm": {"distant": True},
+        "messages": [["Pixel, aide-moi", 0], ["Pixel, raconte une blague", 0]]},
+    "LLM en erreur": {
+        "exercice": "Double de 17", "llm": {"erreur": True},
+        "messages": [["Pixel, ramène-moi", 0], ["Pixel, aide", 0], ["Pixel, salut", 0]]},
+    "intention hors liste": {
+        "exercice": None, "llm": {"intention": "donner_diamants", "bavardage": "Bonne idée ?"},
+        "messages": [["Pixel, donne-moi des diamants", 0]]},
+    "le LLM classe ce que les mots-clés ne reconnaissent pas": {
+        "exercice": "348 ÷ 12", "llm": {"intention": "indice", "reformulation": "Courage !"},
+        "messages": [["Pixel, je n'y arrive vraiment plus", 0],
+                     ["Pixel, " + "très " * 60 + "long", 0]]},
+    "le LLM classe vers la téléportation": {
+        "exercice": "348 ÷ 12", "llm": {"intention": "teleporter"},
+        "messages": [["Pixel, je veux voir le coffre", 0]]},
+    "mot anglais": {
+        "exercice": "mot:august", "llm": None, "nom": "Zoé",
+        "messages": [["Zoé, aide-moi", 0]] * 4 + [["zoe tp", 0], ["Pixel, aide", 0]]},
+}
+
+
+def oracle_pixel() -> list[dict]:
+    from datetime import datetime, timedelta
+
+    sys.path.insert(0, str(RACINE))
+    from mine_de_rien import photo
+    from mine_de_rien.adapters.game.base import MessageChat
+    from mine_de_rien.exercises.anglais import vocabulaire
+    from mine_de_rien.games import pixel as px
+    from mine_de_rien.games.atelier import Atelier
+    from mine_de_rien.storage.sqlite import Depot
+    from tests.test_pixel import PSEUDO, FauxJeu, FauxLlm
+
+    cas = [{"entree": {"f": "constantes"}, "echanges": [], "sortie": {
+        "classement": [px.SYSTEME_CLASSEMENT, px.CONSIGNE_CLASSEMENT.format(message="M")],
+        "reformulation": px.SYSTEME_REFORMULATION, "bavardage": px.SYSTEME_BAVARDAGE}}]
+    for nom in ("Pixel", "Zoé"):
+        for message in MESSAGES_PIXEL:
+            cas.append({"entree": {"f": "adresse", "message": message, "nom": nom},
+                        "sortie": px.adresse(message, nom), "echanges": []})
+    for demande in DEMANDES_PIXEL:
+        cas.append({"entree": {"f": "classer", "demande": demande},
+                    "sortie": px.classer_par_mots_cles(demande), "echanges": []})
+        cas.append({"entree": {"f": "normaliser_espaces", "demande": demande},
+                    "sortie": px.normaliser_espaces(demande), "echanges": []})
+    for brut in BRUTS_PIXEL:
+        cas.append({"entree": {"f": "propre", "brut": brut}, "sortie": px.propre(brut),
+                    "echanges": []})
+    for nom in ("Pixel", "Zoé", "P", "@a tp", "x" * 17, "l'ami", "Pixel2", ""):
+        cas.append({"entree": {"f": "verifier_nom", "nom": nom},
+                    **_tente(lambda n=nom: px.verifier_nom(n)), "echanges": []})
+    for pseudo in ("Steve_42", "@a"):
+        cas.append({"entree": {"f": "commande_teleportation", "pseudo": pseudo},
+                    **_tente(lambda p=pseudo: px.commande_teleportation(Atelier(10, 64, -5), p)),
+                    "echanges": []})
+
+    debut = datetime.fromisoformat("2026-11-08T18:00:00+00:00")
+    for nom, scenario in SCENARIOS_PIXEL.items():
+        with tempfile.TemporaryDirectory() as dossier:
+            depot = Depot.ouvrir(Path(dossier) / "mdr.sqlite")
+            exercice = None
+            if scenario["exercice"] is not None:
+                if scenario["exercice"].startswith("mot:"):
+                    mot = scenario["exercice"].removeprefix("mot:")
+                    paire = next(p for p in vocabulaire.lexique() if p.anglais == mot)
+                    exercice = vocabulaire.exercice(paire, vocabulaire.VERS_FRANCAIS)
+                else:
+                    exercice = photo._calcul(scenario["exercice"])
+                ident = depot.ajouter(exercice, source="photo", demande_par="1",
+                                      recompense="minecraft:diamond", recompense_nombre=3,
+                                      quand=debut)
+                depot.marquer_pose(ident, debut)
+            llm = FauxLlm(**scenario["llm"]) if scenario["llm"] is not None else None
+            jeu = FauxJeu(**{k: (tuple(v) if isinstance(v, list) else v)
+                             for k, v in scenario.get("jeu", {}).items()})
+            temps = [debut + timedelta(minutes=1)]
+
+            async def jouer(enregistreur, scenario=scenario, depot=depot, llm=llm, temps=temps,
+                            debut=debut):
+                pixel = px.Pixel(enregistreur, depot, PSEUDO, scenario.get("nom", "Pixel"), llm,
+                                 lambda: temps[0])
+                for texte, avance in scenario["messages"]:
+                    joueur = PSEUDO
+                    if "|" in texte:
+                        joueur, texte = texte.split("|", 1)
+                    temps[0] += timedelta(minutes=avance)
+                    await pixel.recevoir(MessageChat(debut, joueur, texte))
+                    if pixel._tache is not None:
+                        await pixel._tache
+                return {
+                    "evenements": [[e.exercice_id, e.genre, e.quand.isoformat(timespec="seconds")]
+                                   for e in depot.evenements_entre(
+                                       debut - timedelta(days=1), debut + timedelta(days=1))],
+                    "appels": [list(a) for a in llm.appels] if llm is not None else None,
+                }
+
+            entree = {"f": "scenario", "nom": nom, "pseudo": PSEUDO,
+                      "assistant": scenario.get("nom", "Pixel"),
+                      "exercice": _exercice(exercice) if exercice else None,
+                      "llm": scenario["llm"], "messages": scenario["messages"]}
+            cas.append(_transcrire(entree, jeu, jouer, ()))
+            depot.fermer()
+    return cas
+
+
 ORACLES = {
     "config": oracle_config,
     "texte": oracle_texte,
@@ -1040,6 +1232,7 @@ ORACLES = {
     "paisible": oracle_paisible,
     "coffre_du_soir": oracle_coffre_du_soir,
     "photo": oracle_photo,
+    "pixel": oracle_pixel,
 }
 
 

@@ -118,7 +118,7 @@ Deux points à tenir pendant le port :
 - [x] **Phase 6 : Atelier, emplacement et mode paisible**
 - [x] **Phase 7 : Le coffre du soir et la boucle de surveillance**
 - [x] **Phase 8 : LLM local et lecture de photo**
-- [ ] **Phase 9 : Pixel**
+- [x] **Phase 9 : Pixel**
 - [ ] **Phase 10 : Telegram et les commandes des parents**
 - [ ] **Phase 11 : La bascule**
 
@@ -692,3 +692,29 @@ de route, taille de l'image.)*
 - **Non fait** : l'essai sur deux vraies fiches photographiées demandé par la spec. Les
   photos ne sont pas dans le dépôt (elles montrent le prénom de l'enfant) et je n'en ai
   pas. À faire par le parent : `lire-photo` sur une fiche déjà lue par la version Python.
+
+**Phase 9.**
+- La réponse de Pixel part en tâche de fond (`spawn_local`), comme `asyncio.create_task` :
+  le chat continue d'être lu, et une seconde demande pendant que le LLM réfléchit reçoit
+  « une question à la fois ». L'agent tourne donc dans un `LocalSet`.
+- Les chiffres restent ceux d'Unicode dans les deux garde-fous de Pixel (aucun chiffre dans
+  un bavardage, aucun nombre inventé dans une reformulation), comme en Python : ici il vaut
+  mieux en reconnaître trop que pas assez.
+- Les émojis sont retirés par catégorie Unicode (crate `unicode-general-category`), comme
+  le faisait `unicodedata.category`.
+- Oracle : 185 cas. Reconnaissance du nom sur 28 messages et deux noms d'assistant, 40
+  demandes classées par mots-clés, 14 réponses de modèle nettoyées, et 24 conversations
+  transcrites : mêmes commandes, mêmes phrases dans le chat, mêmes événements notés, et
+  **les mêmes textes envoyés au LLM**, au caractère près (c'est là que se joue la règle
+  « ni la réponse ni le pseudo »).
+- Test ajouté : un mot glissé dans trois messages à Pixel ne se retrouve ni dans le journal
+  ni dans le fichier de la base.
+- Comportement de Python reproduit sans le corriger : deux téléportations demandées dans
+  la même seconde passent toutes les deux (la borne haute de la fenêtre de 5 minutes est
+  exclue). Avec une horloge réelle, cela n'arrive pas.
+- Essai sur Paper 26.3, sans joueur connecté : `lancer` annonce « Pixel écoute le chat
+  (LLM local) » ; une ligne « Pixel, aide-moi » écrite dans un faux fichier de log est
+  reconnue, le serveur refuse le message (« No player was found »), l'erreur est
+  journalisée une fois et l'agent continue. Les lignes d'un autre joueur ou sans le nom sont
+  ignorées. Le vrai `latest.log` de l'essai n'est pas inscriptible depuis le poste.
+- Reste à jouer en jeu : les trois paliers d'indices dans le chat et le retour au coffre.
