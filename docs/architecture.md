@@ -38,7 +38,7 @@ vérification Bedrock dans la skill `/nouveau-jeu`.
 ## Passage à Rust (10 novembre 2026)
 
 L'agent, écrit en Python jusqu'à la version 0.1.2, est devenu un binaire Rust unique
-([spec](specs/open/2026-11-agent-en-rust.md)). Rien ne change pour l'enfant ni pour les
+([spec](specs/done/2026-11-agent-en-rust.md)). Rien ne change pour l'enfant ni pour les
 parents : même `config.toml`, même base SQLite, mêmes commandes Telegram, mêmes commandes
 envoyées à Minecraft.
 
