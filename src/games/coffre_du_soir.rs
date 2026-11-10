@@ -150,6 +150,32 @@ fn description_cle() -> String {
     lore.join(",")
 }
 
+/// Lit le nom que porte la clé de l'enfant, où qu'elle soit dans son inventaire : c'est ce
+/// qu'il vient d'écrire sur l'enclume. Vérifiée sur Minecraft Java 26.3.
+pub fn commande_nom_cle(pseudo: &str) -> Result<String, PseudoInvalide> {
+    Ok(format!(
+        "data get entity {} Inventory[{{components:{{\"minecraft:custom_data\":{{mdr_cle:1b}}}}}}].components.\"minecraft:custom_name\"",
+        texte::verifier_pseudo(pseudo)?
+    ))
+}
+
+/// Le nom lu dans la réponse du serveur (« … has the following entity data: "plu" »), ou
+/// `None` : clé sans nom, absente de l'inventaire, en double, ou enfant déconnecté.
+pub fn lire_nom_cle(reponse: &str) -> Option<String> {
+    let (_, donnee) = reponse.split_once(" data: ")?;
+    let mut caracteres = strip(donnee).chars();
+    let guillemet = caracteres.next().filter(|c| matches!(c, '"' | '\''))?;
+    let mut nom = String::new();
+    while let Some(c) = caracteres.next() {
+        match c {
+            '\\' => nom.push(caracteres.next()?),
+            c if c == guillemet => return (!nom.is_empty()).then_some(nom),
+            c => nom.push(c),
+        }
+    }
+    None
+}
+
 /// Une clé qui porte la description d'aujourd'hui. Celle des clés données avant la dictée
 /// disait « en minuscules ».
 pub fn predicat_cle_a_jour() -> String {
@@ -276,6 +302,9 @@ pub trait Coffre {
     /// Une dictée attend, mais le jeu de l'enfant n'a pas encore chargé ses sons.
     async fn demander_de_se_reconnecter(&self) -> Result<(), ErreurCoffre>;
     async fn preuve_trouvee(&self, s: &ExerciceStocke) -> Result<bool, ErreurCoffre>;
+    /// Le nom que porte la clé de l'enfant : ce qu'il a écrit sur l'enclume. `None` s'il n'y
+    /// a rien à lire.
+    async fn nom_de_la_cle(&self) -> Result<Option<String>, ErreurCoffre>;
     async fn coffre_present(&self) -> Result<bool, ErreurCoffre>;
     async fn coffre_vide(&self) -> Result<bool, ErreurCoffre>;
     async fn ranger(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre>;
@@ -579,6 +608,11 @@ impl Coffre for CoffreDuSoir {
             ))
             .await?;
         Ok(strip(&reponse).starts_with("Found"))
+    }
+
+    async fn nom_de_la_cle(&self) -> Result<Option<String>, ErreurCoffre> {
+        let commande = commande_nom_cle(&self.pseudo).map_err(ErreurRcon::from)?;
+        Ok(lire_nom_cle(&self.jeu.commande(&commande).await?))
     }
 
     async fn coffre_present(&self) -> Result<bool, ErreurCoffre> {

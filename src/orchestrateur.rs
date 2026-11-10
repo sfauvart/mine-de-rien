@@ -48,7 +48,7 @@ use crate::games::dictee;
 use crate::games::emplacement::{construire_pres_de, deplacer_pres_de};
 use crate::games::paisible::ModePaisible;
 use crate::games::pixel::EVENEMENT_INDICE;
-use crate::rapport::{nombre_indices, rapport};
+use crate::rapport::{essais_rates, nombre_indices, rapport};
 use crate::saisie::{ErreurSaisie, NOMBRE_MAX, Source, interpreter};
 use crate::storage::sqlite::{Demande, Depot, ErreurStockage, ExerciceStocke, Statut, maintenant};
 use crate::util::{mots, strip};
@@ -85,6 +85,8 @@ pub struct Orchestrateur {
     premier_tour: Cell<bool>,
     /// Le coffre de dictée pour lequel la reconnexion a déjà été demandée.
     reconnexion_demandee: Cell<Option<i64>>,
+    /// Le dernier nom lu sur la clé, pour le coffre actif : un nom nouveau est un essai.
+    cle_vue: RefCell<Option<(i64, Option<String>)>>,
 }
 
 impl Orchestrateur {
@@ -108,7 +110,42 @@ impl Orchestrateur {
             connecte_depuis: Cell::new(None),
             premier_tour: Cell::new(true),
             reconnexion_demandee: Cell::new(None),
+            cle_vue: RefCell::new(None),
         }
+    }
+
+    /// Relève ce que l'enfant a écrit sur la clé. Le premier nom lu devant un coffre est le
+    /// point de départ (c'est la réponse du coffre précédent, pas un essai) ; ensuite, chaque
+    /// nom nouveau est une tentative, juste ou non. Rien n'en est redit dans le jeu ni écrit
+    /// dans le journal.
+    ///
+    /// Limites : deux essais dans le même tour de 3 secondes n'en font qu'un ; un essai fait
+    /// avec un autre objet que la clé, ou resté sur l'enclume sans être pris, n'est pas vu.
+    async fn relever_essai(&self, actif: &ExerciceStocke) -> Result<(), ErreurTour> {
+        let nom = self.coffre.nom_de_la_cle().await?;
+        let connue = self
+            .cle_vue
+            .borrow()
+            .as_ref()
+            .filter(|(coffre, _)| *coffre == actif.id)
+            .map(|(_, nom)| nom.clone());
+        let Some(precedent) = connue else {
+            *self.cle_vue.borrow_mut() = Some((actif.id, nom));
+            return Ok(());
+        };
+        // Une clé qu'on ne lit plus (sur l'enclume, au bout du curseur) n'efface rien.
+        if let Some(nouveau) = nom
+            && precedent.as_deref() != Some(nouveau.as_str())
+        {
+            self.depot.noter_tentative(
+                actif.id,
+                &nouveau,
+                nouveau == actif.exercice.reponse,
+                (self.horloge)(),
+            )?;
+            *self.cle_vue.borrow_mut() = Some((actif.id, Some(nouveau)));
+        }
+        Ok(())
     }
 
     /// Avec un pack de sons : un coffre de dictée attend que le jeu de l'enfant l'ait chargé.
@@ -199,15 +236,20 @@ impl Orchestrateur {
                 self.coffre.equiper().await?;
                 self.depot.marquer_niveaux_donnes(actif.id)?;
             }
+            // Avant la preuve : un essai juste suivi de l'ouverture dans le même tour est noté.
+            self.relever_essai(actif).await?;
             if self.coffre.preuve_trouvee(actif).await? {
                 let quand = (self.horloge)();
                 self.depot.marquer_ouvert(actif.id, quand)?;
                 self.coffre.ranger(actif).await?;
                 let duree = self.depot.lire(actif.id)?.and_then(|ouvert| ouvert.duree());
                 let aide = nombre_indices(self.depot.compter(EVENEMENT_INDICE, actif.id)?);
+                let essais = essais_rates(&self.depot.tentatives(actif.id)?)
+                    .map(|rates| format!(" Essais : {rates}."))
+                    .unwrap_or_default();
                 self.notificateur
                     .notifier(&format!(
-                        "Coffre n°{} ouvert en {}, {aide} ({} → {}).",
+                        "Coffre n°{} ouvert en {}, {aide} ({} → {}).{essais}",
                         actif.id,
                         formater_duree(duree),
                         actif.exercice.enonce,
@@ -279,6 +321,9 @@ impl Orchestrateur {
             self.coffre.equiper().await?;
             self.depot.marquer_niveaux_donnes(suivant.id)?;
             self.coffre.annoncer(&suivant).await?;
+            // Le nom que porte la clé à cet instant est le point de départ des essais.
+            let depart = self.coffre.nom_de_la_cle().await?;
+            *self.cle_vue.borrow_mut() = Some((suivant.id, depart));
         }
         self.notificateur
             .notifier(&format!(

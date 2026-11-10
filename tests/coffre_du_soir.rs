@@ -193,6 +193,8 @@ struct FauxCoffre {
     actualisations: Cell<usize>,
     verrou: Mutex<()>,
     actions: RefCell<Vec<String>>,
+    /// Le nom que porte la clé de l'enfant en ce moment.
+    nom_cle: RefCell<Option<String>>,
 }
 
 impl FauxCoffre {
@@ -206,6 +208,7 @@ impl FauxCoffre {
             actualisations: Cell::new(0),
             verrou: Mutex::new(()),
             actions: RefCell::new(Vec::new()),
+            nom_cle: RefCell::new(None),
         })
     }
 
@@ -288,6 +291,10 @@ impl Coffre for FauxCoffre {
     async fn demander_de_se_reconnecter(&self) -> Result<(), ErreurCoffre> {
         self.note("reconnecter ?".to_owned());
         Ok(())
+    }
+
+    async fn nom_de_la_cle(&self) -> Result<Option<String>, ErreurCoffre> {
+        Ok(self.nom_cle.borrow().clone())
     }
 
     async fn preuve_trouvee(&self, _: &ExerciceStocke) -> Result<bool, ErreurCoffre> {
@@ -974,4 +981,150 @@ async fn un_coffre_de_maths_n_attend_jamais_le_pack() {
     m.coffre.en_ligne.set(true);
     m.orch.tour().await.unwrap();
     assert_eq!(actif(&m.depot), Some(ident));
+}
+
+#[test]
+fn nom_lu_sur_la_cle() {
+    use mine_de_rien::games::coffre_du_soir::{commande_nom_cle, lire_nom_cle};
+    assert_eq!(
+        commande_nom_cle("Steve").unwrap(),
+        "data get entity Steve Inventory[{components:{\"minecraft:custom_data\":{mdr_cle:1b}}}].components.\"minecraft:custom_name\""
+    );
+    assert!(commande_nom_cle("@a").is_err());
+    let lu = |donnee: &str| lire_nom_cle(&format!("Steve has the following entity data: {donnee}"));
+    assert_eq!(lu("\"29\"").as_deref(), Some("29"));
+    assert_eq!(lu("\"Dubaï\"").as_deref(), Some("Dubaï"));
+    assert_eq!(
+        lu("\"s'élève \\\"x\\\"\"").as_deref(),
+        Some("s'élève \"x\"")
+    );
+    assert_eq!(lu("'il dit \"oui\"'").as_deref(), Some("il dit \"oui\""));
+    assert_eq!(lu("\"a\\\\b\"").as_deref(), Some("a\\b"));
+    // Rien à lire : clé sans nom, absente, en double, enfant déconnecté, réponse tronquée.
+    for reponse in [
+        "Found no elements matching Inventory[{components:{\"minecraft:custom_data\":{mdr_cle:1b}}}]",
+        "No entity was found",
+        "This argument accepts a single NBT value",
+        "",
+        "Steve has the following entity data: \"\"",
+        "Steve has the following entity data: \"pas fini",
+        "Steve has the following entity data: {text: \"29\"}",
+    ] {
+        assert_eq!(lire_nom_cle(reponse), None, "{reponse}");
+    }
+}
+
+fn cle(m: &Monde, nom: Option<&str>) {
+    *m.coffre.nom_cle.borrow_mut() = nom.map(str::to_owned);
+}
+
+fn essais(m: &Monde, ident: i64) -> Vec<(String, bool)> {
+    m.depot
+        .tentatives(ident)
+        .unwrap()
+        .into_iter()
+        .map(|t| (t.proposition, t.correcte))
+        .collect()
+}
+
+#[tokio::test]
+async fn chaque_nouveau_nom_de_la_cle_est_un_essai() {
+    let m = monde(); // le coffre n°1 attend « 1 », le n°2 « 2 »
+    m.coffre.en_ligne.set(true);
+    // La clé porte encore la réponse d'un vieux coffre : ce n'est pas un essai.
+    cle(&m, Some("29"));
+    m.orch.tour().await.unwrap(); // le coffre n°1 est posé, « 29 » est le point de départ
+    m.orch.tour().await.unwrap();
+    m.orch.tour().await.unwrap();
+    assert_eq!(actif(&m.depot), Some(1));
+    assert!(essais(&m, 1).is_empty());
+
+    // Il écrit « 7 », le laisse deux tours, pose la clé sur l'enclume, puis écrit « 1 ».
+    cle(&m, Some("7"));
+    m.orch.tour().await.unwrap();
+    m.orch.tour().await.unwrap();
+    cle(&m, None);
+    m.orch.tour().await.unwrap();
+    cle(&m, Some("7"));
+    m.orch.tour().await.unwrap();
+    assert_eq!(essais(&m, 1), [("7".to_owned(), false)]);
+    cle(&m, Some("1"));
+    m.coffre.preuve.set(true);
+    avancer(&m.horloge, TimeDelta::minutes(4));
+    m.orch.tour().await.unwrap();
+    assert_eq!(
+        essais(&m, 1),
+        [("7".to_owned(), false), ("1".to_owned(), true)]
+    );
+    assert_eq!(
+        m.notifs.dernier(),
+        "Coffre n°1 ouvert en 4 min, sans indice (12 ÷ 12 = ? → 1). Essais : 7."
+    );
+
+    // Coffre suivant : « 1 », resté sur la clé, est son point de départ.
+    m.coffre.preuve.set(false);
+    m.coffre.vide.set(true);
+    avancer(&m.horloge, TimeDelta::seconds(15));
+    m.orch.tour().await.unwrap();
+    assert_eq!(actif(&m.depot), Some(2));
+    m.orch.tour().await.unwrap();
+    assert!(essais(&m, 2).is_empty());
+    cle(&m, Some("2"));
+    m.coffre.preuve.set(true);
+    avancer(&m.horloge, TimeDelta::minutes(1));
+    m.orch.tour().await.unwrap();
+    assert_eq!(essais(&m, 2), [("2".to_owned(), true)]);
+    // Sans essai raté, la notification est celle d'avant, au caractère près.
+    assert_eq!(
+        m.notifs.dernier(),
+        "Coffre n°2 ouvert en 1 min, sans indice (24 ÷ 12 = ? → 2)."
+    );
+}
+
+#[tokio::test]
+async fn les_essais_ne_sont_lus_que_si_l_enfant_est_la() {
+    let m = monde();
+    cle(&m, Some("7"));
+    m.orch.tour().await.unwrap();
+    m.orch.tour().await.unwrap();
+    cle(&m, Some("8"));
+    m.orch.tour().await.unwrap();
+    assert!(essais(&m, 1).is_empty());
+}
+
+#[tokio::test]
+async fn un_mot_de_dictee_rate_garde_sa_graphie_et_ne_va_pas_au_journal() {
+    mine_de_rien::journal::capturer();
+    let m = monde_de_dictee(None); // « La plus haute tour. », le mot est « plus »
+    m.orch.tour().await.unwrap();
+    m.coffre.en_ligne.set(true);
+    m.orch.tour().await.unwrap();
+    for graphie in ["plu", "pluss", "Plus", "plus"] {
+        cle(&m, Some(graphie));
+        m.orch.tour().await.unwrap();
+    }
+    assert_eq!(
+        essais(&m, 1),
+        [
+            ("plu".to_owned(), false),
+            ("pluss".to_owned(), false),
+            // La comparaison est exacte, comme celle du verrou : la majuscule compte.
+            ("Plus".to_owned(), false),
+            ("plus".to_owned(), true),
+        ]
+    );
+    m.coffre.preuve.set(true);
+    m.orch.tour().await.unwrap();
+    assert!(
+        m.notifs
+            .dernier()
+            .ends_with("→ plus). Essais : plu, pluss, Plus."),
+        "{}",
+        m.notifs.dernier()
+    );
+    // Ce qu'il a tapé va aux parents et dans la base, jamais dans le journal de l'agent.
+    let journal = mine_de_rien::journal::captures().join("\n");
+    assert!(!journal.contains("pluss"), "{journal}");
+    // Ni dans le jeu : le faux coffre n'a reçu aucun texte à dire.
+    assert!(!m.coffre.actions().iter().any(|a| a.contains("plu")));
 }

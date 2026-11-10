@@ -135,7 +135,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 - [x] **Phase 3 : Du texte aux trous**
 - [x] **Phase 4 : Le coffre de dictée**
 - [x] **Phase 5 : La dictée depuis Telegram**
-- [ ] **Phase 6 : Lire ce que l'enfant a tapé**
+- [x] **Phase 6 : Lire ce que l'enfant a tapé**
 - [ ] **Phase 7 : La séance de chaque jour**
 
 Les phases 1, 3 et 6 sont indépendantes. La phase 2 dépend de la 1, la phase 4 des phases 2
@@ -511,7 +511,9 @@ données du joueur. La surveillance d'un coffre actif est dans
   `tests/commun/mod.rs`, et les cas d'oracle touchés.
 
 **Conception.**
-- Commande à vérifier, qui lit le nom de la clé où qu'elle soit dans l'inventaire :
+- Commande qui lit le nom de la clé où qu'elle soit dans l'inventaire (chemin et forme de
+  la réponse vérifiés sur Paper 26.3 avec une clé rangée dans un coffre ; sur un joueur,
+  elle reste à voir en jeu) :
 
       data get entity <pseudo> Inventory[{components:{"minecraft:custom_data":{mdr_cle:1b}}}].components."minecraft:custom_name"
 
@@ -725,3 +727,20 @@ de l'image, écarts constatés.)*
   séance). Essayé contre la voix d'essai : dictée de deux phrases, quatre sons dans le pack,
   coffres de source `dictee`.
 - `cargo tree -d` : un seul `reqwest`. `teloxide` envoie le fichier sans réglage de plus.
+
+**Phase 6.**
+- Essai sur Paper 26.3, sans joueur : le même chemin lu dans un coffre rend le nom entre
+  guillemets, apostrophe et guillemets échappés compris (`"s'élève \"x\""`) ; deux clés
+  donnent « This argument accepts a single NBT value », une clé sans nom « Found no
+  elements » : dans les deux cas rien n'est lu. Sur un joueur absent : « No entity was
+  found ». **La lecture sur un vrai joueur, clé renommée à l'enclume, reste à jouer.**
+- Le point de départ est le nom lu à la pose si l'enfant est là, sinon au premier tour où
+  on le voit. Une clé qu'on ne lit plus un instant (sur l'enclume) ne remet rien à zéro, et
+  le même nom n'est pas recompté.
+- La comparaison est exacte, comme celle du verrou : « Plus » pour « plus » est un essai
+  raté, et il est montré tel quel au parent.
+- La notification d'ouverture ne change que s'il y a eu un essai faux : « … → plus).
+  Essais : plu. » Le rapport gagne un bloc « Ce qu'il a écrit avant de trouver ».
+- Oracle : plutôt que de retoucher chaque transcription, le rejeu des tests
+  (`tests/commun/mod.rs`) répond lui-même à cette seule commande, sans rien consommer de la
+  transcription. Aucun fichier d'oracle n'est modifié dans cette phase.

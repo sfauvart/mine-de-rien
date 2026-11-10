@@ -406,3 +406,78 @@ fn rapport_sur_une_copie_de_la_base_de_la_maison() {
     );
     println!("ACTIF {:?}", depot.actif().unwrap().map(|s| s.id));
 }
+
+#[test]
+fn le_rapport_montre_ce_que_l_enfant_a_ecrit() {
+    use mine_de_rien::rapport::essais_rates;
+    let dossier = tempfile::tempdir().unwrap();
+    let depot = Depot::ouvrir(&dossier.path().join("mdr.sqlite")).unwrap();
+    let quand = commun::instant("2026-11-12T18:00:00+00:00");
+    let demande = Demande {
+        source: Source::Dictee,
+        demande_par: "cli",
+        recompense: "minecraft:diamond",
+        recompense_nombre: 3,
+    };
+    let exercice = |enonce: &str, reponse: &str| Exercice {
+        competence: "francais/dictee".to_owned(),
+        enonce: enonce.to_owned(),
+        reponse: reponse.to_owned(),
+        donnees: Default::default(),
+    };
+    let hier = quand - TimeDelta::days(1);
+    // Ouvert après deux graphies fausses.
+    let personnes = depot
+        .ajouter(
+            &exercice("Dictée : de _____ la", "personnes"),
+            demande,
+            hier,
+        )
+        .unwrap();
+    depot.marquer_pose(personnes, hier).unwrap();
+    for (graphie, juste) in [("persone", false), ("personne", false), ("personnes", true)] {
+        depot
+            .noter_tentative(personnes, graphie, juste, hier)
+            .unwrap();
+    }
+    depot
+        .marquer_ouvert(personnes, hier + TimeDelta::minutes(3))
+        .unwrap();
+    // Ouvert du premier coup : rien à montrer.
+    let ville = depot
+        .ajouter(&exercice("Dictée : la _____ de", "ville"), demande, hier)
+        .unwrap();
+    depot
+        .marquer_pose(ville, hier + TimeDelta::minutes(5))
+        .unwrap();
+    depot.noter_tentative(ville, "ville", true, hier).unwrap();
+    depot
+        .marquer_ouvert(ville, hier + TimeDelta::minutes(6))
+        .unwrap();
+    // Encore fermé, avec un essai faux.
+    let annee = depot
+        .ajouter(&exercice("Dictée : chaque _____", "année"), demande, hier)
+        .unwrap();
+    depot
+        .marquer_pose(annee, quand - TimeDelta::minutes(10))
+        .unwrap();
+    depot.noter_tentative(annee, "anne", false, quand).unwrap();
+
+    assert_eq!(
+        essais_rates(&depot.tentatives(personnes).unwrap()).as_deref(),
+        Some("persone, personne")
+    );
+    assert_eq!(essais_rates(&depot.tentatives(ville).unwrap()), None);
+    let texte = rapport(&depot, quand).unwrap();
+    let debut = texte.find("Ce qu'il a écrit avant de trouver :").unwrap();
+    let lignes: Vec<&str> = texte[debut..].lines().take(3).collect();
+    assert_eq!(
+        lignes,
+        [
+            "Ce qu'il a écrit avant de trouver :",
+            "• n°1 Dictée : de _____ la → personnes : persone, personne, puis juste",
+            "• n°3 Dictée : chaque _____ → année : anne",
+        ]
+    );
+    assert!(!texte.contains("n°2 Dictée"));
+}

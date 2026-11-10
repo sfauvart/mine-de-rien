@@ -5,6 +5,9 @@
 //! exercice resté fermé plus de 48 heures, ouvert en plus de 30 minutes, ou ouvert avec 3
 //! indices ou plus. Les coffres annulés ne comptent pas.
 //!
+//! Enfin, pour chaque coffre où l'enfant s'est trompé avant de trouver, ce qu'il a écrit sur la
+//! clé (« persone, puis juste ») : c'est ce qui dit quoi retravailler en orthographe.
+//!
 //! Le rapport ne contient jamais le pseudo ni le prénom de l'enfant.
 
 use std::collections::{BTreeMap, HashMap};
@@ -13,7 +16,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 
 use crate::games::coffre_du_soir::formater_duree;
 use crate::games::pixel::EVENEMENT_INDICE;
-use crate::storage::sqlite::{Depot, ErreurStockage, ExerciceStocke, Statut};
+use crate::storage::sqlite::{Depot, ErreurStockage, ExerciceStocke, Statut, Tentative};
 
 pub const PERIODE: TimeDelta = TimeDelta::days(7);
 pub const FERME_TROP_LONGTEMPS: TimeDelta = TimeDelta::hours(48);
@@ -26,6 +29,17 @@ pub fn nombre_indices(n: usize) -> String {
         1 => "1 indice".to_owned(),
         _ => format!("{n} indices"),
     }
+}
+
+/// Les essais faux, dans l'ordre, tels que l'enfant les a écrits : « plu, pluss ». `None`
+/// s'il n'y en a pas. Ces graphies ne vont qu'aux parents, jamais dans le jeu.
+pub fn essais_rates(tentatives: &[Tentative]) -> Option<String> {
+    let rates: Vec<&str> = tentatives
+        .iter()
+        .filter(|t| !t.correcte)
+        .map(|t| t.proposition.as_str())
+        .collect();
+    (!rates.is_empty()).then(|| rates.join(", "))
 }
 
 /// La raison pour laquelle cet exercice est à retravailler, ou `None`.
@@ -136,6 +150,27 @@ pub fn rapport(depot: &Depot, quand: DateTime<Utc>) -> Result<String, ErreurStoc
         for (s, raison) in retravailler {
             lignes.push(format!("• n°{} {} : {raison}", s.id, s.exercice.enonce));
         }
+    }
+
+    let mut essais = Vec::new();
+    for s in &poses {
+        let tentatives = depot.tentatives(s.id)?;
+        if let Some(rates) = essais_rates(&tentatives) {
+            let suite = if s.statut == Statut::Ouvert {
+                ", puis juste"
+            } else {
+                ""
+            };
+            essais.push(format!(
+                "• n°{} {} → {} : {rates}{suite}",
+                s.id, s.exercice.enonce, s.exercice.reponse
+            ));
+        }
+    }
+    if !essais.is_empty() {
+        lignes.push(String::new());
+        lignes.push("Ce qu'il a écrit avant de trouver :".to_owned());
+        lignes.extend(essais);
     }
 
     if disparus > 0 {
