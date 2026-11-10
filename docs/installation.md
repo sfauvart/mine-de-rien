@@ -90,6 +90,20 @@ coffre et aux durées. Jamais le pseudo ni le prénom de l'enfant.
   `docker compose exec agent mine-de-rien --config /app/config.toml llm "Bonjour ?"`
   doit répondre. Avec `adaptateur = "anthropic"`, aucune photo n'est lue : une photo ne
   part jamais vers un LLM distant.
+- **`[voix]`** : facultatif, la voix de synthèse qui lira les dictées. Elle tourne à la
+  maison, dans son propre conteneur (Piper), sans accès à Internet. Décommenter la section
+  `[voix]` de `config.toml`, puis télécharger la voix une fois (60 Mo, depuis Hugging Face)
+  et lancer le conteneur :
+
+  ```bash
+  docker compose --profile voix-installation run --rm voix-telecharger
+  docker compose --profile voix up -d
+  ```
+
+  Vérifier en écoutant le fichier produit dans `data/agent/` :
+  `docker compose exec agent mine-de-rien --config /app/config.toml voix "Bonjour, ceci est un essai." --sortie /data/essai.ogg`.
+  Pour une autre voix française (`fr_FR-upmc-medium`, `fr_FR-tom-medium`), l'écrire dans
+  `[voix] voix` et dans `.env` (`VOIX=fr_FR-upmc-medium`), puis refaire les deux commandes.
 
 ## 5. Démarrer le serveur, importer le monde
 

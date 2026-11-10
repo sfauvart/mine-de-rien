@@ -14,6 +14,7 @@ use crate::adapters::game::base::AdaptateurJeu;
 use crate::adapters::game::java_rcon::{DELAI, JavaRcon};
 use crate::adapters::game::rcon::ErreurRcon;
 use crate::adapters::llm::creer as creer_llm;
+use crate::adapters::voix::creer as creer_voix;
 use crate::alea::Alea;
 use crate::config::{Config, charger_config};
 use crate::games::atelier::{self, ErreurAtelier};
@@ -25,7 +26,7 @@ use crate::orchestrateur::{
     servir,
 };
 use crate::storage::sqlite::{Depot, ErreurStockage, maintenant};
-use crate::{VERSION, datapack, photo};
+use crate::{VERSION, datapack, photo, son};
 
 #[derive(Parser)]
 #[command(
@@ -71,6 +72,16 @@ enum Action {
         /// exercices à tirer au hasard
         #[arg(long, default_value_t = 3)]
         nombre: usize,
+    },
+    /// fait lire une phrase par la voix locale et l'écrit en Ogg Vorbis, pour l'écouter
+    Voix {
+        phrase: String,
+        /// vitesse lente, celle du premier indice
+        #[arg(long)]
+        lent: bool,
+        /// fichier .ogg à écrire
+        #[arg(long)]
+        sortie: PathBuf,
     },
     /// recopie le datapack dans un dossier lu par le serveur, sans config
     Datapack {
@@ -340,6 +351,31 @@ async fn lire_photo(
     Ok(())
 }
 
+async fn lire_a_voix_haute(
+    config: &Config,
+    phrase: &str,
+    lent: bool,
+    sortie: &std::path::Path,
+) -> Result<(), String> {
+    let Some(section) = &config.voix else {
+        return Err("Section [voix] absente de la configuration.".to_owned());
+    };
+    let voix = creer_voix(section).map_err(|e| e.to_string())?;
+    let debut = std::time::Instant::now();
+    let wav = voix.dire(phrase, lent).await.map_err(|e| e.to_string())?;
+    let pcm = son::lire_wav(&wav).map_err(|e| e.to_string())?;
+    let ogg = son::encoder_ogg(&pcm).map_err(|e| e.to_string())?;
+    std::fs::write(sortie, &ogg).map_err(|e| format!("{} : {e}", sortie.display()))?;
+    println!(
+        "{} : {:.1} s de son, {} Ko, lu et converti en {:.1} s.",
+        sortie.display(),
+        pcm.duree_secondes(),
+        ogg.len().div_ceil(1024),
+        debut.elapsed().as_secs_f64()
+    );
+    Ok(())
+}
+
 async fn ecouter(config: &Config) -> Result<(), ErreurRcon> {
     let mut flux = jeu(config).chat()?;
     println!("Chat lu dans {}. Ctrl+C pour arrêter.", config.jeu.log);
@@ -401,6 +437,11 @@ fn executer(action: Option<Action>, config: &Config) -> ExitCode {
             consigne,
             nombre,
         }) => terminer(attendre(lire_photo(config, &image, &consigne, nombre))),
+        Some(Action::Voix {
+            phrase,
+            lent,
+            sortie,
+        }) => terminer(attendre(lire_a_voix_haute(config, &phrase, lent, &sortie))),
         Some(Action::Datapack { .. }) => erreur("le datapack se recopie sans configuration"),
     }
 }

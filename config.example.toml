@@ -54,5 +54,14 @@ cle = "${ANTHROPIC_API_KEY}"
 # url = "http://llm:8080/v1"
 # modele = "local"   # identifiant exact donné par GET {url}/models (Ollama l'exige)
 
+# Voix de synthèse locale, pour lire les dictées (docs/installation.md). Sans cette section,
+# pas de dictée ; le reste marche comme avant. Lancer le conteneur : --profile voix.
+# [voix]
+# adaptateur = "piper"
+# url = "http://voix:5000"
+# voix = "fr_FR-siwis-medium"     # la même que VOIX dans .env, si elle y est changée
+# vitesse_normale = 1.0           # 1 = débit naturel de la voix, davantage = plus lent
+# vitesse_lente = 1.4             # la phrase relue lentement, premier indice de Pixel
+
 [stockage]
 sqlite = "/data/mine-de-rien.sqlite"

@@ -119,6 +119,59 @@ impl Default for Llm {
     }
 }
 
+/// La voix de synthèse qui lit les dictées. Section absente : pas de dictée, le reste de
+/// l'agent marche comme avant. `adaptateur` reste un texte, comme pour le LLM.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Voix {
+    pub adaptateur: String,
+    pub url: String,
+    /// Nom de la voix chez le fournisseur, ex. « fr_FR-siwis-medium ».
+    pub voix: String,
+    /// Durée des sons de la voix : 1 pour son débit naturel, davantage pour ralentir.
+    pub vitesse_normale: f64,
+    /// Vitesse du premier indice de Pixel : la phrase relue lentement.
+    pub vitesse_lente: f64,
+}
+
+impl Default for Voix {
+    fn default() -> Self {
+        Self {
+            adaptateur: "piper".to_owned(),
+            url: String::new(),
+            voix: "fr_FR-siwis-medium".to_owned(),
+            vitesse_normale: 1.0,
+            vitesse_lente: 1.4,
+        }
+    }
+}
+
+impl Voix {
+    pub const VITESSE_MIN: f64 = 0.5;
+    pub const VITESSE_MAX: f64 = 3.0;
+
+    fn verifier(&self) -> Result<(), ErreurConfig> {
+        for (nom, vitesse) in [
+            ("vitesse_normale", self.vitesse_normale),
+            ("vitesse_lente", self.vitesse_lente),
+        ] {
+            if !(Self::VITESSE_MIN..=Self::VITESSE_MAX).contains(&vitesse) {
+                return Err(ErreurConfig(format!(
+                    "[voix] {nom} doit être entre {} et {} : {vitesse}",
+                    Self::VITESSE_MIN,
+                    Self::VITESSE_MAX
+                )));
+            }
+        }
+        if self.vitesse_lente < self.vitesse_normale {
+            return Err(ErreurConfig(
+                "[voix] vitesse_lente doit être au moins égale à vitesse_normale".to_owned(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Stockage {
@@ -251,6 +304,9 @@ pub struct Config {
     pub canal: Canal,
     #[serde(default)]
     pub llm: Llm,
+    /// Absente, elle ne s'écrit pas : une configuration sans voix se relit comme en 0.1.2.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voix: Option<Voix>,
     #[serde(default)]
     pub stockage: Stockage,
     #[serde(default)]
@@ -305,6 +361,9 @@ pub fn lire_config(
     config.coffre.verifier()?;
     config.assistant.verifier()?;
     config.paisible.verifier()?;
+    if let Some(voix) = &config.voix {
+        voix.verifier()?;
+    }
     Ok(config)
 }
 

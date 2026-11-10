@@ -50,7 +50,42 @@ services:
       - ./data/minecraft:/minecraft:ro   # lecture du log serveur
     depends_on:
       - minecraft
+    # « sans-sortie » : pour joindre la voix quand le profil voix est lancé.
+    networks: [default, sans-sortie]
     restart: unless-stopped
+
+  # Voix de synthèse 100 % locale, pour les dictées. Lancer avec :
+  #   docker compose --profile voix up -d
+  # après avoir téléchargé la voix une fois (docs/installation.md) :
+  #   docker compose --profile voix-installation run --rm voix-telecharger
+  voix:
+    profiles: ["voix"]
+    image: mine-de-rien-voix:piper-1.8.0
+    build:
+      context: docker
+      dockerfile: voix.Dockerfile
+    command:
+      - piper.http_server
+      - --host=0.0.0.0
+      - --port=5000
+      - --data-dir=/voix
+      - --model=${VOIX:-fr_FR-siwis-medium}
+    volumes:
+      - ./data/voix:/voix:ro
+    # Aucun port publié, et un réseau sans accès à Internet : seul l'agent lui parle.
+    networks: [sans-sortie]
+    restart: unless-stopped
+
+  # Ponctuel : télécharge la voix dans data/voix depuis Hugging Face, puis s'arrête.
+  voix-telecharger:
+    profiles: ["voix-installation"]
+    image: mine-de-rien-voix:piper-1.8.0
+    build:
+      context: docker
+      dockerfile: voix.Dockerfile
+    command: ["piper.download_voices", "--download-dir", "/voix", "${VOIX:-fr_FR-siwis-medium}"]
+    volumes:
+      - ./data/voix:/voix
 
   # LLM 100 % local. Lancer avec : docker compose --profile local-llm up -d
   llm:
@@ -65,3 +100,7 @@ services:
     ports:
       - "8080:8080"
     restart: unless-stopped
+
+networks:
+  sans-sortie:
+    internal: true
