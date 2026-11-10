@@ -374,3 +374,35 @@ fn oracle_python() {
         assert_eq!(sortie, cas["sortie"], "{e}");
     }
 }
+
+/// Sur une copie de la vraie base (jamais l'originale : l'ouvrir peut la migrer) :
+///
+/// ```text
+/// cp data/agent/mine-de-rien.sqlite /tmp/copie.sqlite
+/// MDR_BASE=/tmp/copie.sqlite MDR_QUAND=2026-11-10T18:00:00+00:00 \
+///     cargo test --test rapport -- --ignored --nocapture
+/// ```
+///
+/// Affiche le rapport des sept jours avant `MDR_QUAND`, le nombre de coffres et la file.
+#[test]
+#[ignore = "demande MDR_BASE, le chemin d'une copie de la base de la maison"]
+fn rapport_sur_une_copie_de_la_base_de_la_maison() {
+    let chemin = std::env::var("MDR_BASE").expect("MDR_BASE : chemin d'une copie de la base");
+    let quand = std::env::var("MDR_QUAND").map_or_else(|_| Utc::now(), |q| commun::instant(&q));
+    let depot = Depot::ouvrir(std::path::Path::new(&chemin)).unwrap();
+    let tous = depot
+        .entre(commun::instant("2000-01-01T00:00:00+00:00"), quand)
+        .unwrap();
+    println!("RAPPORT\n{}", rapport(&depot, quand).unwrap());
+    println!("COFFRES {}", tous.len());
+    println!(
+        "FILE {:?}",
+        depot
+            .en_file()
+            .unwrap()
+            .iter()
+            .map(|s| s.id)
+            .collect::<Vec<_>>()
+    );
+    println!("ACTIF {:?}", depot.actif().unwrap().map(|s| s.id));
+}

@@ -39,8 +39,7 @@ pub const SECOURS: &str =
     "Relis bien le panneau, puis essaie sur l'enclume : chaque essai coûte de l'expérience.";
 
 /// Les repères du dernier indice d'anglais, tels qu'ils étaient à la compilation.
-// Chemin provisoire : le fichier rejoint `src/exercises/anglais/donnees/` quand le Python part.
-const REPERES: &str = include_str!("../mine_de_rien/exercises/anglais/donnees/indices.toml");
+const REPERES: &str = include_str!("anglais/donnees/indices.toml");
 
 static BINAIRE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^\s*([0-9]+(?:[.,][0-9]+)?)\s*([-+×÷])\s*([0-9]+(?:[.,][0-9]+)?)\s*$").unwrap()

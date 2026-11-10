@@ -120,7 +120,7 @@ Deux points à tenir pendant le port :
 - [x] **Phase 8 : LLM local et lecture de photo**
 - [x] **Phase 9 : Pixel**
 - [x] **Phase 10 : Telegram et les commandes des parents**
-- [ ] **Phase 11 : La bascule**
+- [x] **Phase 11 : La bascule**
 
 Chaque phase s'appuie sur les précédentes, sauf la 8, qui ne dépend que des phases 1 à 3.
 Les phases 1 à 4 ne touchent ni au jeu ni au réseau. La phase 11 est la seule qui retire
@@ -534,6 +534,46 @@ seulement, après fusion et publication : copier `data/agent` de côté, mettre 
 serveur, et faire ouvrir un coffre à l'enfant sans rien lui dire. S'il ne remarque rien,
 c'est fini.
 
+## Écarts assumés
+
+Ce que la version Rust ne fait pas comme la version Python 0.1.2, relevé pendant le port.
+Rien ici ne se voit en jeu dans un usage normal.
+
+| Sujet | Python 0.1.2 | Rust |
+|---|---|---|
+| Chiffres d'autres écritures (« ٣ + 1 ») dans un calcul, une clé, un indice | lus comme des chiffres | « Caractère non reconnu » ; seuls `0` à `9` comptent. Pixel, lui, les refuse toujours dans un bavardage. |
+| `/annuler ²` | `ValueError` non rattrapée : le service Telegram s'arrêtait | « Préciser le numéro du coffre » |
+| `/annuler 99999999999999999999` | « n'est ni actif ni en attente » | « Préciser le numéro du coffre » |
+| Réponse de générateur inutilisable dans un coffre | `RuntimeError`, tâche Telegram arrêtée | refus rendu au parent |
+| Erreur d'envoi RCON autre qu'une connexion coupée | `OSError` que la boucle ne rattrapait pas | reconnexion, puis erreur journalisée, la boucle continue |
+| Position d'atelier illisible dans le monde (`[` sans `]`) | `ValueError` | « pas d'atelier » |
+| Log du serveur illisible | Pixel s'arrêtait | journalisé, Pixel continue |
+| LLM distant appelé sans image | `NotImplementedError` | `ErreurLlm`, toujours sans appel réseau |
+| `[jeu] adaptateur` ou `[canal] adaptateur` inconnu | accepté sans effet | refusé à la lecture de la configuration |
+| Photos : formats lus | tous ceux de Pillow | JPEG et PNG (Telegram n'envoie que du JPEG) |
+| Photos : pixels envoyés au LLM | Pillow | même taille, autre filtre de réduction et autre encodeur JPEG |
+| Telegram pendant une lecture de photo | les autres messages étaient lus aussitôt | ils attendent chez Telegram la fin de la lecture, puis sont traités dans l'ordre |
+| Jeton Telegram refusé | échec à l'initialisation de la bibliothèque | arrêt au lancement avec un message, sans le jeton |
+| Suites aléatoires | Mersenne Twister | autre générateur ; aucune graine n'était stockée |
+
+Défauts de la version Python **reproduits tels quels**, à corriger dans un autre chantier :
+
+- une parenthèse ouvrante placée après un opérateur est suivie d'une espace dans l'énoncé
+  (« (1 + 2) × ( 3 + 4) = ? ») ;
+- deux téléportations demandées à Pixel dans la même seconde passent toutes les deux.
+
+Tests Python sans test Rust du même nom (comparaison faite avant la suppression) :
+
+- renommés parce que le nom était déjà celui de la fonction testée : `adresse` →
+  `adresse_reconnue`, `cle_valide` → `cle_valide_accepte_et_refuse`, `direction` →
+  `direction_dominante`, `en_lettres` → `en_lettres_ecrit_les_entiers`, `formater_duree` →
+  `formater_duree_arrondit_vers_le_bas` ;
+- `exemples_pour_le_parent` : il n'affirmait rien, il affichait trois exercices ;
+- les neuf tests de `scripts/verifier_version.py` : remplacés par `tests/version.rs`, qui en
+  reprend les cas (image oubliée, image sans tag, compose sans image, tag mal formé). Les cas
+  « `pyproject.toml` en retard » et « `__version__` oubliée » deviennent un seul, la version
+  n'ayant plus qu'une source. Le code de sortie du script n'a plus d'objet.
+
 ## Retours de jeu
 
 *(à remplir au fil des phases : écarts constatés avec le Python, choix tranchés en cours
@@ -753,3 +793,41 @@ de route, taille de l'image.)*
 - **Non essayé** : le vrai Telegram. Lancer l'agent Rust avec le jeton de la maison
   pendant que l'agent Python tourne ferait deux lecteurs sur le même bot. À jouer par le
   parent, avec un bot d'essai ou après avoir arrêté l'agent Python.
+
+**Phase 11.**
+- **Livrée sans attendre les parties jouées.** La conception disait de ne commencer la
+  bascule qu'une fois les scénarios des phases précédentes joués ; le mainteneur a demandé
+  d'enchaîner toutes les phases et de tester à la fin. Le Python reste sur `main` et dans
+  l'historique de la branche : `git show main:src/mine_de_rien/…` le montre encore.
+- Image : `rust:1.94.0-slim-trixie` pour construire, `scratch` pour finir. Pas de
+  `cargo-zigbuild` : clang compile le C (SQLite, cryptographie de TLS) pour la cible avec les
+  en-têtes musl de Debian, et `rust-lld` fait l'édition de liens. Aucune commande ne
+  s'exécute sous la plateforme cible, donc aucune émulation.
+- Mesuré sur le poste : **7,09 Mo** pour amd64 et 5,82 Mo pour arm64, contre 208 Mo pour
+  l'image 0.1.1. Le binaire est statique, seul dans l'image. Compilation : moins d'une
+  minute par architecture, dépendances comprises.
+- Vérifié avec l'image construite, contre le serveur d'essai (Paper 26.3) :
+  `mine-de-rien --version` ; le service ponctuel écrit un datapack identique à celui du
+  dépôt (`diff -r` vide) ; `coffre "348 ÷ 12"` puis l'agent posent le coffre (verrou « 29 »,
+  panneau) en résolvant le nom `minecraft` du réseau compose ; `docker stop` rend la main
+  en 177 ms, code 0 ; un jeton Telegram bidon est refusé **par Telegram**
+  (« Unauthorized »), ce qui prouve TLS et ses racines embarquées dans une image sans
+  système ; le binaire arm64 s'exécute sous émulation.
+- Base de la maison : sur deux copies de `data/agent/mine-de-rien.sqlite` (dix coffres),
+  le rapport des sept jours calculé par Rust est identique, ligne pour ligne, à celui de
+  Python. La comparaison a été faite avant la suppression du Python, sans afficher le
+  contenu. Elle se refait avec `MDR_BASE=… cargo test --test rapport -- --ignored`.
+- SQLite garde ses fichiers temporaires en mémoire (`temp_store = MEMORY`) : l'image n'a
+  pas de `/tmp`.
+- `docker/essai.compose.yml` n'a ni service `agent` ni service `datapack` (il monte
+  `datapacks/` depuis la copie de travail) : la vérification « compose d'essai avec
+  l'image » de la conception a été faite par `docker run` sur le réseau du compose d'essai.
+- **Non vérifié** : le workflow GitHub (`.github/workflows/publier.yml`) n'a pas tourné, il
+  ne se lance que sur un tag. Deux points à surveiller à la première publication :
+  `rustup toolchain install` sans argument (lit `rust-toolchain.toml`, demande un `rustup`
+  récent) et la construction multi-plateforme sans l'action QEMU.
+- **Non joué** : aucune des « vérifications en jeu » (phases 5 à 11), ni le vrai Telegram,
+  ni la lecture d'une vraie fiche photographiée. Tout ce qui demande un joueur connecté
+  reste à faire par le parent, sur le serveur d'essai.
+- Le dossier local `.venv/` de l'ancienne version n'est plus utile sur cette branche ; il
+  n'a pas été supprimé (il sert encore sur `main`).

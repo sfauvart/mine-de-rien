@@ -30,8 +30,7 @@ use crate::util::repr;
 pub const COMPETENCE: &str = "anglais/vocabulaire";
 
 /// Le lexique, tel qu'il était à la compilation.
-// Chemin provisoire : le fichier rejoint `src/exercises/anglais/donnees/` quand le Python part.
-const LEXIQUE: &str = include_str!("../../mine_de_rien/exercises/anglais/donnees/lexique.toml");
+const LEXIQUE: &str = include_str!("donnees/lexique.toml");
 
 /// Vérifié en jeu le 2026-11-08 : « août » se tape sur l'enclume, et l'accent est exigé.
 pub const ACCENTS_SUR_ENCLUME: bool = true;

@@ -1,6 +1,6 @@
 ---
 name: next
-description: Livre la phase suivante d'une spec Mine de rien : lit docs/specs/open/, prend la première phase non terminée, se place sur la branche de la spec, la code, fait tourner ses vérifications automatiques (pytest, ruff, serveur d'essai), coche le statut, commit, puis s'arrête avec le scénario à jouer en jeu. À invoquer explicitement (/next) après qu'une spec a été validée par /feature.
+description: Livre la phase suivante d'une spec Mine de rien : lit docs/specs/open/, prend la première phase non terminée, se place sur la branche de la spec, la code, fait tourner ses vérifications automatiques (cargo test, clippy, serveur d'essai), coche le statut, commit, puis s'arrête avec le scénario à jouer en jeu. À invoquer explicitement (/next) après qu'une spec a été validée par /feature.
 ---
 
 # Livrer la phase suivante
@@ -53,7 +53,7 @@ Dire sur quelle branche on est avant d'écrire la première ligne.
 
 Si la phase ajoute un générateur d'exercice, suivre `/nouvel-exercice`. Si elle
 ajoute une mise en scène dans le jeu, suivre `/nouveau-jeu`. Ces skills portent
-les règles qui ne se discutent pas (réponse calculée en Python, échappement des
+les règles qui ne se discutent pas (réponse calculée par le générateur, échappement des
 commandes, garde-fous anti-contournement).
 
 Le « Hors périmètre » est contraignant. Un problème réel croisé en chemin mais
@@ -74,8 +74,9 @@ contourner en silence.
 Toujours :
 
 ```bash
-uv run ruff check
-uv run pytest
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
 ```
 
 Puis les **vérifications automatiques écrites dans la phase**. Si la phase

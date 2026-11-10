@@ -13,7 +13,7 @@ ce qui est à retravailler.
 - **Rien ne sort de la maison.** Serveur Minecraft auto-hébergé, scores et rapports
   dans un fichier SQLite local. Aucun compte à créer chez un tiers, aucun abonnement.
 - **Le LLM n'est jamais la source de vérité.** Les exercices sont engendrés par des
-  générateurs déterministes en Python et la réponse est calculée. Le modèle de langage
+  générateurs déterministes et la réponse est calculée par le code. Le modèle de langage
   habille l'énoncé en histoire Minecraft et lit la photo du cahier, rien de plus.
 - **LLM au choix.** Anthropic, ou n'importe quel serveur compatible OpenAI,
   dont `llama-server` de llama.cpp, Ollama ou LM Studio, pour tourner 100 % en local.
@@ -38,9 +38,10 @@ Détail des idées et des choix : [docs/idees.md](docs/idees.md), [docs/architec
   la lecture du log serveur. Aucun plugin requis pour commencer.
 - **Java Edition uniquement** pour l'instant. Bedrock (tablette, console, Minecraft pour
   Windows) n'est pas pris en charge : voir [docs/architecture.md](docs/architecture.md).
-- **Python 3.12+**, `uv`, SQLite.
+- **Rust**, un seul binaire statique, SQLite embarqué.
 - `docker compose` qui lance Paper et l'agent d'un coup. L'agent et son datapack sont
-  publiés en une image, `ghcr.io/sfauvart/mine-de-rien`, pour amd64 et arm64.
+  publiés en une image, `ghcr.io/sfauvart/mine-de-rien`, pour amd64 et arm64 : elle ne
+  contient que le binaire.
 
 ## Installation
 
@@ -62,10 +63,12 @@ voir [docs/rejoindre-le-serveur.md](docs/rejoindre-le-serveur.md).
 
 ## Développement
 
+Il faut Rust (la version est figée dans `rust-toolchain.toml`, `rustup` l'installe seul).
+
 ```bash
-uv sync
-uv run pytest
-uv run ruff check
+cargo test
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
 ```
 
 Tout se joue aussi sans Telegram, sur le serveur d'essai jetable
@@ -74,9 +77,9 @@ Tout se joue aussi sans Telegram, sur le serveur d'essai jetable
 ```bash
 docker compose -f docker/essai.compose.yml --env-file .env up -d
 cp config.essai.example.toml config.essai.toml                  # puis y mettre ton pseudo
-uv run mine-de-rien --config config.essai.toml atelier          # construit l'atelier
-uv run mine-de-rien --config config.essai.toml lancer           # surveille, pose les coffres
-uv run mine-de-rien --config config.essai.toml coffre "division 2"   # dans un autre terminal
+cargo run -- --config config.essai.toml atelier          # construit l'atelier
+cargo run -- --config config.essai.toml lancer           # surveille, pose les coffres
+cargo run -- --config config.essai.toml coffre "division 2"   # dans un autre terminal
 ```
 
 ## Licence

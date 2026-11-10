@@ -204,6 +204,9 @@ pub struct Demande<'a> {
 pub fn ouvrir(chemin: &Path) -> Result<Connection, ErreurStockage> {
     let connexion = Connection::open(chemin)?;
     connexion.pragma_update(None, "foreign_keys", "ON")?;
+    // L'image de l'agent ne contient que le binaire : pas de /tmp pour les fichiers
+    // temporaires de SQLite.
+    connexion.pragma_update(None, "temp_store", "MEMORY")?;
     let mut version: u32 = connexion.query_row("PRAGMA user_version", [], |l| l.get(0))?;
     if version == 0 {
         let existantes: i64 = connexion.query_row(

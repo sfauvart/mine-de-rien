@@ -1,4 +1,11 @@
-//! Outils partagés par les tests : fichiers de référence produits par la version Python.
+//! Outils partagés par les tests.
+//!
+//! `tests/donnees/oracle/` garde les sorties de l'ancienne version Python de l'agent, relevées
+//! pendant le passage à Rust (spec `2026-11-agent-en-rust`) : pour des entrées fixées, les
+//! commandes Minecraft, les messages et les rapports qu'elle produisait. Le script qui les
+//! écrivait a disparu avec elle ; ces fichiers ne se régénèrent plus, ils se relisent. Un test
+//! qui s'en écarte signale un changement de comportement : s'il est voulu, corriger le cas à
+//! la main et le dire dans le commit.
 #![allow(dead_code)]
 
 pub mod terrain;
@@ -9,7 +16,7 @@ pub fn racine() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-/// Les cas de `tests/donnees/oracle/<nom>.json`, écrits par `scripts/oracle.py`.
+/// Les cas de `tests/donnees/oracle/<nom>.json`.
 pub fn oracle(nom: &str) -> Vec<serde_json::Value> {
     let chemin = racine()
         .join("tests/donnees/oracle")
@@ -45,7 +52,7 @@ pub fn comparer<T: serde::Serialize, E: std::fmt::Display>(
     }
 }
 
-/// Copie d'une base de référence écrite par Python (`tests/donnees/bases/v<N>.sqlite`) :
+/// Copie d'une base de référence écrite par la version Python (`tests/donnees/bases/v<N>.sqlite`) :
 /// l'ouvrir la migre, donc jamais l'original. Le dossier temporaire vit autant que la copie.
 pub fn copie_base(nom: &str) -> (tempfile::TempDir, PathBuf) {
     let dossier = tempfile::tempdir().unwrap();

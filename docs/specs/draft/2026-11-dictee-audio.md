@@ -1,5 +1,10 @@
 # L'enfant prépare sa dictée de la semaine en l'écoutant dans le jeu
 
+> **En attente.** Cette spec a été écrite quand l'agent était en Python. Depuis le passage à
+> Rust ([spec](../open/2026-11-agent-en-rust.md)), ses chemins `src/mine_de_rien/….py`, ses
+> commandes `uv run pytest` et son choix d'une « bibliothèque Python qui écrit du Vorbis »
+> ne tiennent plus : la reprendre par `/feature` avant d'en livrer la première phase.
+
 > **Reprise de session** : lire « Pourquoi », « Décisions actées » et « Statut »,
 > puis aller à la première phase non terminée.
 

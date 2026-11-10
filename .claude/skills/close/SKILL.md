@@ -79,7 +79,7 @@ Si l'utilisateur rapporte ce qu'en a pensé l'enfant, le noter aussi dans
 
 ```bash
 git mv docs/specs/open/AAAA-MM-<slug>.md docs/specs/done/AAAA-MM-<slug>.md
-grep -rn "AAAA-MM-<slug>.md" --include=*.md . | grep -v .venv
+grep -rn "AAAA-MM-<slug>.md" --include=*.md . | grep -v "^./target/"
 ```
 
 Corriger chaque lien trouvé hors de la spec elle-même. `README.md`,
