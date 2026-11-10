@@ -3,6 +3,21 @@
 
 use chrono::TimeDelta;
 
+use crate::adapters::game::rcon::ErreurRcon;
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ErreurCoffre {
+    /// Le serveur a répondu autre chose que prévu.
+    #[error("{0}")]
+    Coffre(String),
+    /// Ce monde n'a pas d'atelier ; le message va aux parents.
+    #[error("{0}")]
+    AtelierAbsent(String),
+    /// Le serveur n'a pas répondu.
+    #[error("{0}")]
+    Rcon(#[from] ErreurRcon),
+}
+
 /// « 12 min », « 3 h 05 », « 2 jours » : une durée telle qu'on la dit aux parents.
 pub fn formater_duree(duree: Option<TimeDelta>) -> String {
     let Some(duree) = duree else {
