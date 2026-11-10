@@ -10,7 +10,7 @@
 
 use std::path::Path;
 
-use chrono::{DateTime, SecondsFormat, TimeDelta, Utc};
+use chrono::{DateTime, NaiveDate, SecondsFormat, TimeDelta, Utc};
 use rusqlite::{Connection, OptionalExtension, Row, params};
 use serde_json::{Map, Value};
 
@@ -18,7 +18,7 @@ use crate::exercises::base::Exercice;
 use crate::saisie::Source;
 use crate::util::json_python;
 
-pub const VERSION_SCHEMA: u32 = 4;
+pub const VERSION_SCHEMA: u32 = 5;
 
 pub const SCHEMA: &str = r#"
 CREATE TABLE exercices (
@@ -49,7 +49,7 @@ CREATE TABLE tentatives (
 "#;
 
 /// Chaque entrée fait passer le schéma de la version `indice + 1` à `indice + 2`.
-pub const MIGRATIONS: [&str; 3] = [
+pub const MIGRATIONS: [&str; 4] = [
     // 2 : niveaux d'expérience donnés pour le coffre, et journal pour le rapport.
     r#"
     ALTER TABLE exercices ADD COLUMN niveaux_donnes INTEGER NOT NULL DEFAULT 0;
@@ -130,6 +130,31 @@ pub const MIGRATIONS: [&str; 3] = [
     CREATE INDEX exercices_statut ON exercices (statut, id);
     COMMIT;
     PRAGMA foreign_keys = ON;
+    "#,
+    // 5 : les dictées préparées. Une dictée est gardée jusqu'à son jour ; chacune de ses
+    // phrases porte ses deux sons (Ogg Vorbis, vitesse normale et lente). Le numéro d'une
+    // phrase donne ceux de ses sons dans le pack (`dictees::numero_son`).
+    r#"
+    CREATE TABLE dictees (
+        id              INTEGER PRIMARY KEY,
+        jour            TEXT NOT NULL,
+        texte           TEXT NOT NULL,
+        imposes         TEXT NOT NULL DEFAULT '[]',
+        statut          TEXT NOT NULL DEFAULT 'en_cours'
+                        CHECK (statut IN ('en_cours', 'annulee')),
+        demande_par     TEXT NOT NULL,
+        confirmee_le    TEXT NOT NULL,
+        derniere_seance TEXT
+    );
+    CREATE TABLE dictee_phrases (
+        id        INTEGER PRIMARY KEY,
+        dictee_id INTEGER NOT NULL REFERENCES dictees(id),
+        rang      INTEGER NOT NULL,
+        texte     TEXT NOT NULL,
+        son       BLOB NOT NULL,
+        son_lent  BLOB NOT NULL
+    );
+    CREATE INDEX dictee_phrases_dictee ON dictee_phrases (dictee_id, rang);
     "#,
 ];
 
@@ -225,6 +250,89 @@ pub struct Evenement {
     pub exercice_id: Option<i64>,
     pub genre: String,
     pub quand: DateTime<Utc>,
+}
+
+/// Une dictée à préparer, telle que le parent l'a confirmée.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DicteeStockee {
+    pub id: i64,
+    /// Le jour de la dictée à l'école.
+    pub jour: NaiveDate,
+    pub texte: String,
+    /// Les mots que le parent veut voir sortir en premier.
+    pub imposes: Vec<String>,
+    pub annulee: bool,
+    pub demande_par: String,
+    pub confirmee_le: DateTime<Utc>,
+    /// Le jour (de la maison) de la dernière séance créée pour cette dictée.
+    pub derniere_seance: Option<NaiveDate>,
+}
+
+/// Une phrase d'une dictée. Son `id` donne les numéros de ses sons dans le pack.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PhraseStockee {
+    pub id: i64,
+    pub rang: usize,
+    pub texte: String,
+}
+
+/// Une phrase à enregistrer, avec ses deux sons en Ogg Vorbis.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PhraseSonore {
+    pub texte: String,
+    pub son: Vec<u8>,
+    pub son_lent: Vec<u8>,
+}
+
+fn jour(texte: &str) -> Result<NaiveDate, ErreurStockage> {
+    NaiveDate::parse_from_str(texte, "%Y-%m-%d")
+        .or_else(|e| refus(format!("jour illisible dans la base ({texte}) : {e}")))
+}
+
+/// Le numéro d'une phrase et ses deux sons, à vitesse normale puis lente.
+pub type SonsDePhrase = (i64, Vec<u8>, Vec<u8>);
+
+const COLONNES_DICTEE: &str =
+    "id, jour, texte, imposes, statut, demande_par, confirmee_le, derniere_seance";
+
+type DicteeBrute = (
+    i64,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+);
+
+fn dictee_brute(l: &Row<'_>) -> rusqlite::Result<DicteeBrute> {
+    Ok((
+        l.get(0)?,
+        l.get(1)?,
+        l.get(2)?,
+        l.get(3)?,
+        l.get(4)?,
+        l.get(5)?,
+        l.get(6)?,
+        l.get(7)?,
+    ))
+}
+
+fn dictee_verifiee(brute: DicteeBrute) -> Result<DicteeStockee, ErreurStockage> {
+    let (id, le_jour, texte, imposes, statut, demande_par, confirmee_le, derniere) = brute;
+    let imposes: Vec<String> = serde_json::from_str(&imposes)
+        .or_else(|_| refus(format!("mots imposés illisibles pour la dictée {id}")))?;
+    Ok(DicteeStockee {
+        id,
+        jour: jour(&le_jour)?,
+        texte,
+        imposes,
+        annulee: statut != "en_cours",
+        demande_par,
+        confirmee_le: date_requise(confirmee_le)?,
+        derniere_seance: derniere.as_deref().map(jour).transpose()?,
+    })
 }
 
 /// Ce qui accompagne un exercice mis en file : d'où il vient, qui l'a demandé, le butin.
@@ -564,6 +672,134 @@ impl Depot {
                 genre,
                 quand: date_requise(quand)?,
             });
+        }
+        Ok(sortie)
+    }
+
+    /// Enregistre une dictée confirmée et ses phrases, d'un seul tenant. Rend son numéro.
+    pub fn ajouter_dictee(
+        &self,
+        le_jour: NaiveDate,
+        texte: &str,
+        phrases: &[PhraseSonore],
+        demande_par: &str,
+        quand: DateTime<Utc>,
+    ) -> Result<i64, ErreurStockage> {
+        let transaction = self.cx.unchecked_transaction()?;
+        transaction.execute(
+            "INSERT INTO dictees (jour, texte, demande_par, confirmee_le) VALUES (?, ?, ?, ?)",
+            params![le_jour.to_string(), texte, demande_par, iso(quand)],
+        )?;
+        let ident = transaction.last_insert_rowid();
+        for (rang, phrase) in phrases.iter().enumerate() {
+            transaction.execute(
+                "INSERT INTO dictee_phrases (dictee_id, rang, texte, son, son_lent)
+                 VALUES (?, ?, ?, ?, ?)",
+                params![
+                    ident,
+                    i64::try_from(rang).unwrap_or_default(),
+                    phrase.texte,
+                    phrase.son,
+                    phrase.son_lent
+                ],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(ident)
+    }
+
+    pub fn lire_dictee(&self, ident: i64) -> Result<Option<DicteeStockee>, ErreurStockage> {
+        let brute = self
+            .cx
+            .query_row(
+                &format!("SELECT {COLONNES_DICTEE} FROM dictees WHERE id = ?"),
+                [ident],
+                dictee_brute,
+            )
+            .optional()?;
+        brute.map(dictee_verifiee).transpose()
+    }
+
+    /// Les dictées non annulées dont le jour est `depuis` ou après, la plus proche d'abord.
+    pub fn dictees_depuis(&self, depuis: NaiveDate) -> Result<Vec<DicteeStockee>, ErreurStockage> {
+        let mut preparee = self.cx.prepare(&format!(
+            "SELECT {COLONNES_DICTEE} FROM dictees \
+             WHERE statut = 'en_cours' AND jour >= ? ORDER BY jour, id"
+        ))?;
+        let brutes = preparee.query_map([depuis.to_string()], dictee_brute)?;
+        let mut sortie = Vec::new();
+        for brute in brutes {
+            sortie.push(dictee_verifiee(brute?)?);
+        }
+        Ok(sortie)
+    }
+
+    /// Annule une dictée en cours. Faux si elle n'existe pas ou l'était déjà.
+    pub fn annuler_dictee(&self, ident: i64) -> Result<bool, ErreurStockage> {
+        let touchees = self.cx.execute(
+            "UPDATE dictees SET statut = 'annulee' WHERE id = ? AND statut = 'en_cours'",
+            [ident],
+        )?;
+        Ok(touchees > 0)
+    }
+
+    pub fn imposer_mots(&self, ident: i64, mots: &[String]) -> Result<(), ErreurStockage> {
+        let liste = serde_json::to_string(mots)
+            .or_else(|e| refus(format!("mots imposés impossibles à écrire : {e}")))?;
+        self.cx.execute(
+            "UPDATE dictees SET imposes = ? WHERE id = ?",
+            params![liste, ident],
+        )?;
+        Ok(())
+    }
+
+    /// Note le jour de la dernière séance créée pour cette dictée.
+    pub fn marquer_seance(&self, ident: i64, le_jour: NaiveDate) -> Result<(), ErreurStockage> {
+        self.cx.execute(
+            "UPDATE dictees SET derniere_seance = ? WHERE id = ?",
+            params![le_jour.to_string(), ident],
+        )?;
+        Ok(())
+    }
+
+    /// Les phrases d'une dictée, dans l'ordre du texte, sans leurs sons.
+    pub fn phrases_de(&self, dictee: i64) -> Result<Vec<PhraseStockee>, ErreurStockage> {
+        let mut preparee = self.cx.prepare(
+            "SELECT id, rang, texte FROM dictee_phrases WHERE dictee_id = ? ORDER BY rang",
+        )?;
+        let lignes = preparee.query_map([dictee], |l| {
+            Ok((
+                l.get::<_, i64>(0)?,
+                l.get::<_, i64>(1)?,
+                l.get::<_, String>(2)?,
+            ))
+        })?;
+        let mut sortie = Vec::new();
+        for ligne in lignes {
+            let (id, rang, texte) = ligne?;
+            sortie.push(PhraseStockee {
+                id,
+                rang: usize::try_from(rang).unwrap_or_default(),
+                texte,
+            });
+        }
+        Ok(sortie)
+    }
+
+    /// Les sons à mettre dans le pack : ceux des dictées non annulées dont le jour est
+    /// `depuis` ou après. Chaque élément : numéro de la phrase, son normal, son lent.
+    pub fn sons_depuis(&self, depuis: NaiveDate) -> Result<Vec<SonsDePhrase>, ErreurStockage> {
+        let mut preparee = self.cx.prepare(
+            "SELECT p.id, p.son, p.son_lent FROM dictee_phrases p \
+             JOIN dictees d ON d.id = p.dictee_id \
+             WHERE d.statut = 'en_cours' AND d.jour >= ? ORDER BY p.id",
+        )?;
+        let lignes = preparee.query_map([depuis.to_string()], |l| {
+            Ok((l.get(0)?, l.get(1)?, l.get(2)?))
+        })?;
+        let mut sortie = Vec::new();
+        for ligne in lignes {
+            sortie.push(ligne?);
         }
         Ok(sortie)
     }

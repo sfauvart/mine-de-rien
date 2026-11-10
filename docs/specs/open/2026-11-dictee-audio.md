@@ -134,7 +134,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 - [x] **Phase 2 : Le jeu joue un son fabriqué par l'agent**
 - [x] **Phase 3 : Du texte aux trous**
 - [x] **Phase 4 : Le coffre de dictée**
-- [ ] **Phase 5 : La dictée depuis Telegram**
+- [x] **Phase 5 : La dictée depuis Telegram**
 - [ ] **Phase 6 : Lire ce que l'enfant a tapé**
 - [ ] **Phase 7 : La séance de chaque jour**
 
@@ -694,3 +694,34 @@ de l'image, écarts constatés.)*
   stockage porte le son et la phrase à trou. Les verrous « s'élève » et « Dubaï » sont
   restitués à l'identique par `data get block`.
 - `dictee-essai` remplace le pack par les seules phrases tirées : c'est un outil d'essai.
+
+**Phase 5.**
+- **Lecture de photo, essai du 2026-11-10** avec le LLM local de la maison, sur une feuille
+  **de synthèse** (texte de la dictée 5 imprimé, 1 700 px, penchée de 1,5°, avec un titre) :
+  lue en 15 s, titre ignoré, apostrophes et ponctuation justes, mais **« noirades » pour
+  « noiraudes »**. Une lettre fausse sur 44 mots. Le critère de la conception (« si le
+  texte n'est pas recopié à l'identique, la photo sort du périmètre ») parlait d'une vraie
+  feuille de la maîtresse, que je n'ai pas : **la photo est livrée, mais c'est au parent de
+  décider si elle reste**. En attendant, une dictée lue sur photo porte un avertissement de
+  plus dans la confirmation, et `docs/installation.md` dit que le texte tapé est plus sûr.
+  `mine-de-rien lire-photo <image> --dictee` refait l'essai sur une vraie feuille.
+- L'aperçu audio part par `sendDocument` (fichier `dictee-apercu.ogg`) : le message vocal de
+  Telegram demande de l'Ogg Opus. **Non essayé sur le vrai Telegram** : que le client joue
+  ce fichier d'un toucher reste à voir par le parent.
+- Les sons d'une dictée sont gardés dans la base (deux par phrase), pas dans des fichiers :
+  le pack se refait à partir d'elle, et une sauvegarde de la base suffit.
+- Les sons sont fabriqués à la demande de dictée, pas au « /oui » : la confirmation est
+  immédiate, et l'aperçu est exactement ce qui sera joué.
+- La « date du pack » prévue dans la table `dictees` n'existe pas : la date du fichier
+  suffit (phase 4). La colonne `derniere_seance`, prévue en migration 6, est créée dès la
+  migration 5 : une migration de moins.
+- L'aide ne change que si les dictées sont configurées : les cas d'oracle des commandes de
+  parents passent sans aucune retouche.
+- Une seule chose à confirmer par parent : une fiche photographiée remplace une dictée en
+  attente, et l'inverse.
+- `/dictee annuler` retire aussi les coffres de cette dictée qui attendent dans la file ;
+  le coffre actif, s'il en est un, se retire par `/annuler`.
+- `dictee-essai` passe maintenant par le même chemin que Telegram (voix, base, pack,
+  séance). Essayé contre la voix d'essai : dictée de deux phrases, quatre sons dans le pack,
+  coffres de source `dictee`.
+- `cargo tree -d` : un seul `reqwest`. `teloxide` envoie le fichier sans réglage de plus.

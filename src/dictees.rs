@@ -5,14 +5,21 @@
 //! numéros se déduisent du numéro de la phrase : `2 × phrase` et `2 × phrase + 1`. Un numéro
 //! ne dit rien du texte.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::path::Path;
 
+use chrono::{DateTime, Datelike, NaiveDate, TimeDelta, Utc, Weekday};
 use serde_json::json;
 
 use crate::adapters::voix::base::{ErreurVoix, Voix};
-use crate::exercises::base::Exercice;
-use crate::exercises::francais::dictee::{ErreurDictee, Phrase, Position, exercice};
-use crate::son::{ErreurSon, wav_vers_ogg};
+use crate::alea::Alea;
+use crate::exercises::base::{Exercice, normaliser};
+use crate::exercises::francais::dictee::{
+    ErreurDictee, Phrase, Position, candidats, decouper, decouper_liste, exercice, phrase_de, tirer,
+};
+use crate::pack::{self, ErreurPack};
+use crate::son::{ErreurSon, Pcm, encoder_ogg, lire_wav, wav_vers_ogg};
+use crate::storage::sqlite::{Demande, Depot, DicteeStockee, ErreurStockage, PhraseSonore};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErreurDictees {
@@ -22,7 +29,18 @@ pub enum ErreurDictees {
     Voix(#[from] ErreurVoix),
     #[error("{0}")]
     Son(#[from] ErreurSon),
+    #[error("{0}")]
+    Pack(#[from] ErreurPack),
+    #[error("{0}")]
+    Stockage(#[from] ErreurStockage),
 }
+
+/// Au-delà, ce n'est plus une dictée de CM2, et la voix mettrait des minutes.
+pub const PHRASES_MAX: usize = 40;
+/// Une dictée reste dans le pack 30 jours après son jour : un mot raté peut y revenir.
+pub const JOURS_GARDES: i64 = 30;
+/// Silence entre deux phrases de l'aperçu envoyé au parent.
+const SILENCE_SECONDES: f64 = 0.8;
 
 /// Le numéro, dans le pack, du son de la phrase n°`phrase` (comptée à partir de 1).
 pub fn numero_son(phrase: u32, lent: bool) -> u32 {
@@ -56,4 +74,229 @@ pub fn exercice_sonore(
     ex.donnees
         .insert("son_lent".to_owned(), json!(numero_son(phrase, true)));
     Ok(ex)
+}
+
+/// Une dictée lue par la voix, en attente du « /oui » du parent.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Preparation {
+    /// Le texte tel qu'il sera gardé : les phrases, une par ligne.
+    pub texte: String,
+    pub phrases: Vec<Phrase>,
+    pub sonores: Vec<PhraseSonore>,
+    /// Toutes les phrases à la suite, à vitesse normale, pour que le parent écoute.
+    pub apercu: Vec<u8>,
+}
+
+impl Preparation {
+    pub fn mots_a_demander(&self) -> usize {
+        candidats(&self.phrases).len()
+    }
+}
+
+/// Découpe le texte (ou la liste de mots) et le fait lire aux deux vitesses.
+pub async fn preparer(
+    voix: &dyn Voix,
+    texte: &str,
+    liste: bool,
+) -> Result<Preparation, ErreurDictees> {
+    let phrases = if liste {
+        decouper_liste(texte)
+    } else {
+        decouper(texte)
+    };
+    if candidats(&phrases).is_empty() {
+        return Err(ErreurDictee("Aucun mot à demander dans ce texte.".to_owned()).into());
+    }
+    if phrases.len() > PHRASES_MAX {
+        return Err(ErreurDictee(format!(
+            "{} phrases : c'est trop pour une dictée ({PHRASES_MAX} au plus).",
+            phrases.len()
+        ))
+        .into());
+    }
+    let mut sonores = Vec::with_capacity(phrases.len());
+    let mut suite: Option<Pcm> = None;
+    for phrase in &phrases {
+        let normal = lire_wav(&voix.dire(&phrase.texte, false).await?)?;
+        let lent = wav_vers_ogg(&voix.dire(&phrase.texte, true).await?)?;
+        sonores.push(PhraseSonore {
+            texte: phrase.texte.clone(),
+            son: encoder_ogg(&normal)?,
+            son_lent: lent,
+        });
+        match &mut suite {
+            None => suite = Some(normal),
+            Some(suite) => {
+                let silence = (SILENCE_SECONDES * f64::from(suite.frequence)) as usize;
+                suite.echantillons.extend(std::iter::repeat_n(0.0, silence));
+                // Une même voix garde sa fréquence d'une phrase à l'autre.
+                suite.echantillons.extend(&normal.echantillons);
+            }
+        }
+    }
+    let apercu = match &suite {
+        Some(suite) => encoder_ogg(suite)?,
+        None => Vec::new(),
+    };
+    Ok(Preparation {
+        texte: phrases
+            .iter()
+            .map(|p| p.texte.as_str())
+            .collect::<Vec<_>>()
+            .join("\n"),
+        phrases,
+        sonores,
+        apercu,
+    })
+}
+
+/// Réécrit le pack avec les sons de toutes les dictées encore utiles : celles dont le jour
+/// n'est pas passé depuis plus de 30 jours. Rend le nombre de sons.
+pub fn reconstruire_pack(
+    depot: &Depot,
+    chemin: &Path,
+    aujourdhui: NaiveDate,
+) -> Result<usize, ErreurDictees> {
+    let mut sons = BTreeMap::new();
+    for (phrase, son, son_lent) in depot.sons_depuis(aujourdhui - TimeDelta::days(JOURS_GARDES))? {
+        let Ok(phrase) = u32::try_from(phrase) else {
+            continue;
+        };
+        sons.insert(numero_son(phrase, false), son);
+        sons.insert(numero_son(phrase, true), son_lent);
+    }
+    pack::ecrire(chemin, &pack::construire(&sons)?)?;
+    Ok(sons.len())
+}
+
+/// Enregistre une dictée confirmée et refait le pack. Rend le numéro de la dictée.
+pub fn enregistrer(
+    depot: &Depot,
+    preparation: &Preparation,
+    jour: NaiveDate,
+    demande_par: &str,
+    quand: DateTime<Utc>,
+    chemin_du_pack: &Path,
+    aujourdhui: NaiveDate,
+) -> Result<i64, ErreurDictees> {
+    let ident = depot.ajouter_dictee(
+        jour,
+        &preparation.texte,
+        &preparation.sonores,
+        demande_par,
+        quand,
+    )?;
+    reconstruire_pack(depot, chemin_du_pack, aujourdhui)?;
+    Ok(ident)
+}
+
+/// Les phrases d'une dictée enregistrée, avec le numéro de chacune dans la base.
+pub fn phrases_enregistrees(
+    depot: &Depot,
+    dictee: i64,
+) -> Result<(Vec<Phrase>, Vec<u32>), ErreurDictees> {
+    let mut phrases = Vec::new();
+    let mut numeros = Vec::new();
+    for stockee in depot.phrases_de(dictee)? {
+        let (Some(phrase), Ok(numero)) = (phrase_de(&stockee.texte), u32::try_from(stockee.id))
+        else {
+            return Err(ErreurDictee(format!(
+                "La phrase n°{} de la dictée n°{dictee} est illisible.",
+                stockee.id
+            ))
+            .into());
+        };
+        phrases.push(phrase);
+        numeros.push(numero);
+    }
+    Ok((phrases, numeros))
+}
+
+/// Tire une séance de `n` trous dans une dictée enregistrée et met les coffres en file.
+/// Rend, pour chacun, son numéro de coffre et l'exercice.
+pub fn seance(
+    depot: &Depot,
+    dictee: &DicteeStockee,
+    n: usize,
+    alea: &mut Alea,
+    poids: &HashMap<Position, f64>,
+    demande: Demande<'_>,
+    quand: DateTime<Utc>,
+) -> Result<Vec<(i64, Exercice)>, ErreurDictees> {
+    let (phrases, numeros) = phrases_enregistrees(depot, dictee.id)?;
+    let mut coffres = Vec::new();
+    for position in tirer(&phrases, n, alea, poids, &dictee.imposes)? {
+        let mut ex = exercice_sonore(&phrases, position, numeros[position.phrase])?;
+        ex.donnees.insert("dictee".to_owned(), json!(dictee.id));
+        let numero = depot.ajouter(&ex, demande, quand)?;
+        coffres.push((numero, ex));
+    }
+    Ok(coffres)
+}
+
+const JOURS: [&str; 7] = [
+    "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche",
+];
+const MOIS: [&str; 12] = [
+    "janvier",
+    "février",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "août",
+    "septembre",
+    "octobre",
+    "novembre",
+    "décembre",
+];
+
+/// « vendredi 13 novembre » : un jour tel qu'on le dit aux parents.
+pub fn ecrire_jour(jour: NaiveDate) -> String {
+    let nom = JOURS[jour.weekday().num_days_from_monday() as usize];
+    let mois = MOIS[jour.month0() as usize];
+    let quantieme = if jour.day() == 1 {
+        "1er".to_owned()
+    } else {
+        jour.day().to_string()
+    };
+    format!("{nom} {quantieme} {mois}")
+}
+
+/// Le jour de la dictée, tel que le parent l'écrit : un nom de jour (le prochain, jamais
+/// aujourd'hui) ou `JJ/MM`.
+pub fn lire_jour(texte: &str, aujourdhui: NaiveDate) -> Result<NaiveDate, ErreurDictee> {
+    let incompris = || {
+        ErreurDictee(
+            "Je ne comprends pas le jour de la dictée. Exemples : « vendredi » ou « 13/11 »."
+                .to_owned(),
+        )
+    };
+    let cle = normaliser(texte);
+    if let Some(rang) = JOURS.iter().position(|j| normaliser(j) == cle) {
+        let cible = Weekday::try_from(rang as u8).map_err(|_| incompris())?;
+        let mut jour = aujourdhui + TimeDelta::days(1);
+        while jour.weekday() != cible {
+            jour += TimeDelta::days(1);
+        }
+        return Ok(jour);
+    }
+    let (quantieme, mois) = texte.trim().split_once('/').ok_or_else(incompris)?;
+    let (Ok(quantieme), Ok(mois)) = (quantieme.parse::<u32>(), mois.parse::<u32>()) else {
+        return Err(incompris());
+    };
+    let cette_annee =
+        NaiveDate::from_ymd_opt(aujourdhui.year(), mois, quantieme).ok_or_else(incompris)?;
+    if cette_annee > aujourdhui {
+        return Ok(cette_annee);
+    }
+    // En décembre, « 08/01 » est en janvier prochain ; « 13/11 » dit le 14 est une erreur.
+    match NaiveDate::from_ymd_opt(aujourdhui.year() + 1, mois, quantieme) {
+        Some(prochaine) if (aujourdhui - cette_annee).num_days() > 180 => Ok(prochaine),
+        _ => Err(ErreurDictee(format!(
+            "Le {} est aujourd'hui ou déjà passé : la dictée doit être à venir.",
+            ecrire_jour(cette_annee)
+        ))),
+    }
 }

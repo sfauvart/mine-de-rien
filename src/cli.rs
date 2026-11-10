@@ -17,7 +17,6 @@ use crate::adapters::llm::creer as creer_llm;
 use crate::adapters::voix::creer as creer_voix;
 use crate::alea::Alea;
 use crate::config::{Config, charger_config};
-use crate::exercises::francais::dictee as texte_dictee;
 use crate::games::atelier::{self, ErreurAtelier};
 use crate::games::coffre_du_soir::{CoffreDuSoir, Notificateur, NotificateurConsole};
 use crate::games::paisible::ModePaisible;
@@ -75,6 +74,9 @@ enum Action {
         /// exercices à tirer au hasard
         #[arg(long, default_value_t = 3)]
         nombre: usize,
+        /// la photo est une feuille de dictée : affiche le texte recopié
+        #[arg(long)]
+        dictee: bool,
     },
     /// fait lire une phrase par la voix locale et l'écrit en Ogg Vorbis, pour l'écouter
     Voix {
@@ -289,7 +291,7 @@ async fn lancer(config: &Config) -> Result<(), String> {
     } else {
         None
     };
-    let commandes = CommandesParents::new(
+    let mut commandes = CommandesParents::new(
         depot,
         config.coffre.clone(),
         Some(coffre),
@@ -298,6 +300,18 @@ async fn lancer(config: &Config) -> Result<(), String> {
         llm,
         Alea::nouveau(),
     );
+    // Les dictées demandent les deux : une voix pour les lire, un pack pour les faire entendre.
+    match (&config.voix, &config.pack) {
+        (Some(section), Some(_)) => match creer_voix(section) {
+            Ok(voix) => {
+                commandes = commandes.avec_dictees(voix, &chemin_du_pack(config));
+                println!("Dictées : voix « {} ».", section.voix);
+            }
+            Err(e) => eprintln!("Dictées désactivées : {e}"),
+        },
+        (None, None) => {}
+        _ => eprintln!("Dictées désactivées : il faut les deux sections [voix] et [pack]."),
+    }
     let service_du_pack = ouvrir_service_pack(config).await?;
     let pack = async {
         match service_du_pack {
@@ -357,10 +371,24 @@ async fn lire_photo(
     image: &std::path::Path,
     consigne: &str,
     nombre: usize,
+    dictee: bool,
 ) -> Result<(), String> {
     let llm = creer_llm(&config.llm).map_err(|e| e.to_string())?;
     let octets = std::fs::read(image).map_err(|e| e.to_string())?;
     let debut = std::time::Instant::now();
+    if dictee {
+        let texte = photo::lire_texte(llm.as_ref(), &octets)
+            .await
+            .map_err(|e| e.to_string())?;
+        println!("Lu en {:.0} s :", debut.elapsed().as_secs_f64());
+        for (i, phrase) in crate::exercises::francais::dictee::decouper(&texte)
+            .iter()
+            .enumerate()
+        {
+            println!("{}. {}", i + 1, phrase.texte);
+        }
+        return Ok(());
+    }
     let mut alea = Alea::nouveau();
     let lecture = photo::lire(llm.as_ref(), &octets, consigne, &mut alea)
         .await
@@ -402,59 +430,59 @@ async fn lire_a_voix_haute(
     Ok(())
 }
 
+/// Le chemin d'une dictée envoyée par Telegram, sans Telegram : la voix lit le texte, la
+/// dictée est enregistrée pour dans une semaine, le pack est refait, une séance part en file.
 async fn dictee_essai(config: &Config, texte: &str, nombre: usize) -> Result<(), String> {
     let Some(section) = &config.voix else {
         return Err("Section [voix] absente de la configuration.".to_owned());
     };
     let voix = creer_voix(section).map_err(|e| e.to_string())?;
-    let phrases = texte_dictee::decouper(texte);
-    let positions = texte_dictee::tirer(
-        &phrases,
+    let preparation = dictees::preparer(voix.as_ref(), texte, false)
+        .await
+        .map_err(|e| e.to_string())?;
+    let depot = depot(config).map_err(|e| e.to_string())?;
+    let quand = maintenant();
+    let aujourdhui = quand.date_naive();
+    let chemin = chemin_du_pack(config);
+    let numero = dictees::enregistrer(
+        &depot,
+        &preparation,
+        aujourdhui + chrono::TimeDelta::days(7),
+        "cli",
+        quand,
+        &chemin,
+        aujourdhui,
+    )
+    .map_err(|e| e.to_string())?;
+    println!(
+        "Dictée n°{numero} enregistrée : {} phrase(s), {} mot(s) à demander. Pack : {}.",
+        preparation.phrases.len(),
+        preparation.mots_a_demander(),
+        chemin.display()
+    );
+    let dictee = depot
+        .lire_dictee(numero)
+        .map_err(|e| e.to_string())?
+        .ok_or("dictée introuvable après son enregistrement")?;
+    let demande = Demande {
+        source: Source::Dictee,
+        demande_par: "cli",
+        recompense: &config.coffre.recompense,
+        recompense_nombre: config.coffre.recompense_nombre,
+    };
+    let coffres = dictees::seance(
+        &depot,
+        &dictee,
         nombre,
         &mut Alea::nouveau(),
         &std::collections::HashMap::new(),
-        &[],
+        demande,
+        quand,
     )
     .map_err(|e| e.to_string())?;
-    if positions.is_empty() {
-        return Err("Aucun mot à demander dans ce texte.".to_owned());
-    }
-    // Le pack d'essai ne contient que les phrases tirées ; il remplace le pack en place.
-    let mut sons = std::collections::BTreeMap::new();
-    let mut exercices = Vec::new();
-    for position in &positions {
-        let numero = u32::try_from(position.phrase + 1).map_err(|e| e.to_string())?;
-        if !sons.contains_key(&dictees::numero_son(numero, false)) {
-            dictees::ajouter_sons(
-                &mut sons,
-                voix.as_ref(),
-                numero,
-                &phrases[position.phrase].texte,
-            )
-            .await
-            .map_err(|e| e.to_string())?;
-        }
-        exercices.push(
-            dictees::exercice_sonore(&phrases, *position, numero).map_err(|e| e.to_string())?,
-        );
-    }
-    let chemin = chemin_du_pack(config);
-    let archive = pack::construire(&sons).map_err(|e| e.to_string())?;
-    pack::ecrire(&chemin, &archive).map_err(|e| e.to_string())?;
-    println!("{} : {} son(s).", chemin.display(), sons.len());
-    let depot = depot(config).map_err(|e| e.to_string())?;
-    for ex in &exercices {
-        let demande = Demande {
-            source: Source::Dictee,
-            demande_par: "cli",
-            recompense: &config.coffre.recompense,
-            recompense_nombre: config.coffre.recompense_nombre,
-        };
-        let numero = depot
-            .ajouter(ex, demande, maintenant())
-            .map_err(|e| e.to_string())?;
+    for (coffre, ex) in &coffres {
         println!(
-            "Coffre n°{numero} en file : {} (réponse {})",
+            "Coffre n°{coffre} en file : {} (réponse {})",
             ex.enonce, ex.reponse
         );
     }
@@ -580,7 +608,10 @@ fn executer(action: Option<Action>, config: &Config) -> ExitCode {
             image,
             consigne,
             nombre,
-        }) => terminer(attendre(lire_photo(config, &image, &consigne, nombre))),
+            dictee,
+        }) => terminer(attendre(lire_photo(
+            config, &image, &consigne, nombre, dictee,
+        ))),
         Some(Action::Voix {
             phrase,
             lent,

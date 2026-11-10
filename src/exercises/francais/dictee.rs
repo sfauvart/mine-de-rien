@@ -110,6 +110,11 @@ fn decouper_mots(phrase: &str) -> Vec<Mot> {
     mots
 }
 
+/// Une phrase déjà découpée (relue de la base, par exemple) : ses mots, sans la recouper.
+pub fn phrase_de(texte: &str) -> Option<Phrase> {
+    phrase(&normaliser_texte(texte))
+}
+
 fn phrase(texte: &str) -> Option<Phrase> {
     let texte = texte.trim_matches(est_espace).to_owned();
     let mots = decouper_mots(&texte);

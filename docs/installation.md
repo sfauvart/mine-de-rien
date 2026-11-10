@@ -366,6 +366,48 @@ Puis `docker compose restart agent`. **Avec `actif = true`, une difficulté rég
 est corrigée en 3 secondes.** Pour garder par exemple un serveur paisible en permanence, mettre
 `actif = false`, puis taper `docker compose exec minecraft rcon-cli difficulty peaceful`.
 
+## 13. Préparer une dictée
+
+Il faut les sections `[voix]` et `[pack]` de l'étape 4, et le réglage « Packs de ressources
+du serveur : Activés » sur le poste de l'enfant
+([rejoindre-le-serveur.md](rejoindre-le-serveur.md#le-pack-de-sons-des-dictées)).
+
+Quand la maîtresse donne le texte à préparer, l'envoyer au bot avec le jour de la dictée :
+
+```
+/dictee vendredi Dans la ville de Dubaï, aux Émirats arabes unis, s'élève la plus haute tour…
+```
+
+Le jour est un nom de jour (le prochain) ou une date (`13/11`). Pour une liste de mots sans
+texte : `/dictee vendredi mots : plus, trois, personnes`.
+
+Le bot répond « Je prépare la dictée… », puis renvoie le texte découpé en phrases numérotées
+et un fichier audio : toute la dictée lue par la voix. **Comparer le texte à la feuille, mot
+par mot, et écouter l'aperçu** : chaque mot peut devenir la réponse d'un coffre, et une
+faute ici serait enseignée à l'enfant. `/oui` enregistre la dictée, `/non` abandonne. Sans
+réponse, elle est oubliée au bout de 30 minutes.
+
+| Message | Effet |
+|---|---|
+| `/dictee` | les dictées en cours, avec leur numéro |
+| `/dictee seance 3` | quatre coffres de la dictée n°3, tout de suite |
+| `/dictee mots 3 plus trois` | ces mots sortiront en premier |
+| `/dictee annuler 3` | retire la dictée n°3, ses coffres en attente et ses sons |
+
+Ce que vit l'enfant : le coffre s'annonce, la phrase est lue, le chat l'affiche avec
+`_____` à la place du mot. Il écrit le mot sur l'enclume, **comme dans la phrase, avec sa
+majuscule s'il en a une**. Un clic droit avec l'objet « Écouteur » relit la phrase. « Pixel,
+aide-moi » la relit lentement, puis donne le nombre de lettres, puis la première lettre.
+
+- **Après une nouvelle dictée, l'enfant doit se déconnecter puis se reconnecter** : son jeu
+  ne charge les sons qu'à la connexion. Tant qu'il ne l'a pas fait, le coffre attend et le
+  bot le signale.
+- **Photo de la feuille** : possible avec `[llm]` (étape 4), légende `dictée vendredi`. À
+  l'essai, le modèle a recopié « noirades » pour « noiraudes » sur une feuille nette : le
+  texte tapé est plus sûr, et une photo demande une relecture lettre par lettre.
+- Les mots à majuscule accentuée (« Émirats ») ne sont jamais demandés : trop difficiles à
+  taper. Les mots d'une seule lettre non plus.
+
 ## Mettre à jour
 
 Le monde, la base des coffres, `.env` et `config.toml` sont conservés.
