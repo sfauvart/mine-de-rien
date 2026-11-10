@@ -1,6 +1,8 @@
 //! Outils partagés par les tests : fichiers de référence produits par la version Python.
 #![allow(dead_code)]
 
+pub mod terrain;
+
 use std::path::PathBuf;
 
 pub fn racine() -> PathBuf {

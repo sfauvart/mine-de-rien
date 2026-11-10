@@ -119,7 +119,7 @@ Deux points à tenir pendant le port :
 - [x] **Phase 7 : Le coffre du soir et la boucle de surveillance**
 - [x] **Phase 8 : LLM local et lecture de photo**
 - [x] **Phase 9 : Pixel**
-- [ ] **Phase 10 : Telegram et les commandes des parents**
+- [x] **Phase 10 : Telegram et les commandes des parents**
 - [ ] **Phase 11 : La bascule**
 
 Chaque phase s'appuie sur les précédentes, sauf la 8, qui ne dépend que des phases 1 à 3.
@@ -718,3 +718,38 @@ de route, taille de l'image.)*
   journalisée une fois et l'agent continue. Les lignes d'un autre joueur ou sans le nom sont
   ignorées. Le vrai `latest.log` de l'essai n'est pas inscriptible depuis le poste.
 - Reste à jouer en jeu : les trois paliers d'indices dans le chat et le retour au coffre.
+
+**Phase 10.**
+- `teloxide` sans son répartiteur ni ses macros (`default-features = false`, `rustls`) :
+  seulement `Bot`, `getUpdates`, `sendMessage`, `getFile` et le téléchargement.
+  `cargo tree -d` ne montre qu'un seul `reqwest` (0.12).
+- Pas de tâche de fond ni de file `mpsc` : `recevoir()` interroge Telegram quand l'agent
+  attend le message suivant. Conséquence, différente de Python : pendant une lecture de
+  photo (jusqu'à deux minutes), un `/start` ou un autre message attend chez Telegram et
+  n'est traité qu'ensuite, dans l'ordre. Les notifications de la boucle (coffre posé,
+  ouvert) partent sans attendre.
+- Au lancement, le jeton est vérifié par `getMe` : refusé, l'agent s'arrête avec un message
+  qui ne contient pas le jeton.
+- Un message modifié est traité comme un message, comme le faisait `python-telegram-bot`.
+- Les commandes des parents prennent le vrai `CoffreDuSoir` (les tests lui donnent un faux
+  jeu) : c'est la boucle de surveillance, pas elles, qui a besoin d'un faux coffre.
+- Défaut de la version Python trouvé par l'oracle et **non reproduit** : `/annuler ²`
+  levait une `ValueError` que rien ne rattrapait, et le service Telegram s'arrêtait. Rust
+  répond « Préciser le numéro du coffre ». De même, un numéro démesuré
+  (`/annuler 99999999999999999999`) reçoit cette réponse au lieu de « n'est ni actif ni en
+  attente ». Écarts assumés, testés.
+- Oracle : 34 cas, dont 24 conversations de parents transcrites (texte, coffre actif,
+  retrait refusé par le jeu, serveur en panne, rapport, photo sans LLM, vers un LLM
+  distant, lue puis `/oui`, expirée, abandonnée, `/atelier` construit, déplacé, refusé).
+  Mêmes réponses au caractère près, mêmes commandes au jeu, même file à la fin, mêmes
+  consignes envoyées au LLM.
+- Le canal est testé contre un faux serveur de l'API Bot écrit dans le test : tri des
+  mises à jour au format de l'API, `/start`, photo téléchargée en mémoire, numéro de la
+  mise à jour suivante, message long en plusieurs envois, bot bloqué par un parent.
+- Piège de test noté : le désérialiseur de `teloxide` ne reconnaît une mise à jour que
+  depuis du texte JSON, pas depuis un `serde_json::Value`.
+- `tests/test_rapport.py::test_aucun_message_aux_parents_ne_contient_le_pseudo` est porté
+  dans `tests/orchestrateur.rs`.
+- **Non essayé** : le vrai Telegram. Lancer l'agent Rust avec le jeton de la maison
+  pendant que l'agent Python tourne ferait deux lecteurs sur le même bot. À jouer par le
+  parent, avec un bot d'essai ou après avoir arrêté l'agent Python.

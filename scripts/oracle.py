@@ -1218,6 +1218,222 @@ def oracle_pixel() -> list[dict]:
     return cas
 
 
+
+DOUBLES_PHOTO = {"lignes": [{"genre": "calcul", "texte": f"Double de {n}"} for n in (4, 17, 250)]}
+
+SCENARIOS_COMMANDES = {
+    "texte, sans jeu": {
+        "jeu": None, "llm": None, "avant": [],
+        "messages": [
+            [333, "/coffre 1 + 1"], [333, "/rapport"], [111, "/coffre 348 ÷ 12"],
+            [222, "/coffre@MonBot 12 x 7"], [111, "/coffre 10 ÷ 3"], [111, "/coffre"],
+            [111, "/COFFRE (12 + 8) x 3"], [111, "bonjour"], [111, "  /file  "], [111, "/rapport"],
+            [111, "/annuler"], [111, "/annuler 99"], [111, "/annuler n°2"], [111, "/annuler 2"],
+            [111, "/annuler x"],
+            [111, "/oui"], [111, "/non"], [111, "/atelier"], [111, "/file"], [111, ""],
+            [111, "/annuler Tout"], [111, "/annuler tout"], [111, "/coffre\t2 + 2"],
+            [111, "/file@MonBot"], [111, "/aide"],
+        ]},
+    "coffre actif : file, annuler": {
+        "jeu": ["serveur", {}], "llm": None,
+        "avant": [["ajouter", 0], ["ajouter", 2], ["ajouter", 1], ["poser", 1]],
+        "messages": [[111, "/file", False, 7], [111, "/annuler 2"], [111, "/annuler 1"],
+                     [111, "/annuler 1"], [111, "/file"], [222, "/annuler tout"], [111, "/file"]]},
+    "annuler tout avec un coffre actif": {
+        "jeu": ["serveur", {}], "llm": None,
+        "avant": [["ajouter", 0], ["ajouter", 2], ["ajouter", 1], ["poser", 1]],
+        "messages": [[111, "/annuler tout"], [111, "/annuler tout"], [111, "/file"]]},
+    "le jeu refuse le retrait": {
+        "jeu": ["serveur", {"refus": "data modify block"}], "llm": None,
+        "avant": [["ajouter", 0], ["ajouter", 2], ["poser", 1]],
+        "messages": [[111, "/annuler 1"], [111, "/annuler tout"], [111, "/file"]]},
+    "le serveur est en panne": {
+        "jeu": ["serveur", {"panne": "data get storage"}], "llm": None,
+        "avant": [["ajouter", 0], ["poser", 1]],
+        "messages": [[111, "/annuler 1"], [111, "/annuler tout"], [111, "/atelier"]]},
+    "annuler sans atelier dans le monde": {
+        "jeu": ["serveur", {"atelier": None}], "llm": None,
+        "avant": [["ajouter", 0], ["poser", 1]],
+        "messages": [[111, "/annuler 1"], [111, "/file"]]},
+    "rapport après une semaine": {
+        "jeu": None, "llm": None,
+        "avant": [["ajouter", 0], ["poser", 1], ["indices", 1, 3], ["ouvrir", 1, 45],
+                  ["ajouter", 1], ["poser", 2], ["ajouter", 2]],
+        "messages": [[111, "/rapport", False, 60 * 50], [111, "/file"]]},
+    "photo sans LLM": {
+        "jeu": None, "llm": None, "avant": [],
+        "messages": [[111, "", True], [333, "", True]]},
+    "photo vers un LLM distant": {
+        "jeu": None, "llm": {"reponse": DOUBLES_PHOTO, "distant": True}, "avant": [],
+        "messages": [[111, "3", True]]},
+    "photo : bornes de la légende": {
+        "jeu": None, "llm": {"reponse": DOUBLES_PHOTO}, "avant": [],
+        "messages": [[111, "11", True], [111, "0", True], [111, "99999999999999999999", True],
+                     [333, "3", True]]},
+    "photo lue en entier puis /oui": {
+        "jeu": None, "llm": {"reponse": DOUBLES_PHOTO}, "avant": [],
+        "messages": [[111, "3 exercice 7", True], [222, "/oui"], [111, "/oui"], [111, "/oui"],
+                     [111, "/file"]]},
+    "photo : plus demandé que lu": {
+        "jeu": None, "llm": {"reponse": DOUBLES_PHOTO}, "avant": [],
+        "messages": [[111, "10", True], [111, "/non"], [111, "/non"], [111, "/oui"]]},
+    "photo : lecture expirée": {
+        "jeu": None, "llm": {"reponse": DOUBLES_PHOTO}, "avant": [],
+        "messages": [[111, "3", True], [111, "/oui", False, 31]]},
+    "photo : une lecture par parent": {
+        "jeu": None, "llm": {"reponse": DOUBLES_PHOTO}, "avant": [],
+        "messages": [[111, "3", True], [222, "\n 3 \n la page de gauche", True], [222, "/oui"],
+                     [111, "/non"]]},
+    "photo : rien reconnu": {
+        "jeu": None, "llm": {"reponse": {"lignes": [{"genre": "mot", "texte": "Greetings"}]}},
+        "avant": [], "messages": [[111, "", True], [111, "/oui"]]},
+    "photo : le LLM bavarde": {
+        "jeu": None, "llm": {"bavard": True}, "avant": [], "messages": [[111, "", True]]},
+    "photo : pas de liste": {
+        "jeu": None, "llm": {"reponse": {"autre": []}}, "avant": [], "messages": [[111, "", True]]},
+    "photo avec calculs écartés": {
+        "jeu": None, "avant": [],
+        "llm": {"reponse": {"lignes": [
+            {"genre": "calcul", "texte": "Double de 4"}, {"genre": "calcul", "texte": "10 ÷ 3"},
+            {"genre": "mot", "texte": "Greetings"}, {"genre": "calcul", "texte": "348 ÷ 12 = 30"}]}},
+        "messages": [[111, "2", True], [111, "/oui"]]},
+    "atelier construit": {
+        "jeu": ["terrain", {}], "llm": None, "avant": [],
+        "messages": [[333, "/atelier"], [111, "/atelier"], [111, "/rapport"]]},
+    "atelier : enfant absent": {
+        "jeu": ["terrain", {"joueur": None}], "llm": None, "avant": [],
+        "messages": [[111, "/atelier"]]},
+    "atelier : autre dimension": {
+        "jeu": ["terrain", {"dimension": False}], "llm": None, "avant": [],
+        "messages": [[111, "/Atelier@MonBot"]]},
+    "atelier déplacé": {
+        "jeu": ["terrain", {"atelier": [40, 64, 40]}], "llm": None, "avant": [],
+        "messages": [[111, "/atelier"]]},
+    "atelier : déplacement refusé, coffre actif": {
+        "jeu": ["terrain", {"atelier": [40, 64, 40]}], "llm": None,
+        "avant": [["ajouter", 0], ["poser", 1]], "messages": [[111, "/atelier"]]},
+    "atelier : déplacement refusé, coffre plein": {
+        "jeu": ["terrain", {"atelier": [40, 64, 40], "coffre_plein": True, "coffre_en": [40, 64, 40]}],
+        "llm": None, "avant": [], "messages": [[111, "/atelier"]]},
+}
+
+
+def oracle_commandes_parents() -> list[dict]:
+    import io
+    import random
+    from datetime import datetime, timedelta
+
+    from PIL import Image
+
+    sys.path.insert(0, str(RACINE))
+    from mine_de_rien import orchestrateur as orch
+    from mine_de_rien.adapters.channel.base import MessageParent
+    from mine_de_rien.adapters.game.rcon import ErreurRcon
+    from mine_de_rien.config import Coffre
+    from mine_de_rien.exercises.base import Exercice
+    from mine_de_rien.games.coffre_du_soir import CoffreDuSoir, ErreurCoffre
+    from mine_de_rien.storage.sqlite import Depot, ErreurStockage
+    from tests.test_emplacement import PSEUDO as PSEUDO_TERRAIN
+    from tests.test_emplacement import Terrain
+
+    class TerrainAvecCoffre(Terrain):
+        def __init__(self, coffre_en=None, **kw):
+            super().__init__(**kw)
+            self.coffre_en = coffre_en
+
+        def bloc(self, x, y, z):
+            if self.coffre_en == [x, y, z]:
+                return "minecraft:chest"
+            return super().bloc(x, y, z)
+
+    class Llm:
+        def __init__(self, reponse=None, distant=False, bavard=False):
+            self.reponse, self.distant, self.bavard = reponse, distant, bavard
+            self.consignes = []
+
+        async def completer(self, systeme, utilisateur, image=None, en_json=False):
+            self.consignes.append(utilisateur)
+            return "Voici ce que je vois" if self.bavard else json.dumps(self.reponse)
+
+    tampon = io.BytesIO()
+    Image.new("RGB", (600, 800), "white").save(tampon, format="JPEG")
+    jpeg = tampon.getvalue()
+    t0 = datetime.fromisoformat("2026-11-08T18:00:00+00:00")
+
+    cas = [{"entree": {"f": "constantes"}, "echanges": [], "sortie": {
+        "aide": orch.AIDE, "lecture": orch.LECTURE_EN_COURS, "recherche": orch.RECHERCHE_EN_COURS,
+        "fidelite": orch.RAPPEL_FIDELITE}}]
+    for texte in ["/coffre 12", "/coffre@MonBot 12", "  /File  ", "/annuler   tout ", "bonjour",
+                  "", "/coffre\t2", "/COFFRE@Bot@x  a  b ", "/"]:
+        commande, argument = orch._commande(texte)
+        cas.append({"entree": {"f": "commande", "texte": texte}, "echanges": [],
+                    "sortie": [commande, argument]})
+
+    for nom, scenario in SCENARIOS_COMMANDES.items():
+        with tempfile.TemporaryDirectory() as dossier:
+            depot = Depot.ouvrir(Path(dossier) / "mdr.sqlite")
+            for op in scenario["avant"]:
+                if op[0] == "ajouter":
+                    depot.ajouter(Exercice(**EXERCICES_COFFRE[op[1]]), source="expression",
+                                  demande_par="cli", recompense="minecraft:diamond",
+                                  recompense_nombre=3, quand=t0)
+                elif op[0] == "poser":
+                    depot.marquer_pose(op[1], t0 + timedelta(minutes=1))
+                elif op[0] == "ouvrir":
+                    depot.marquer_ouvert(op[1], t0 + timedelta(minutes=1 + op[2]))
+                elif op[0] == "indices":
+                    for _ in range(op[2]):
+                        depot.noter("indice", op[1], t0 + timedelta(minutes=2))
+            jeu, pseudo = None, None
+            if scenario["jeu"] is not None:
+                genre, reglages = scenario["jeu"]
+                if genre == "serveur":
+                    jeu, pseudo = Serveur(**reglages), PSEUDO_ESSAI
+                else:
+                    reglages = {k: (tuple(v) if k == "joueur" and v else v)
+                                for k, v in reglages.items()}
+                    jeu, pseudo = TerrainAvecCoffre(**reglages), PSEUDO_TERRAIN
+            reglages_llm = scenario["llm"]
+            llm = Llm(**reglages_llm) if reglages_llm is not None else None
+            horloge = [t0 + timedelta(minutes=2)]
+
+            async def jouer(enregistreur, scenario=scenario, depot=depot, jeu=jeu, pseudo=pseudo,
+                            llm=llm, horloge=horloge, t0=t0):
+                coffre = CoffreDuSoir(enregistreur, pseudo) if jeu is not None else None
+                commandes = orch.CommandesParents(
+                    depot, Coffre(), coffre, [111, 222], horloge=lambda: horloge[0], llm=llm,
+                    rng=random.Random(0))
+                reponses, accuses = [], []
+                for message in scenario["messages"]:
+                    expediteur, texte = message[0], message[1]
+                    image = jpeg if len(message) > 2 and message[2] else None
+                    horloge[0] += timedelta(minutes=message[3] if len(message) > 3 else 0)
+                    recu = MessageParent(expediteur, texte, image=image)
+                    accuses.append(commandes.accuse_reception(recu))
+                    try:
+                        reponses.append(await commandes.traiter(recu))
+                    except (ErreurRcon, ErreurCoffre, ErreurStockage) as e:
+                        reponses.append(f"Erreur : {e}")
+                tous = depot.entre(t0 - timedelta(days=1), t0 + timedelta(days=30))
+                return {
+                    "reponses": reponses, "accuses": accuses,
+                    "coffres": [[s.id, s.statut, s.source, s.demande_par, s.exercice.enonce,
+                                 s.exercice.reponse, s.recompense, s.recompense_nombre]
+                                for s in tous],
+                    "en_attente": {str(k): [ex.enonce for ex in v.exercices]
+                                   for k, v in sorted(commandes.en_attente.items())},
+                    "consignes": llm.consignes if llm is not None else None,
+                }
+
+            entree = {"f": "scenario", "nom": nom, "pseudo": pseudo, "jeu": jeu is not None,
+                      "llm": reglages_llm, "messages": scenario["messages"],
+                      "avant": [[op[0], EXERCICES_COFFRE[op[1]]] if op[0] == "ajouter" else op
+                                for op in scenario["avant"]]}
+            cas.append(_transcrire(entree, jeu, jouer, ()))
+            depot.fermer()
+    return cas
+
+
 ORACLES = {
     "config": oracle_config,
     "texte": oracle_texte,
@@ -1233,6 +1449,7 @@ ORACLES = {
     "coffre_du_soir": oracle_coffre_du_soir,
     "photo": oracle_photo,
     "pixel": oracle_pixel,
+    "commandes_parents": oracle_commandes_parents,
 }
 
 

@@ -20,7 +20,7 @@ path = "src/main.rs"
 
 [dependencies]
 async-trait = "0.1.92"
-base64 = "0.23.1"
+base64 = "0.22"
 chrono = { version = "0.4.45", default-features = false, features = ["std", "clock"] }
 clap = { version = "4.6.7", features = ["derive"] }
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
@@ -34,6 +34,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 rusqlite = { version = "0.41.1", features = ["bundled"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["preserve_order"] }
+teloxide = { version = "0.17", default-features = false, features = ["rustls"] }
 tempfile = "3.27.0"
 thiserror = "2.0.21"
 tokio = { version = "1.54.1", features = ["rt", "macros", "time", "net", "fs", "sync", "signal", "io-util"] }
