@@ -1,0 +1,547 @@
+[
+ {
+  "entree": {
+   "toml": "# Configuration de Mine de rien. Les valeurs ${VAR} sont lues dans l'environnement.\n\n[enfant]\npseudo_minecraft = \"Steve\"      # pseudo en jeu\nalias_llm = \"l'élève\"           # seul nom transmis à un LLM distant\nclasse = \"CM2\"\n\n[jeu]\nadaptateur = \"java-rcon\"\nhote = \"minecraft\"              # nom du service docker, ou \"localhost\"\nport = 25575\nmot_de_passe = \"${RCON_PASSWORD}\"\nlog = \"/minecraft/logs/latest.log\"   # pour lire le chat sans plugin\n\n# Facultatif : par défaut, taper /atelier sur Telegram pendant que l'enfant joue, et l'agent\n# trouve lui-même l'emplacement (docs/installation.md, étape 7).\n# Cette section ne sert qu'à imposer un endroit précis avec la commande « mine-de-rien atelier »\n# : le bloc juste au-dessus du sol, au centre d'un plancher de 5 × 5, relevé avec F3.\n# [atelier]\n# x = 120\n# y = 64\n# z = -35\n\n[coffre]\nrecompense = \"minecraft:diamond\"   # identique pour tous les coffres\nrecompense_nombre = 3\nniveaux_offerts = 3                 # renommer sur l'enclume coûte un niveau par essai\n\n# Pixel : l'enfant l'appelle dans le chat (« Pixel, aide-moi », « Pixel, ramène-moi au\n# coffre »). Il demande [jeu] log. Son message ne part qu'à un LLM local ;\n# sans lui, des mots-clés suffisent et les indices partent tels quels.\n[assistant]\nnom = \"Pixel\"\nactif = true\n\n# Serveur en paisible tant qu'il reste un coffre à faire : plus de monstres, pour tout le\n# serveur. Avec actif = true, une difficulté réglée à la main est corrigée en 3 secondes :\n# mettre false pour la garder.\n[paisible]\nactif = true\ndifficulte_normale = \"easy\"     # hors coffre : \"easy\", \"normal\" ou \"hard\"\n\n[canal]\nadaptateur = \"telegram\"\njeton = \"${TELEGRAM_BOT_TOKEN}\"\nparents = []                    # identifiants Telegram autorisés à envoyer des devoirs\n\n[llm]\nadaptateur = \"anthropic\"        # \"anthropic\" ou \"openai-compatible\"\nmodele = \"claude-sonnet-5-5\"\ncle = \"${ANTHROPIC_API_KEY}\"\n# Pour llama.cpp, Ollama ou LM Studio (seule voie pour lire les photos de fiches) :\n# adaptateur = \"openai-compatible\"\n# url = \"http://llm:8080/v1\"\n# modele = \"local\"   # identifiant exact donné par GET {url}/models (Ollama l'exige)\n\n[stockage]\nsqlite = \"/data/mine-de-rien.sqlite\"\n",
+   "variables": {
+    "RCON_PASSWORD": "secret",
+    "TELEGRAM_BOT_TOKEN": "123:abc"
+   }
+  },
+  "sortie": {
+   "assistant": {
+    "actif": true,
+    "nom": "Pixel"
+   },
+   "atelier": null,
+   "canal": {
+    "adaptateur": "telegram",
+    "jeton": "123:abc",
+    "parents": []
+   },
+   "coffre": {
+    "niveaux_offerts": 3,
+    "recompense": "minecraft:diamond",
+    "recompense_nombre": 3
+   },
+   "enfant": {
+    "alias_llm": "l'élève",
+    "classe": "CM2",
+    "pseudo_minecraft": "Steve"
+   },
+   "jeu": {
+    "adaptateur": "java-rcon",
+    "hote": "minecraft",
+    "log": "/minecraft/logs/latest.log",
+    "mot_de_passe": "secret",
+    "port": 25575
+   },
+   "llm": {
+    "adaptateur": "anthropic",
+    "cle": "",
+    "modele": "claude-sonnet-5-5",
+    "url": ""
+   },
+   "paisible": {
+    "actif": true,
+    "difficulte_normale": "easy"
+   },
+   "stockage": {
+    "sqlite": "/data/mine-de-rien.sqlite"
+   }
+  }
+ },
+ {
+  "entree": {
+   "toml": "# Configuration de Mine de rien. Les valeurs ${VAR} sont lues dans l'environnement.\n\n[enfant]\npseudo_minecraft = \"Steve\"      # pseudo en jeu\nalias_llm = \"l'élève\"           # seul nom transmis à un LLM distant\nclasse = \"CM2\"\n\n[jeu]\nadaptateur = \"java-rcon\"\nhote = \"minecraft\"              # nom du service docker, ou \"localhost\"\nport = 25575\nmot_de_passe = \"${RCON_PASSWORD}\"\nlog = \"/minecraft/logs/latest.log\"   # pour lire le chat sans plugin\n\n# Facultatif : par défaut, taper /atelier sur Telegram pendant que l'enfant joue, et l'agent\n# trouve lui-même l'emplacement (docs/installation.md, étape 7).\n# Cette section ne sert qu'à imposer un endroit précis avec la commande « mine-de-rien atelier »\n# : le bloc juste au-dessus du sol, au centre d'un plancher de 5 × 5, relevé avec F3.\n# [atelier]\n# x = 120\n# y = 64\n# z = -35\n\n[coffre]\nrecompense = \"minecraft:diamond\"   # identique pour tous les coffres\nrecompense_nombre = 3\nniveaux_offerts = 3                 # renommer sur l'enclume coûte un niveau par essai\n\n# Pixel : l'enfant l'appelle dans le chat (« Pixel, aide-moi », « Pixel, ramène-moi au\n# coffre »). Il demande [jeu] log. Son message ne part qu'à un LLM local ;\n# sans lui, des mots-clés suffisent et les indices partent tels quels.\n[assistant]\nnom = \"Pixel\"\nactif = true\n\n# Serveur en paisible tant qu'il reste un coffre à faire : plus de monstres, pour tout le\n# serveur. Avec actif = true, une difficulté réglée à la main est corrigée en 3 secondes :\n# mettre false pour la garder.\n[paisible]\nactif = true\ndifficulte_normale = \"easy\"     # hors coffre : \"easy\", \"normal\" ou \"hard\"\n\n[canal]\nadaptateur = \"telegram\"\njeton = \"${TELEGRAM_BOT_TOKEN}\"\nparents = []                    # identifiants Telegram autorisés à envoyer des devoirs\n\n[llm]\nadaptateur = \"anthropic\"        # \"anthropic\" ou \"openai-compatible\"\nmodele = \"claude-sonnet-5-5\"\ncle = \"${ANTHROPIC_API_KEY}\"\n# Pour llama.cpp, Ollama ou LM Studio (seule voie pour lire les photos de fiches) :\n# adaptateur = \"openai-compatible\"\n# url = \"http://llm:8080/v1\"\n# modele = \"local\"   # identifiant exact donné par GET {url}/models (Ollama l'exige)\n\n[stockage]\nsqlite = \"/data/mine-de-rien.sqlite\"\n",
+   "variables": {}
+  },
+  "sortie": {
+   "assistant": {
+    "actif": true,
+    "nom": "Pixel"
+   },
+   "atelier": null,
+   "canal": {
+    "adaptateur": "telegram",
+    "jeton": "",
+    "parents": []
+   },
+   "coffre": {
+    "niveaux_offerts": 3,
+    "recompense": "minecraft:diamond",
+    "recompense_nombre": 3
+   },
+   "enfant": {
+    "alias_llm": "l'élève",
+    "classe": "CM2",
+    "pseudo_minecraft": "Steve"
+   },
+   "jeu": {
+    "adaptateur": "java-rcon",
+    "hote": "minecraft",
+    "log": "/minecraft/logs/latest.log",
+    "mot_de_passe": "",
+    "port": 25575
+   },
+   "llm": {
+    "adaptateur": "anthropic",
+    "cle": "",
+    "modele": "claude-sonnet-5-5",
+    "url": ""
+   },
+   "paisible": {
+    "actif": true,
+    "difficulte_normale": "easy"
+   },
+   "stockage": {
+    "sqlite": "/data/mine-de-rien.sqlite"
+   }
+  }
+ },
+ {
+  "entree": {
+   "toml": "# Configuration qui vise le serveur d'essai jetable (docker/essai.compose.yml).\n# Jamais le monde réel de l'enfant : port RCON 25576, mot de passe « essai ».\n#\n# Modèle versionné. La copie locale, ignorée par git, porte ton pseudo et ton Telegram :\n#\n#   cp config.essai.example.toml config.essai.toml\n#   uv run mine-de-rien --config config.essai.toml dire \"<pseudo>\" \"bonjour\"\n\n[enfant]\npseudo_minecraft = \"Steve\"      # remplacer par le pseudo utilisé pour se connecter à l'essai\n\n[jeu]\nadaptateur = \"java-rcon\"\nhote = \"localhost\"\nport = 25576\nmot_de_passe = \"essai\"\nlog = \"data/essai/logs/latest.log\"\n\n[atelier]\n# Monde plat de l'essai : la surface est à y = -60. À 8 blocs au sud du point d'apparition.\nx = 0\ny = -60\nz = 8\n\n[coffre]\nrecompense = \"minecraft:diamond\"   # identique pour tous les coffres\nrecompense_nombre = 3\nniveaux_offerts = 3                 # renommer sur l'enclume coûte un niveau par essai\n\n[canal]\nadaptateur = \"telegram\"\njeton = \"\"        # \"${TELEGRAM_BOT_TOKEN}\" pour essayer Telegram (variable d'environnement)\nparents = []      # identifiants numériques, donnés par /start au bot : [123456789]\n\n[stockage]\nsqlite = \"data/mine-de-rien-essai.sqlite\"\n",
+   "variables": {}
+  },
+  "sortie": {
+   "assistant": {
+    "actif": true,
+    "nom": "Pixel"
+   },
+   "atelier": {
+    "x": 0,
+    "y": -60,
+    "z": 8
+   },
+   "canal": {
+    "adaptateur": "telegram",
+    "jeton": "",
+    "parents": []
+   },
+   "coffre": {
+    "niveaux_offerts": 3,
+    "recompense": "minecraft:diamond",
+    "recompense_nombre": 3
+   },
+   "enfant": {
+    "alias_llm": "l'élève",
+    "classe": "CM2",
+    "pseudo_minecraft": "Steve"
+   },
+   "jeu": {
+    "adaptateur": "java-rcon",
+    "hote": "localhost",
+    "log": "data/essai/logs/latest.log",
+    "mot_de_passe": "essai",
+    "port": 25576
+   },
+   "llm": {
+    "adaptateur": "anthropic",
+    "cle": "",
+    "modele": "",
+    "url": ""
+   },
+   "paisible": {
+    "actif": true,
+    "difficulte_normale": "easy"
+   },
+   "stockage": {
+    "sqlite": "data/mine-de-rien-essai.sqlite"
+   }
+  }
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n",
+   "variables": {}
+  },
+  "sortie": {
+   "assistant": {
+    "actif": true,
+    "nom": "Pixel"
+   },
+   "atelier": null,
+   "canal": {
+    "adaptateur": "telegram",
+    "jeton": "",
+    "parents": []
+   },
+   "coffre": {
+    "niveaux_offerts": 3,
+    "recompense": "minecraft:diamond",
+    "recompense_nombre": 3
+   },
+   "enfant": {
+    "alias_llm": "l'élève",
+    "classe": "CM2",
+    "pseudo_minecraft": "Steve"
+   },
+   "jeu": {
+    "adaptateur": "java-rcon",
+    "hote": "localhost",
+    "log": "",
+    "mot_de_passe": "",
+    "port": 25575
+   },
+   "llm": {
+    "adaptateur": "anthropic",
+    "cle": "",
+    "modele": "",
+    "url": ""
+   },
+   "paisible": {
+    "actif": true,
+    "difficulte_normale": "easy"
+   },
+   "stockage": {
+    "sqlite": "mine-de-rien.sqlite"
+   }
+  }
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[canal]\nparents = [12, 34]\njeton = \"a${B}c${B}\"\n",
+   "variables": {
+    "B": "-"
+   }
+  },
+  "sortie": {
+   "assistant": {
+    "actif": true,
+    "nom": "Pixel"
+   },
+   "atelier": null,
+   "canal": {
+    "adaptateur": "telegram",
+    "jeton": "a-c-",
+    "parents": [
+     12,
+     34
+    ]
+   },
+   "coffre": {
+    "niveaux_offerts": 3,
+    "recompense": "minecraft:diamond",
+    "recompense_nombre": 3
+   },
+   "enfant": {
+    "alias_llm": "l'élève",
+    "classe": "CM2",
+    "pseudo_minecraft": "Steve"
+   },
+   "jeu": {
+    "adaptateur": "java-rcon",
+    "hote": "localhost",
+    "log": "",
+    "mot_de_passe": "",
+    "port": 25575
+   },
+   "llm": {
+    "adaptateur": "anthropic",
+    "cle": "",
+    "modele": "",
+    "url": ""
+   },
+   "paisible": {
+    "actif": true,
+    "difficulte_normale": "easy"
+   },
+   "stockage": {
+    "sqlite": "mine-de-rien.sqlite"
+   }
+  }
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[llm]\nadaptateur = \"openai-compatible\"\nurl = \"http://llm/v1\"\n",
+   "variables": {}
+  },
+  "sortie": {
+   "assistant": {
+    "actif": true,
+    "nom": "Pixel"
+   },
+   "atelier": null,
+   "canal": {
+    "adaptateur": "telegram",
+    "jeton": "",
+    "parents": []
+   },
+   "coffre": {
+    "niveaux_offerts": 3,
+    "recompense": "minecraft:diamond",
+    "recompense_nombre": 3
+   },
+   "enfant": {
+    "alias_llm": "l'élève",
+    "classe": "CM2",
+    "pseudo_minecraft": "Steve"
+   },
+   "jeu": {
+    "adaptateur": "java-rcon",
+    "hote": "localhost",
+    "log": "",
+    "mot_de_passe": "",
+    "port": 25575
+   },
+   "llm": {
+    "adaptateur": "openai-compatible",
+    "cle": "",
+    "modele": "",
+    "url": "http://llm/v1"
+   },
+   "paisible": {
+    "actif": true,
+    "difficulte_normale": "easy"
+   },
+   "stockage": {
+    "sqlite": "mine-de-rien.sqlite"
+   }
+  }
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[assistant]\nnom = \"Zoé\"\nactif = false\n",
+   "variables": {}
+  },
+  "sortie": {
+   "assistant": {
+    "actif": false,
+    "nom": "Zoé"
+   },
+   "atelier": null,
+   "canal": {
+    "adaptateur": "telegram",
+    "jeton": "",
+    "parents": []
+   },
+   "coffre": {
+    "niveaux_offerts": 3,
+    "recompense": "minecraft:diamond",
+    "recompense_nombre": 3
+   },
+   "enfant": {
+    "alias_llm": "l'élève",
+    "classe": "CM2",
+    "pseudo_minecraft": "Steve"
+   },
+   "jeu": {
+    "adaptateur": "java-rcon",
+    "hote": "localhost",
+    "log": "",
+    "mot_de_passe": "",
+    "port": 25575
+   },
+   "llm": {
+    "adaptateur": "anthropic",
+    "cle": "",
+    "modele": "",
+    "url": ""
+   },
+   "paisible": {
+    "actif": true,
+    "difficulte_normale": "easy"
+   },
+   "stockage": {
+    "sqlite": "mine-de-rien.sqlite"
+   }
+  }
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[assistant]\nnom = \"@a tp\"\n",
+   "variables": {}
+  },
+  "erreur": "[assistant] nom : 2 à 16 lettres, sans espace ('@a tp')"
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[assistant]\nnom = \"P\"\n",
+   "variables": {}
+  },
+  "erreur": "[assistant] nom : 2 à 16 lettres, sans espace ('P')"
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[assistant]\nnom = \"l'ami\"\n",
+   "variables": {}
+  },
+  "erreur": "[assistant] nom : 2 à 16 lettres, sans espace (\"l'ami\")"
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[paisible]\ndifficulte_normale = \"peaceful\"\n",
+   "variables": {}
+  },
+  "erreur": "[paisible] difficulte_normale doit valoir easy, normal ou hard ('peaceful')"
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[paisible]\nactif = false\ndifficulte_normale = \"hard\"\n",
+   "variables": {}
+  },
+  "sortie": {
+   "assistant": {
+    "actif": true,
+    "nom": "Pixel"
+   },
+   "atelier": null,
+   "canal": {
+    "adaptateur": "telegram",
+    "jeton": "",
+    "parents": []
+   },
+   "coffre": {
+    "niveaux_offerts": 3,
+    "recompense": "minecraft:diamond",
+    "recompense_nombre": 3
+   },
+   "enfant": {
+    "alias_llm": "l'élève",
+    "classe": "CM2",
+    "pseudo_minecraft": "Steve"
+   },
+   "jeu": {
+    "adaptateur": "java-rcon",
+    "hote": "localhost",
+    "log": "",
+    "mot_de_passe": "",
+    "port": 25575
+   },
+   "llm": {
+    "adaptateur": "anthropic",
+    "cle": "",
+    "modele": "",
+    "url": ""
+   },
+   "paisible": {
+    "actif": false,
+    "difficulte_normale": "hard"
+   },
+   "stockage": {
+    "sqlite": "mine-de-rien.sqlite"
+   }
+  }
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[coffre]\nrecompense = \"Diamant\"\n",
+   "variables": {}
+  },
+  "erreur": "[coffre] recompense invalide : 'Diamant'"
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[coffre]\nrecompense = \"emerald\"\nrecompense_nombre = 64\n",
+   "variables": {}
+  },
+  "sortie": {
+   "assistant": {
+    "actif": true,
+    "nom": "Pixel"
+   },
+   "atelier": null,
+   "canal": {
+    "adaptateur": "telegram",
+    "jeton": "",
+    "parents": []
+   },
+   "coffre": {
+    "niveaux_offerts": 3,
+    "recompense": "emerald",
+    "recompense_nombre": 64
+   },
+   "enfant": {
+    "alias_llm": "l'élève",
+    "classe": "CM2",
+    "pseudo_minecraft": "Steve"
+   },
+   "jeu": {
+    "adaptateur": "java-rcon",
+    "hote": "localhost",
+    "log": "",
+    "mot_de_passe": "",
+    "port": 25575
+   },
+   "llm": {
+    "adaptateur": "anthropic",
+    "cle": "",
+    "modele": "",
+    "url": ""
+   },
+   "paisible": {
+    "actif": true,
+    "difficulte_normale": "easy"
+   },
+   "stockage": {
+    "sqlite": "mine-de-rien.sqlite"
+   }
+  }
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[coffre]\nrecompense_nombre = 65\n",
+   "variables": {}
+  },
+  "erreur": "[coffre] recompense_nombre doit être entre 1 et 64"
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[coffre]\nniveaux_offerts = 31\n",
+   "variables": {}
+  },
+  "erreur": "[coffre] niveaux_offerts doit être entre 0 et 30"
+ },
+ {
+  "entree": {
+   "toml": "[enfant]\npseudo_minecraft = \"Steve\"\n[atelier]\nx = 120\ny = 64\nz = -35\n",
+   "variables": {}
+  },
+  "sortie": {
+   "assistant": {
+    "actif": true,
+    "nom": "Pixel"
+   },
+   "atelier": {
+    "x": 120,
+    "y": 64,
+    "z": -35
+   },
+   "canal": {
+    "adaptateur": "telegram",
+    "jeton": "",
+    "parents": []
+   },
+   "coffre": {
+    "niveaux_offerts": 3,
+    "recompense": "minecraft:diamond",
+    "recompense_nombre": 3
+   },
+   "enfant": {
+    "alias_llm": "l'élève",
+    "classe": "CM2",
+    "pseudo_minecraft": "Steve"
+   },
+   "jeu": {
+    "adaptateur": "java-rcon",
+    "hote": "localhost",
+    "log": "",
+    "mot_de_passe": "",
+    "port": 25575
+   },
+   "llm": {
+    "adaptateur": "anthropic",
+    "cle": "",
+    "modele": "",
+    "url": ""
+   },
+   "paisible": {
+    "actif": true,
+    "difficulte_normale": "easy"
+   },
+   "stockage": {
+    "sqlite": "mine-de-rien.sqlite"
+   }
+  }
+ }
+]
