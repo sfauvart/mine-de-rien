@@ -867,3 +867,110 @@ async fn oracle_python() {
     })
     .await;
 }
+
+fn trou_de_dictee() -> Exercice {
+    use mine_de_rien::exercises::francais::dictee::{Position, decouper};
+    let phrases = decouper("Dans la ville de Dubaï s'élève la plus haute tour jamais construite.");
+    // « plus », neuvième mot de la phrase n°7 de la base.
+    mine_de_rien::dictees::exercice_sonore(&phrases, Position { phrase: 0, mot: 7 }, 7).unwrap()
+}
+
+#[tokio::test]
+async fn dictee_trois_paliers_sans_llm_et_lecture_lente() {
+    local(async {
+        let (_dossier, depot) = depot();
+        let ex = trou_de_dictee();
+        assert_eq!(ex.reponse, "plus");
+        let ident = poser_exercice(&depot, &ex);
+        let jeu = FauxJeu::nouveau();
+        // Un LLM local est branché : devant une dictée, il ne doit pas reformuler.
+        let llm = Rc::new(FauxLlm::reformulation("Ça s'écrit p, l, u, s !"));
+        let (pixel, _) = pixel(&depot, Some(llm.clone()), &jeu);
+        for _ in 0..4 {
+            dit(&pixel, "Pixel, aide-moi").await;
+        }
+        let dits: Vec<String> = jeu.dits().into_iter().filter(|d| d != "<Pixel> …").collect();
+        assert_eq!(
+            dits,
+            [
+                "<Pixel> Écoute bien, je relis la phrase lentement.",
+                "<Pixel> Le mot a 4 lettres.",
+                "<Pixel> Il commence par « p » et a 4 lettres.",
+                "<Pixel> Il commence par « p » et a 4 lettres.",
+            ]
+        );
+        // Une seule lecture, celle du premier palier, avec le son lent de la phrase (2 × 7 + 1).
+        assert_eq!(
+            jeu.commandes(),
+            ["execute as Steve_42 at @s run function mine_de_rien:dictee/jouer {son:\"mine_de_rien:dictee.15\"}"]
+        );
+        assert!(llm.appels().is_empty(), "{:?}", llm.appels());
+        assert_eq!(depot.compter(EVENEMENT_INDICE, ident).unwrap(), 4);
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn dictee_pixel_ne_bavarde_pas_et_n_interroge_pas_le_llm() {
+    local(async {
+        let (_dossier, depot) = depot();
+        poser_exercice(&depot, &trou_de_dictee());
+        let jeu = FauxJeu::nouveau();
+        let llm = Rc::new(FauxLlm::bavardage("Plus s'écrit avec un s."));
+        let (pixel, _) = pixel(&depot, Some(llm.clone()), &jeu);
+        dit(&pixel, "Pixel, tu aimes quoi ?").await;
+        assert!(
+            jeu.dernier().starts_with("<Pixel> Pendant une dictée"),
+            "{}",
+            jeu.dernier()
+        );
+        // Le message a pu être classé par le LLM, jamais discuté avec lui.
+        assert!(
+            llm.appels()
+                .iter()
+                .all(|(systeme, _)| systeme == SYSTEME_CLASSEMENT),
+            "{:?}",
+            llm.appels()
+        );
+        assert!(
+            !jeu.dits()
+                .iter()
+                .any(|d| d.to_lowercase().contains("plus s"))
+        );
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn dictee_sans_son_lent_le_son_normal_puis_rien() {
+    local(async {
+        let (_dossier, depot) = depot();
+        let mut ex = trou_de_dictee();
+        ex.donnees.remove("son_lent");
+        poser_exercice(&depot, &ex);
+        let jeu = FauxJeu::nouveau();
+        let (pixel, _) = pixel(&depot, None, &jeu);
+        dit(&pixel, "Pixel, aide-moi").await;
+        assert!(jeu.commandes()[0].ends_with("{son:\"mine_de_rien:dictee.14\"}"));
+
+        let (_dossier, depot) = depot_sans_son();
+        let jeu = FauxJeu::nouveau();
+        let (muet, _) = crate::pixel(&depot, None, &jeu);
+        dit(&muet, "Pixel, aide-moi").await;
+        assert!(jeu.commandes().is_empty());
+        assert_eq!(
+            jeu.dernier(),
+            "<Pixel> Je n'arrive pas à relire cette phrase. Demande à un parent."
+        );
+    })
+    .await;
+}
+
+fn depot_sans_son() -> (tempfile::TempDir, Rc<Depot>) {
+    let (dossier, depot) = depot();
+    let mut ex = trou_de_dictee();
+    ex.donnees.remove("son");
+    ex.donnees.remove("son_lent");
+    poser_exercice(&depot, &ex);
+    (dossier, depot)
+}

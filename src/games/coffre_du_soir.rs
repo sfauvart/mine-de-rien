@@ -79,6 +79,7 @@ use tokio::sync::Mutex;
 use crate::adapters::game::base::AdaptateurJeu;
 use crate::adapters::game::rcon::ErreurRcon;
 use crate::games::atelier::{Atelier, PAS_CONSTRUIT, lire_atelier, pos};
+use crate::games::dictee;
 use crate::minecraft::texte::{self, LONGUEUR_MAX, PseudoInvalide, Style};
 use crate::storage::sqlite::ExerciceStocke;
 use crate::util::{json_python, repr, strip};
@@ -129,7 +130,7 @@ pub const CLE: &str = "minecraft:trial_key";
 pub const NOM_CLE: &str = "Clé du coffre";
 pub const MODE_EMPLOI_CLE: [&str; 4] = [
     "1. Pose-moi à gauche sur l'enclume",
-    "2. Écris la réponse, en minuscules",
+    "2. Écris la réponse",
     "3. Clique sur moi à droite",
     "4. Tiens-moi en main, ouvre le coffre",
 ];
@@ -141,17 +142,30 @@ pub fn predicat_cle() -> String {
     format!("{CLE}[minecraft:custom_data={{mdr_cle:1b}}]")
 }
 
-/// `give` d'une clé neuve, avec son mode d'emploi dans sa description.
-pub fn commande_cle(pseudo: &str) -> Result<String, PseudoInvalide> {
+fn description_cle() -> String {
     let lore: Vec<String> = MODE_EMPLOI_CLE
         .iter()
         .map(|ligne| json_python(&json!({"text": ligne, "italic": false, "color": "gray"})))
         .collect();
+    lore.join(",")
+}
+
+/// Une clé qui porte la description d'aujourd'hui. Celle des clés données avant la dictée
+/// disait « en minuscules ».
+pub fn predicat_cle_a_jour() -> String {
+    format!(
+        "{CLE}[minecraft:custom_data={{mdr_cle:1b}},minecraft:lore=[{}]]",
+        description_cle()
+    )
+}
+
+/// `give` d'une clé neuve, avec son mode d'emploi dans sa description.
+pub fn commande_cle(pseudo: &str) -> Result<String, PseudoInvalide> {
     Ok(format!(
         "give {} {CLE}[minecraft:item_name={},minecraft:lore=[{}],minecraft:custom_data={{mdr_cle:1b}}] 1",
         texte::verifier_pseudo(pseudo)?,
         snbt(NOM_CLE),
-        lore.join(",")
+        description_cle()
     ))
 }
 
@@ -259,6 +273,8 @@ pub trait Coffre {
     async fn equiper(&self) -> Result<(), ErreurCoffre>;
     async fn rappeler(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre>;
     async fn demander_de_vider(&self) -> Result<(), ErreurCoffre>;
+    /// Une dictée attend, mais le jeu de l'enfant n'a pas encore chargé ses sons.
+    async fn demander_de_se_reconnecter(&self) -> Result<(), ErreurCoffre>;
     async fn preuve_trouvee(&self, s: &ExerciceStocke) -> Result<bool, ErreurCoffre>;
     async fn coffre_present(&self) -> Result<bool, ErreurCoffre>;
     async fn coffre_vide(&self) -> Result<bool, ErreurCoffre>;
@@ -277,6 +293,7 @@ pub struct CoffreDuSoir {
 
 const GRIS: [(&str, Style<'static>); 1] = [("color", Style::Texte("gray"))];
 const OR: [(&str, Style<'static>); 1] = [("color", Style::Texte("gold"))];
+const BLANC: [(&str, Style<'static>); 1] = [("color", Style::Texte("white"))];
 
 impl CoffreDuSoir {
     pub fn new(
@@ -295,8 +312,17 @@ impl CoffreDuSoir {
         })
     }
 
-    async fn mode_emploi(&self) -> Result<(), ErreurCoffre> {
-        self.jeu.dire(&self.pseudo, MODE_EMPLOI, &GRIS).await?;
+    async fn mode_emploi(&self, dictee: bool) -> Result<(), ErreurCoffre> {
+        if dictee {
+            self.jeu
+                .dire(&self.pseudo, dictee::MODE_EMPLOI, &GRIS)
+                .await?;
+            self.jeu
+                .dire(&self.pseudo, dictee::REECOUTER, &GRIS)
+                .await?;
+        } else {
+            self.jeu.dire(&self.pseudo, MODE_EMPLOI, &GRIS).await?;
+        }
         if let Some(assistant) = self.assistant.as_deref().filter(|nom| !nom.is_empty()) {
             self.jeu
                 .dire(
@@ -346,11 +372,72 @@ impl CoffreDuSoir {
         Ok(())
     }
 
-    /// Coffre annulé : retiré du jeu. Appelé depuis /annuler, hors de la boucle.
-    pub async fn retirer(&self) -> Result<(), ErreurCoffre> {
+    /// Coffre annulé : retiré du jeu. Appelé depuis /annuler, hors de la boucle. `dictee` :
+    /// le coffre retiré était une dictée, l'Écouteur redevient muet.
+    pub async fn retirer(&self, dictee: bool) -> Result<(), ErreurCoffre> {
         self.actualiser_atelier().await?;
         self.executer(&commandes_retrait(&self.verifier_atelier()?))
-            .await
+            .await?;
+        if dictee {
+            self.executer(&dictee::commandes_effacement()).await?;
+        }
+        Ok(())
+    }
+
+    /// Devant un coffre de dictée : une clé dont la description ne dit plus « en minuscules »,
+    /// et l'Écouteur s'il n'en a pas.
+    async fn equiper_pour_la_dictee(&self) -> Result<(), ErreurCoffre> {
+        let a_jour = self
+            .jeu
+            .commande(&format!(
+                "clear {} {} 0",
+                self.pseudo,
+                predicat_cle_a_jour()
+            ))
+            .await?;
+        if !strip(&a_jour).starts_with("Found") {
+            let commande = commande_cle(&self.pseudo).map_err(ErreurRcon::from)?;
+            self.executer(&[
+                format!("clear {} {}", self.pseudo, predicat_cle()),
+                commande,
+            ])
+            .await?;
+        }
+        let ecouteur = self
+            .jeu
+            .commande(&format!(
+                "clear {} {} 0",
+                self.pseudo,
+                dictee::predicat_ecouteur()
+            ))
+            .await?;
+        if !strip(&ecouteur).starts_with("Found") {
+            let commande = dictee::commande_ecouteur(&self.pseudo).map_err(ErreurRcon::from)?;
+            self.executer(&[commande]).await?;
+        }
+        Ok(())
+    }
+
+    /// La phrase à trou dans le chat, le mode d'emploi, puis la phrase lue.
+    async fn presenter_la_dictee(
+        &self,
+        s: &ExerciceStocke,
+        titre: &str,
+    ) -> Result<(), ErreurCoffre> {
+        self.equiper_pour_la_dictee().await?;
+        self.jeu.dire(&self.pseudo, titre, &OR).await?;
+        if let Some(phrase) = dictee::phrase_a_trou(&s.exercice) {
+            self.jeu
+                .dire(&self.pseudo, &format!("Dictée : {phrase}"), &BLANC)
+                .await?;
+        }
+        self.mode_emploi(true).await?;
+        if let Some(numero) = dictee::son(&s.exercice) {
+            let commande =
+                dictee::commande_lecture(&self.pseudo, numero).map_err(ErreurRcon::from)?;
+            self.jeu.commande(&commande).await?;
+        }
+        Ok(())
     }
 }
 
@@ -404,11 +491,20 @@ impl Coffre for CoffreDuSoir {
                 s.id
             )));
         }
+        if dictee::est_dictee(&s.exercice) {
+            // Ce que l'Écouteur relira, sans attendre l'agent.
+            self.executer(&dictee::commandes_stockage(&s.exercice))
+                .await?;
+        }
         Ok(())
     }
 
     /// Message, mode d'emploi et cloche : l'enfant doit être connecté.
-    async fn annoncer(&self, _s: &ExerciceStocke) -> Result<(), ErreurCoffre> {
+    async fn annoncer(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre> {
+        if dictee::est_dictee(&s.exercice) {
+            // Pas de cloche : elle couvrirait le début de la phrase.
+            return self.presenter_la_dictee(s, dictee::ANNONCE).await;
+        }
         self.jeu
             .dire(
                 &self.pseudo,
@@ -416,7 +512,7 @@ impl Coffre for CoffreDuSoir {
                 &OR,
             )
             .await?;
-        self.mode_emploi().await?;
+        self.mode_emploi(false).await?;
         self.jeu
             .commande(&format!(
                 "execute at {0} run playsound minecraft:block.bell.use master {0} ~ ~ ~ 1 1",
@@ -441,6 +537,9 @@ impl Coffre for CoffreDuSoir {
     }
 
     async fn rappeler(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre> {
+        if dictee::est_dictee(&s.exercice) {
+            return self.presenter_la_dictee(s, dictee::RAPPEL).await;
+        }
         self.donner_cle().await?;
         self.jeu
             .dire(
@@ -449,7 +548,7 @@ impl Coffre for CoffreDuSoir {
                 &OR,
             )
             .await?;
-        self.mode_emploi().await
+        self.mode_emploi(false).await
     }
 
     async fn demander_de_vider(&self) -> Result<(), ErreurCoffre> {
@@ -459,6 +558,13 @@ impl Coffre for CoffreDuSoir {
                 "Vide le coffre de l'atelier : le suivant attend qu'il soit vide.",
                 &GRIS,
             )
+            .await?;
+        Ok(())
+    }
+
+    async fn demander_de_se_reconnecter(&self) -> Result<(), ErreurCoffre> {
+        self.jeu
+            .dire(&self.pseudo, dictee::RECONNEXION, &OR)
             .await?;
         Ok(())
     }
@@ -492,8 +598,11 @@ impl Coffre for CoffreDuSoir {
     }
 
     async fn ranger(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre> {
-        let commandes = commandes_rangement(&self.verifier_atelier()?, &self.pseudo, s.id)
+        let mut commandes = commandes_rangement(&self.verifier_atelier()?, &self.pseudo, s.id)
             .map_err(ErreurRcon::from)?;
+        if dictee::est_dictee(&s.exercice) {
+            commandes.extend(dictee::commandes_effacement());
+        }
         self.executer(&commandes).await
     }
 }

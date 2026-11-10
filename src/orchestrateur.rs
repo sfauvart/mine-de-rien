@@ -22,6 +22,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -40,6 +41,7 @@ use crate::games::atelier::{ErreurAtelier, pos};
 use crate::games::coffre_du_soir::{
     Coffre, CoffreDuSoir, ErreurCoffre, Notificateur, formater_duree,
 };
+use crate::games::dictee;
 use crate::games::emplacement::{construire_pres_de, deplacer_pres_de};
 use crate::games::paisible::ModePaisible;
 use crate::games::pixel::EVENEMENT_INDICE;
@@ -72,6 +74,14 @@ pub struct Orchestrateur {
     en_ligne: Cell<bool>,
     vider_demande: Cell<bool>,
     atelier_signale: RefCell<Option<String>>,
+    /// Le pack de sons des dictées, s'il y en a un : le jeu ne le charge qu'à la connexion.
+    pack: Option<PathBuf>,
+    /// Début de la connexion en cours de l'enfant ; `None` s'il est absent, ou s'il était déjà
+    /// là quand l'agent a démarré (on ne sait pas depuis quand).
+    connecte_depuis: Cell<Option<DateTime<Utc>>>,
+    premier_tour: Cell<bool>,
+    /// Le coffre de dictée pour lequel la reconnexion a déjà été demandée.
+    reconnexion_demandee: Cell<Option<i64>>,
 }
 
 impl Orchestrateur {
@@ -91,6 +101,35 @@ impl Orchestrateur {
             en_ligne: Cell::new(false),
             vider_demande: Cell::new(false),
             atelier_signale: RefCell::new(None),
+            pack: None,
+            connecte_depuis: Cell::new(None),
+            premier_tour: Cell::new(true),
+            reconnexion_demandee: Cell::new(None),
+        }
+    }
+
+    /// Avec un pack de sons : un coffre de dictée attend que le jeu de l'enfant l'ait chargé.
+    pub fn avec_pack(mut self, pack: &Path) -> Self {
+        self.pack = Some(pack.to_path_buf());
+        self
+    }
+
+    /// Le jeu de l'enfant a-t-il les sons du pack actuel ? Il ne le charge qu'en se
+    /// connectant : il faut qu'il se soit connecté après la dernière écriture du pack.
+    fn sons_charges(&self) -> bool {
+        let Some(pack) = &self.pack else {
+            return true;
+        };
+        if !self.en_ligne.get() {
+            // Il se connectera plus tard, donc après.
+            return true;
+        }
+        let ecrit_le = std::fs::metadata(pack)
+            .and_then(|m| m.modified())
+            .map(DateTime::<Utc>::from);
+        match (self.connecte_depuis.get(), ecrit_le) {
+            (Some(depuis), Ok(ecrit_le)) => depuis > ecrit_le,
+            _ => false,
         }
     }
 
@@ -104,6 +143,12 @@ impl Orchestrateur {
         let en_ligne = self.coffre.joueur_en_ligne().await?;
         let vient_de_se_connecter = en_ligne && !self.en_ligne.get();
         self.en_ligne.set(en_ligne);
+        if !en_ligne {
+            self.connecte_depuis.set(None);
+        } else if vient_de_se_connecter && !self.premier_tour.get() {
+            self.connecte_depuis.set(Some((self.horloge)()));
+        }
+        self.premier_tour.set(false);
         self.coffre.actualiser_atelier().await?;
 
         let resultat = match self.depot.actif()? {
@@ -210,6 +255,20 @@ impl Orchestrateur {
             return Ok(());
         }
         self.vider_demande.set(false);
+        if dictee::est_dictee(&suivant.exercice) && !self.sons_charges() {
+            if self.reconnexion_demandee.get() != Some(suivant.id) {
+                self.reconnexion_demandee.set(Some(suivant.id));
+                self.coffre.demander_de_se_reconnecter().await?;
+                self.notificateur
+                    .notifier(&format!(
+                        "Coffre n°{} en attente : l'enfant doit se déconnecter puis se \
+                         reconnecter pour que son jeu charge les sons de la dictée.",
+                        suivant.id
+                    ))
+                    .await;
+            }
+            return Ok(());
+        }
         self.coffre.poser(&suivant).await?;
         self.depot.marquer_pose(suivant.id, (self.horloge)())?;
         if self.en_ligne.get() {
@@ -614,9 +673,11 @@ impl CommandesParents {
                 "Le coffre n°{numero} n'est ni actif ni en attente."
             ));
         }
+        let retire = self.depot.lire(numero)?;
+        let est_dictee = retire.is_some_and(|s| dictee::est_dictee(&s.exercice));
         if statut == Some(Statut::Pose)
             && let Some(coffre) = &self.coffre
-            && let Err(e) = coffre.retirer().await
+            && let Err(e) = coffre.retirer(est_dictee).await
         {
             return Ok(format!(
                 "Le coffre n°{numero} n'a pas pu être retiré du jeu, réessayer : {e}"
@@ -641,7 +702,7 @@ impl CommandesParents {
         }
         if let Some(actif) = self.depot.actif()? {
             if let Some(coffre) = &self.coffre
-                && let Err(e) = coffre.retirer().await
+                && let Err(e) = coffre.retirer(dictee::est_dictee(&actif.exercice)).await
             {
                 lignes.push(format!(
                     "Le coffre actif n°{} n'a pas pu être retiré du jeu, réessayer : {e}",

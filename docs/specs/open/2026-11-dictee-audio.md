@@ -133,7 +133,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 - [x] **Phase 1 : Une voix locale lit une phrase**
 - [x] **Phase 2 : Le jeu joue un son fabriqué par l'agent**
 - [x] **Phase 3 : Du texte aux trous**
-- [ ] **Phase 4 : Le coffre de dictée**
+- [x] **Phase 4 : Le coffre de dictée**
 - [ ] **Phase 5 : La dictée depuis Telegram**
 - [ ] **Phase 6 : Lire ce que l'enfant a tapé**
 - [ ] **Phase 7 : La séance de chaque jour**
@@ -668,3 +668,29 @@ de l'image, écarts constatés.)*
   dans les phrases numérotées de la confirmation (phase 5).
 - Le port RCON du modèle `config.essai.example.toml` avait été changé par erreur en 25567
   (le port du jeu de l'essai) dans un commit de la phase 2 : remis à 25576.
+
+**Phase 4.**
+- L'Écouteur est un `warped_fungus_on_a_stick` marqué `mdr_ecouteur`, à l'apparence d'un
+  bloc musical (`item_model`). Le datapack compte ses clics droits (objectif `mdr_ecoute`,
+  créé au chargement) et relit le son du stockage. Accepté par Paper 26.3 ; **le clic droit
+  lui-même n'est pas prouvé**, il demande un joueur.
+- La clé : seule la ligne « 2. Écris la réponse » change dans sa description. Devant un
+  coffre de dictée, une clé qui porte encore l'ancienne description est retirée et redonnée
+  (reconnue par un prédicat sur `minecraft:lore`, vérifié sur l'essai). Un enfant qui ne
+  fait que des maths garde sa clé telle quelle. Les 62 cas d'oracle qui citaient l'ancienne
+  ligne sont corrigés à la main, eux seuls ; aucune autre commande des coffres de maths et
+  d'anglais ne change.
+- Pas de cloche à l'annonce d'une dictée : elle couvrirait le début de la phrase.
+- La condition de pose se lit sur la date du fichier du pack, sans base : l'enfant doit
+  s'être connecté après. S'il était déjà là quand l'agent démarre, on ne sait pas depuis
+  quand : la dictée attend sa reconnexion. Hors ligne, le coffre est posé tout de suite.
+- Devant un coffre de dictée, **Pixel n'interroge aucun LLM** pour l'indice ni pour
+  bavarder : un modèle pourrait épeler le mot ou, pire, le mal écrire. La spec ne le disait
+  pas. Le classement de la demande, lui, peut encore passer par le LLM local.
+- Chaque palier d'indice a deux formulations sans mot commun, pour ne jamais contenir le
+  mot à trouver (« Le mot a 3 lettres » quand le mot est « mot »).
+- Essai sur Paper 26.3 : `dictee-essai` puis `lancer`, sans joueur. Le coffre est posé avec
+  le verrou « construite », le panneau `["Dictée : jamais", "_____", "", ""]`, et le
+  stockage porte le son et la phrase à trou. Les verrous « s'élève » et « Dubaï » sont
+  restitués à l'identique par `data get block`.
+- `dictee-essai` remplace le pack par les seules phrases tirées : c'est un outil d'essai.

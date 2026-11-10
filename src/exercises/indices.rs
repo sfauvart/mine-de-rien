@@ -32,6 +32,7 @@ use unicode_normalization::UnicodeNormalization;
 use crate::exercises::anglais::vocabulaire;
 use crate::exercises::base::Exercice;
 use crate::exercises::expression::{ErreurExpression, ecrire_reponse};
+use crate::exercises::francais::dictee;
 use crate::util::{debut, longueur, mots as mots_python, sans_milliers, strip};
 
 pub const LONGUEUR_MAX: usize = 150;
@@ -757,8 +758,51 @@ fn fraction_de(valeur: &Value) -> Result<Fraction, Abandon> {
     }
 }
 
+/// Dictée : le premier palier accompagne la relecture lente de la phrase (c'est Pixel qui la
+/// lance), puis le nombre de lettres, puis la première lettre. Jamais le mot.
+///
+/// Chaque palier a deux formulations sans mot commun : si la première contient le mot à
+/// trouver (« Le mot a 3 lettres » quand le mot est « mot »), l'autre le remplace.
+fn dictee(ex: &Exercice) -> Paliers {
+    let mot = &ex.reponse;
+    let lettres = mot.chars().filter(|c| c.is_alphabetic()).count();
+    let premiere = mot.chars().next().ok_or(Abandon)?;
+    let signes = match (mot.matches('\'').count(), mot.matches('-').count()) {
+        (0, 0) => String::new(),
+        (_, 0) => ", avec une apostrophe".to_owned(),
+        (0, 1) => ", avec un trait d'union".to_owned(),
+        (0, n) => format!(", avec {n} traits d'union"),
+        (_, _) => ", avec une apostrophe et un trait d'union".to_owned(),
+    };
+    let choisir = |formulations: [String; 2]| {
+        let [premier, second] = formulations;
+        if contient_la_reponse(&premier, ex) {
+            second
+        } else {
+            premier
+        }
+    };
+    Ok(vec![
+        choisir([
+            "Écoute bien, je relis la phrase lentement.".to_owned(),
+            "Réécoute, plus doucement cette fois.".to_owned(),
+        ]),
+        choisir([
+            format!("Le mot a {lettres} lettres{signes}."),
+            format!("Il y en a {lettres} à écrire{signes}."),
+        ]),
+        choisir([
+            format!("Il commence par « {premiere} » et a {lettres} lettres{signes}."),
+            format!("Première : « {premiere} ». Nombre : {lettres}{signes}."),
+        ]),
+    ])
+}
+
 fn candidats(ex: &Exercice) -> Paliers {
     let d = &ex.donnees;
+    if ex.competence == dictee::COMPETENCE {
+        return dictee(ex);
+    }
     if ex.competence == vocabulaire::COMPETENCE {
         return anglais(ex);
     }

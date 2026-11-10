@@ -18,7 +18,7 @@ use crate::exercises::base::Exercice;
 use crate::saisie::Source;
 use crate::util::json_python;
 
-pub const VERSION_SCHEMA: u32 = 3;
+pub const VERSION_SCHEMA: u32 = 4;
 
 pub const SCHEMA: &str = r#"
 CREATE TABLE exercices (
@@ -49,7 +49,7 @@ CREATE TABLE tentatives (
 "#;
 
 /// Chaque entrée fait passer le schéma de la version `indice + 1` à `indice + 2`.
-pub const MIGRATIONS: [&str; 2] = [
+pub const MIGRATIONS: [&str; 3] = [
     // 2 : niveaux d'expérience donnés pour le coffre, et journal pour le rapport.
     r#"
     ALTER TABLE exercices ADD COLUMN niveaux_donnes INTEGER NOT NULL DEFAULT 0;
@@ -92,6 +92,41 @@ pub const MIGRATIONS: [&str; 2] = [
         FROM exercices;
     DROP TABLE exercices;
     ALTER TABLE exercices_v3 RENAME TO exercices;
+    CREATE INDEX exercices_statut ON exercices (statut, id);
+    COMMIT;
+    PRAGMA foreign_keys = ON;
+    "#,
+    // 4 : source « dictee ». Même recopie que pour la version 3.
+    r#"
+    PRAGMA foreign_keys = OFF;
+    BEGIN;
+    CREATE TABLE exercices_v4 (
+        id                INTEGER PRIMARY KEY,
+        competence        TEXT NOT NULL,
+        enonce            TEXT NOT NULL,
+        reponse           TEXT NOT NULL,
+        donnees           TEXT NOT NULL DEFAULT '{}',
+        jeu               TEXT NOT NULL,
+        source            TEXT NOT NULL
+                          CHECK (source IN ('expression', 'competence', 'photo', 'dictee')),
+        statut            TEXT NOT NULL DEFAULT 'en_file'
+                          CHECK (statut IN ('en_file', 'pose', 'ouvert', 'annule')),
+        demande_par       TEXT NOT NULL,
+        recompense        TEXT NOT NULL,
+        recompense_nombre INTEGER NOT NULL,
+        cree_le           TEXT NOT NULL,
+        pose_le           TEXT,
+        ouvert_le         TEXT,
+        niveaux_donnes    INTEGER NOT NULL DEFAULT 0
+    );
+    INSERT INTO exercices_v4 (id, competence, enonce, reponse, donnees, jeu, source, statut,
+            demande_par, recompense, recompense_nombre, cree_le, pose_le, ouvert_le,
+            niveaux_donnes)
+        SELECT id, competence, enonce, reponse, donnees, jeu, source, statut, demande_par,
+            recompense, recompense_nombre, cree_le, pose_le, ouvert_le, niveaux_donnes
+        FROM exercices;
+    DROP TABLE exercices;
+    ALTER TABLE exercices_v4 RENAME TO exercices;
     CREATE INDEX exercices_statut ON exercices (statut, id);
     COMMIT;
     PRAGMA foreign_keys = ON;

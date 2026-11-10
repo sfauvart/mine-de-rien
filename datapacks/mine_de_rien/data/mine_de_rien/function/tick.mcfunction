@@ -14,3 +14,6 @@ execute as @a[tag=!mdr_dans_zone,tag=mdr_aventure,gamemode=adventure] run functi
 
 # Un joueur passé en créatif dans la zone n'est plus à nous : on oublie sa marque.
 tag @a[tag=mdr_aventure,gamemode=!adventure] remove mdr_aventure
+
+# Écouteur des dictées : un clic droit relit la phrase tout de suite, sans attendre l'agent.
+execute as @a[scores={mdr_ecoute=1..}] at @s run function mine_de_rien:dictee/redire

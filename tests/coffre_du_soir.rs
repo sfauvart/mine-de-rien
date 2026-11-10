@@ -285,6 +285,11 @@ impl Coffre for FauxCoffre {
         Ok(())
     }
 
+    async fn demander_de_se_reconnecter(&self) -> Result<(), ErreurCoffre> {
+        self.note("reconnecter ?".to_owned());
+        Ok(())
+    }
+
     async fn preuve_trouvee(&self, _: &ExerciceStocke) -> Result<bool, ErreurCoffre> {
         Ok(self.preuve.get())
     }
@@ -685,7 +690,7 @@ async fn appeler(
         "coffre_present" => json!(coffre.coffre_present().await?),
         "coffre_vide" => json!(coffre.coffre_vide().await?),
         "ranger" => json!(coffre.ranger(s).await?),
-        "retirer" => json!(coffre.retirer().await?),
+        "retirer" => json!(coffre.retirer(false).await?),
         "a_une_cle" => json!(coffre.a_une_cle().await?),
         "donner_cle" => json!(coffre.donner_cle().await?),
         autre => panic!("méthode inconnue : {autre}"),
@@ -821,4 +826,152 @@ async fn oracle_python() {
             autre => panic!("fonction inconnue : {autre}"),
         }
     }
+}
+
+/// Un monde dont la file ne contient qu'un coffre de dictée, avec ou sans pack de sons écrit
+/// à `ecrit_le`.
+fn monde_de_dictee(ecrit_le: Option<DateTime<Utc>>) -> Monde {
+    let dossier = tempfile::tempdir().unwrap();
+    let depot = Rc::new(Depot::ouvrir(&dossier.path().join("mdr.sqlite")).unwrap());
+    let (coffre, notifs) = (FauxCoffre::nouveau(), Rc::new(Notifs::default()));
+    let horloge: Horloge = Rc::new(Cell::new(t0()));
+    let lue = Rc::clone(&horloge);
+    let mut orch = Orchestrateur::new(
+        depot.clone(),
+        coffre.clone(),
+        notifs.clone(),
+        Box::new(move || lue.get()),
+        None,
+    );
+    if let Some(ecrit_le) = ecrit_le {
+        let pack = dossier.path().join("mine-de-rien.zip");
+        let fichier = std::fs::File::create(&pack).unwrap();
+        fichier.set_modified(ecrit_le.into()).unwrap();
+        orch = orch.avec_pack(&pack);
+    }
+    let phrases = mine_de_rien::exercises::francais::dictee::decouper("La plus haute tour.");
+    let position = mine_de_rien::exercises::francais::dictee::Position { phrase: 0, mot: 1 };
+    let exercice = mine_de_rien::dictees::exercice_sonore(&phrases, position, 1).unwrap();
+    let demande = Demande {
+        source: Source::Dictee,
+        ..DEMANDE
+    };
+    depot.ajouter(&exercice, demande, t0()).unwrap();
+    Monde {
+        _dossier: dossier,
+        depot,
+        coffre,
+        notifs,
+        horloge,
+        orch,
+    }
+}
+
+#[tokio::test]
+async fn dictee_attend_que_le_jeu_ait_charge_le_pack() {
+    // Le pack est écrit à 18 h 05 ; l'enfant est connecté depuis 18 h 01.
+    let m = monde_de_dictee(Some(t0() + TimeDelta::minutes(5)));
+    // La dictée de la file est mise de côté : elle reviendra une fois l'enfant connecté.
+    let exercice = m.depot.lire(1).unwrap().unwrap().exercice;
+    m.depot.annuler(1).unwrap();
+    // Un premier tour sans lui, pour que sa connexion soit vue ensuite.
+    m.orch.tour().await.unwrap();
+    let demande = Demande {
+        source: Source::Dictee,
+        ..DEMANDE
+    };
+    avancer(&m.horloge, TimeDelta::minutes(1));
+    m.coffre.en_ligne.set(true);
+    m.orch.tour().await.unwrap();
+    let ident = m.depot.ajouter(&exercice, demande, t0()).unwrap();
+
+    // 18 h 10 : le pack a été refait à 18 h 05, après sa connexion. Le coffre attend.
+    avancer(&m.horloge, TimeDelta::minutes(9));
+    for _ in 0..3 {
+        m.orch.tour().await.unwrap();
+    }
+    assert_eq!(m.coffre.actions(), ["reconnecter ?"]);
+    assert_eq!(
+        m.notifs.messages(),
+        [format!(
+            "Coffre n°{ident} en attente : l'enfant doit se déconnecter puis se reconnecter \
+             pour que son jeu charge les sons de la dictée."
+        )]
+    );
+    assert_eq!(actif(&m.depot), None);
+
+    // Il se déconnecte, puis revient : le coffre est posé et annoncé.
+    m.coffre.en_ligne.set(false);
+    m.orch.tour().await.unwrap();
+    assert_eq!(
+        m.coffre.compte(&format!("poser {ident}")),
+        1,
+        "absent : posé pour son retour"
+    );
+    m.coffre.en_ligne.set(true);
+    avancer(&m.horloge, TimeDelta::minutes(1));
+    m.orch.tour().await.unwrap();
+    assert_eq!(actif(&m.depot), Some(ident));
+    assert_eq!(m.coffre.compte("reconnecter ?"), 1);
+}
+
+#[tokio::test]
+async fn dictee_posee_si_l_enfant_s_est_connecte_apres_le_pack() {
+    // Pack écrit à 17 h 55, avant tout.
+    let m = monde_de_dictee(Some(t0() - TimeDelta::minutes(5)));
+    m.depot.annuler(1).unwrap();
+    m.orch.tour().await.unwrap(); // l'agent tourne, l'enfant n'est pas là
+    let dictee = m.depot.lire(1).unwrap().unwrap().exercice;
+    let demande = Demande {
+        source: Source::Dictee,
+        ..DEMANDE
+    };
+    m.coffre.en_ligne.set(true);
+    avancer(&m.horloge, TimeDelta::minutes(1));
+    m.orch.tour().await.unwrap(); // sa connexion est vue à 18 h 01
+    let ident = m.depot.ajouter(&dictee, demande, t0()).unwrap();
+    m.orch.tour().await.unwrap();
+    assert_eq!(actif(&m.depot), Some(ident));
+    assert_eq!(m.coffre.compte("reconnecter ?"), 0);
+    assert_eq!(m.coffre.compte(&format!("annoncer {ident}")), 1);
+}
+
+#[tokio::test]
+async fn dictee_enfant_deja_la_au_demarrage_de_l_agent() {
+    // On ne sait pas depuis quand il est connecté : son jeu n'a peut-être pas le pack.
+    let m = monde_de_dictee(Some(t0() - TimeDelta::days(1)));
+    m.coffre.en_ligne.set(true);
+    m.orch.tour().await.unwrap();
+    m.orch.tour().await.unwrap();
+    assert_eq!(m.coffre.actions(), ["reconnecter ?"]);
+    assert_eq!(actif(&m.depot), None);
+}
+
+#[tokio::test]
+async fn dictee_sans_pack_configure_ou_enfant_absent_posee_tout_de_suite() {
+    let sans_pack = monde_de_dictee(None);
+    sans_pack.coffre.en_ligne.set(true);
+    sans_pack.orch.tour().await.unwrap();
+    assert_eq!(actif(&sans_pack.depot), Some(1));
+
+    let absent = monde_de_dictee(Some(t0() + TimeDelta::days(1)));
+    absent.orch.tour().await.unwrap();
+    assert_eq!(actif(&absent.depot), Some(1));
+    assert_eq!(absent.coffre.compte("reconnecter ?"), 0);
+}
+
+#[tokio::test]
+async fn un_coffre_de_maths_n_attend_jamais_le_pack() {
+    let m = monde_de_dictee(Some(t0() + TimeDelta::days(1)));
+    m.depot.annuler(1).unwrap();
+    let exercice = Exercice {
+        competence: "maths/division-posee".to_owned(),
+        enonce: "24 ÷ 12 = ?".to_owned(),
+        reponse: "2".to_owned(),
+        donnees: Default::default(),
+    };
+    let ident = m.depot.ajouter(&exercice, DEMANDE, t0()).unwrap();
+    m.coffre.en_ligne.set(true);
+    m.orch.tour().await.unwrap();
+    assert_eq!(actif(&m.depot), Some(ident));
 }

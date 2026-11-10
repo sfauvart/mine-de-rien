@@ -178,7 +178,7 @@ fn migration_2_vers_3_garde_les_exercices_et_admet_la_photo() {
     drop(cx);
 
     let depot = Depot::ouvrir(&chemin).unwrap();
-    assert_eq!(version(depot.connexion()), 3);
+    assert_eq!(version(depot.connexion()), VERSION_SCHEMA);
     let ancien = depot.lire(1).unwrap().unwrap();
     assert!(ancien.statut == Statut::Ouvert && ancien.niveaux_donnes);
     assert_eq!(ancien.exercice.reponse, "2");

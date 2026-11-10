@@ -66,6 +66,7 @@ use crate::adapters::llm::base::{ErreurLlm, Llm, lire_json};
 use crate::exercises::base::{Exercice, normaliser};
 use crate::exercises::indices::{contient_la_reponse, indices};
 use crate::games::atelier::{Atelier, PAS_CONSTRUIT, lire_atelier};
+use crate::games::dictee;
 use crate::journal;
 use crate::minecraft::texte::{self, LONGUEUR_MAX, PseudoInvalide, Style};
 use crate::storage::sqlite::{Depot, ErreurStockage};
@@ -471,7 +472,26 @@ impl Pixel {
         let ex = &actif.exercice;
         let paliers = indices(ex);
         let deja = self.depot.compter(EVENEMENT_INDICE, actif.id)?;
-        let palier = &paliers[deja.min(paliers.len() - 1)];
+        let rang = deja.min(paliers.len() - 1);
+        let palier = &paliers[rang];
+        if dictee::est_dictee(ex) {
+            // Aucun LLM devant une dictée : il pourrait épeler le mot, ou mal l'écrire.
+            self.depot
+                .noter(EVENEMENT_INDICE, Some(actif.id), (self.horloge)())?;
+            if rang > 0 {
+                self.dire(palier, COULEUR).await?;
+                return Ok(());
+            }
+            let Some(numero) = dictee::son_lent(ex).or_else(|| dictee::son(ex)) else {
+                self.dire(dictee::SANS_SON, COULEUR).await?;
+                return Ok(());
+            };
+            self.dire(palier, COULEUR).await?;
+            let commande =
+                dictee::commande_lecture(&self.pseudo, numero).map_err(ErreurRcon::from)?;
+            self.jeu.commande(&commande).await?;
+            return Ok(());
+        }
         let mut phrase = palier.clone();
         if let Some(llm) = &self.llm {
             let consigne = format!(
@@ -497,6 +517,14 @@ impl Pixel {
     }
 
     async fn bavarder(&self, demande: &str) -> Result<(), ErreurPixel> {
+        if self
+            .depot
+            .actif()?
+            .is_some_and(|actif| dictee::est_dictee(&actif.exercice))
+        {
+            self.dire(dictee::PAS_DE_BAVARDAGE, COULEUR).await?;
+            return Ok(());
+        }
         let Some(llm) = &self.llm else {
             self.dire(&incompris(&self.nom), COULEUR).await?;
             return Ok(());
