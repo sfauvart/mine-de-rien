@@ -60,8 +60,8 @@ cle = "${ANTHROPIC_API_KEY}"
 # adaptateur = "piper"
 # url = "http://voix:5000"
 # voix = "fr_FR-siwis-medium"     # la même que VOIX dans .env, si elle y est changée
-# vitesse_normale = 1.0           # 1 = débit naturel de la voix, davantage = plus lent
-# vitesse_lente = 1.4             # la phrase relue lentement, premier indice de Pixel
+# vitesse_normale = 1.4           # 1 = débit naturel de la voix, davantage = plus lent
+# vitesse_lente = 1.8             # la phrase relue lentement, premier indice de Pixel
 
 [stockage]
 sqlite = "/data/mine-de-rien.sqlite"
