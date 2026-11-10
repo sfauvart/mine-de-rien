@@ -68,6 +68,8 @@ première phase.
 - [x] **Phase 1 : la difficulté suit les coffres**
 - [x] **Phase 2 : l'enfant est prévenu, la doc suit**
 
+Close le 2026-11-10.
+
 La phase 2 dépend de la phase 1, qui lui fournit le moment exact de la bascule.
 
 ## Conception
