@@ -118,6 +118,24 @@ aucun intérêt. Pour vérifier :
 cat data/minecraft/ops.json
 ```
 
+## Le pack de sons des dictées
+
+Si les dictées sont installées (`[voix]` et `[pack]`, [installation.md](installation.md)
+étape 4), le serveur propose à la connexion un « pack de ressources » : ce sont les phrases
+de dictée lues à voix haute, rien d'autre.
+
+- Au premier écran « Ce serveur recommande l'utilisation d'un pack de ressources »,
+  cliquer **Oui**. Pour ne plus avoir la question : dans la liste des serveurs, sélectionner
+  le serveur, **Modifier**, puis régler « Packs de ressources du serveur » sur **Activés**.
+- Le volume de la voix se règle dans **Options**, **Musique et sons**, curseur **Voix**. À
+  zéro, les dictées sont muettes.
+- Le pack se télécharge depuis le PC du serveur, port 8765. S'il ne se charge pas, ouvrir
+  ce port comme le 25565 (voir « Pare-feu » plus bas) et vérifier `PACK_URL` dans `.env` :
+  depuis le poste de l'enfant, un navigateur ouvert sur cette adresse doit télécharger un
+  fichier `mine-de-rien.zip`.
+- Une nouvelle dictée arrive dans le pack à la **connexion suivante** : l'enfant doit se
+  déconnecter et se reconnecter pour l'entendre.
+
 ## Si la connexion échoue
 
 | Message dans le jeu | Cause probable | Que faire |

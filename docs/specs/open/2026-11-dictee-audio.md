@@ -131,7 +131,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 **Branche** : `feat/dictee-audio`, pas encore créée, `/next` l'ouvre à la première phase.
 
 - [x] **Phase 1 : Une voix locale lit une phrase**
-- [ ] **Phase 2 : Le jeu joue un son fabriqué par l'agent**
+- [x] **Phase 2 : Le jeu joue un son fabriqué par l'agent**
 - [ ] **Phase 3 : Du texte aux trous**
 - [ ] **Phase 4 : Le coffre de dictée**
 - [ ] **Phase 5 : La dictée depuis Telegram**
@@ -246,41 +246,52 @@ inscriptible.
   façon atomique à côté de la base (fichier temporaire voisin, puis renommage).
 - `src/service_pack.rs` (nouveau) : petit serveur HTTP qui ne sert que ce zip.
 - `src/config.rs`, `config.example.toml`, `config.essai.example.toml` : section `[pack]`
-  (port, adresse publique vue par le jeu de l'enfant).
-- `docker-compose.yml`, `docker/essai.compose.yml` : port publié pour le pack, variables du
-  serveur pour l'adresse du pack et son caractère obligatoire.
+  (port, interface d'écoute). L'adresse vue par le jeu de l'enfant n'est pas ici : c'est le
+  serveur Minecraft qui l'annonce, elle se règle donc dans `.env` (`PACK_URL`).
+- `docker-compose.yml`, `docker/essai.compose.yml`, `.env.example` : port publié pour le
+  pack, adresse du pack donnée au serveur.
 - `datapacks/mine_de_rien/data/mine_de_rien/function/dictee/jouer.mcfunction` (nouveau,
   embarqué dans le binaire à la compilation comme le reste du datapack).
 - `src/cli.rs` : `pack <fichier.ogg>…` construit un pack d'essai, `servir-pack` le sert
   seul ; `lancer` démarre le service quand `[pack]` est configuré.
-- `Cargo.toml` : écriture de zip.
+- `Cargo.toml` : `zip`, pour les tests seulement.
 - `docs/installation.md`, `docs/rejoindre-le-serveur.md`, `datapacks/README.md` : accepter
   le pack, curseur « Voix » des options de son, adresse locale de la machine, format du
   pack de ressources.
 - `tests/pack.rs`, `tests/service_pack.rs`, `tests/datapack.rs`.
 
 **Conception.**
-- Format du pack de ressources de la 26.3 : à relever sur le serveur d'essai (ce n'est pas
-  le 121 du datapack). Une constante dans `src/pack.rs`, citée dans `datapacks/README.md` à
+- Format du pack de ressources de la 26.3 : **97**, relevé dans le `version.json` du
+  serveur d'essai (`pack_version.resource_major` ; le 121 du datapack y est
+  `data_major`). Constante `FORMAT` de `src/pack.rs`, citée dans `datapacks/README.md` à
   côté de l'autre, à ajuster ensemble quand `MC_VERSION` change.
-- Zip : crate `zip` réduit au nécessaire, ou archive sans compression écrite à la main
-  (l'Ogg ne se compresse pas). À trancher ici.
-- Service HTTP : une tâche locale du runtime mono-fil, sur `tokio::net::TcpListener`. Il ne
-  répond qu'à `GET` sur une seule adresse ; tout le reste reçoit 404. Écrit à la main ou
-  avec le `hyper` déjà présent par `reqwest` : à trancher ici, sans ajouter de cadre web.
-  Il s'arrête avec l'agent (`SIGTERM`).
+- Zip : archive sans compression écrite à la main (l'Ogg ne se compresse pas), sans date,
+  donc identique à l'octet pour les mêmes sons. Aucune dépendance de plus dans le binaire ;
+  les tests la relisent avec le crate `zip`, indépendant de notre écriture.
+- Service HTTP : écrit à la main sur `tokio::net::TcpListener`, sans `hyper`. Il ne répond
+  qu'à `GET` et `HEAD` sur une seule adresse ; tout le reste reçoit 404. Le fichier est
+  relu à chaque requête. Il s'arrête avec l'agent (`SIGTERM`).
+- Un pack vide est écrit au lancement s'il n'y en a pas : le jeu trouve toujours un pack à
+  l'adresse annoncée, même avant la première dictée.
+- **Le pack n'est pas obligatoire** pour le joueur, contrairement à ce que prévoyait la
+  première écriture de cette phase : obligatoire, il empêcherait l'enfant de rejoindre le
+  serveur chaque fois que l'agent est arrêté. Refusé ou introuvable, les dictées sont
+  muettes, pas plus faciles.
 - Chaque son est déclaré en flux (`"stream": true`) et joué dans la catégorie `voice`.
-- Commandes à vérifier :
+- Commandes, acceptées par Paper 26.3 le 2026-11-10, sans joueur connecté (le son
+  lui-même reste à entendre en jeu) :
 
       playsound mine_de_rien:dictee.<n> voice <pseudo> ~ ~ ~ 1 1
       stopsound <pseudo> voice
       data modify storage mine_de_rien:dictee son set value "mine_de_rien:dictee.<n>"
-      function mine_de_rien:dictee/jouer with storage mine_de_rien:dictee
+      execute as <pseudo> at @s run function mine_de_rien:dictee/jouer with storage mine_de_rien:dictee
 
   `jouer.mcfunction` est une fonction à macro : elle coupe le son en cours puis joue
-  `$(son)` pour le joueur qui l'exécute.
-- Variables de l'image `itzg/minecraft-server` pour l'adresse du pack et l'obligation de
-  l'accepter : noms à vérifier dans sa documentation.
+  `$(son)` pour le joueur qui l'exécute. Sans `son` dans le stockage, elle échoue sans rien
+  faire (« Missing argument son »).
+- Variables de l'image `itzg/minecraft-server`, vérifiées dans `server.properties` :
+  `RESOURCE_PACK` (adresse) et `RESOURCE_PACK_ENFORCE` (`FALSE`). Pas de
+  `RESOURCE_PACK_SHA1` : c'est son absence qui doit faire retélécharger le pack.
 - Le compose d'essai n'a pas de service `agent` : le pack y est servi par `cargo run` sur
   le poste, et le jeu, lancé sur le même poste, le prend sur `localhost`.
 - **Repli** si le jeu garde l'ancien pack en cache : l'adresse du pack porte un numéro de
@@ -612,3 +623,18 @@ de l'image, écarts constatés.)*
 - `voix: null` aurait cassé l'oracle de la configuration : la section absente ne se
   sérialise pas, l'oracle n'est pas touché.
 - La sous-commande refuse sans `[voix]` : « Section [voix] absente de la configuration. »
+
+**Phase 2.**
+- Essai sur Paper 26.3 (serveur d'essai, sans joueur) : `playsound mine_de_rien:dictee.1
+  voice …` et `stopsound … voice` répondent « No player was found », sans erreur de
+  syntaxe ; le stockage s'écrit et se relit ; la fonction à macro s'exécute avec le stockage
+  ou avec `{son:"…"}`, et échoue proprement sans argument.
+- Un vrai pack de deux phrases (58 Ko) est relu sans erreur par `unzip -t`, par `zipfile`
+  de Python et par `jar` de Java, le plus proche de ce que fait Minecraft.
+- Le service, lancé par `servir-pack` : le pack téléchargé est identique à l'octet ; la
+  base voisine et une adresse en `../` reçoivent 404 ; `SIGTERM` l'arrête aussitôt.
+- **Non prouvé, faute de joueur** : que le jeu propose le pack, qu'il joue le son, et
+  surtout qu'il le retélécharge à la reconnexion sans redémarrage du serveur. C'est la
+  partie à jouer, et elle décide du repli.
+- `lancer` démarre le service quand `[pack]` existe ; le port 8765 est publié par le
+  compose même sans `[pack]`, personne n'y répond alors.

@@ -26,7 +26,7 @@ use crate::orchestrateur::{
     servir,
 };
 use crate::storage::sqlite::{Depot, ErreurStockage, maintenant};
-use crate::{VERSION, datapack, photo, son};
+use crate::{VERSION, datapack, pack, photo, service_pack, son};
 
 #[derive(Parser)]
 #[command(
@@ -83,6 +83,10 @@ enum Action {
         #[arg(long)]
         sortie: PathBuf,
     },
+    /// construit un pack de sons d'essai avec des fichiers .ogg, numérotés à partir de 1
+    Pack { sons: Vec<PathBuf> },
+    /// sert le pack de sons au jeu, sans le reste de l'agent
+    ServirPack,
     /// recopie le datapack dans un dossier lu par le serveur, sans config
     Datapack {
         /// reçoit le sous-dossier mine_de_rien
@@ -280,6 +284,13 @@ async fn lancer(config: &Config) -> Result<(), String> {
         llm,
         Alea::nouveau(),
     );
+    let service_du_pack = ouvrir_service_pack(config).await?;
+    let pack = async {
+        match service_du_pack {
+            Some((ecoute, chemin)) => service_pack::servir(ecoute, &chemin).await,
+            None => std::future::pending().await,
+        }
+    };
     let ecoute = async {
         match &pixel {
             Some(pixel) => pixel.ecouter().await,
@@ -296,6 +307,7 @@ async fn lancer(config: &Config) -> Result<(), String> {
         () = orchestrateur.tourner(INTERVALLE) => Ok(()),
         fin = ecoute => fin.map_err(|e| e.to_string()),
         () = service => Ok(()),
+        () = pack => Ok(()),
         () = arret_demande() => Ok(()),
     };
     // La base se ferme avec le dépôt, à la sortie de la fonction.
@@ -376,6 +388,64 @@ async fn lire_a_voix_haute(
     Ok(())
 }
 
+fn chemin_du_pack(config: &Config) -> PathBuf {
+    pack::chemin(std::path::Path::new(&config.stockage.sqlite))
+}
+
+fn construire_pack(config: &Config, fichiers: &[PathBuf]) -> Result<(), String> {
+    let mut sons = std::collections::BTreeMap::new();
+    for (numero, fichier) in (1u32..).zip(fichiers) {
+        let octets = std::fs::read(fichier).map_err(|e| format!("{} : {e}", fichier.display()))?;
+        sons.insert(numero, octets);
+    }
+    let chemin = chemin_du_pack(config);
+    let archive = pack::construire(&sons).map_err(|e| e.to_string())?;
+    pack::ecrire(&chemin, &archive).map_err(|e| e.to_string())?;
+    println!(
+        "{} : {} son(s), {} Ko.",
+        chemin.display(),
+        sons.len(),
+        archive.len().div_ceil(1024)
+    );
+    for (numero, fichier) in (1u32..).zip(fichiers) {
+        println!("  {} ← {}", pack::evenement(numero), fichier.display());
+    }
+    Ok(())
+}
+
+/// Ouvre le service du pack si `[pack]` est configuré ; un pack vide est écrit s'il manque.
+async fn ouvrir_service_pack(
+    config: &Config,
+) -> Result<Option<(tokio::net::TcpListener, PathBuf)>, String> {
+    let Some(section) = &config.pack else {
+        return Ok(None);
+    };
+    let chemin = chemin_du_pack(config);
+    pack::assurer(&chemin).map_err(|e| format!("pack de sons : {e}"))?;
+    let ecoute = service_pack::ecouter(&section.ecoute, section.port)
+        .await
+        .map_err(|e| format!("service du pack sur le port {} : {e}", section.port))?;
+    println!(
+        "Pack de sons servi sur le port {} : http://<adresse de cette machine>:{}{}",
+        section.port,
+        section.port,
+        service_pack::adresse()
+    );
+    Ok(Some((ecoute, chemin)))
+}
+
+async fn servir_pack(config: &Config) -> Result<(), String> {
+    let Some((ecoute, chemin)) = ouvrir_service_pack(config).await? else {
+        return Err("Section [pack] absente de la configuration.".to_owned());
+    };
+    println!("Ctrl+C pour arrêter.");
+    tokio::select! {
+        () = service_pack::servir(ecoute, &chemin) => {}
+        () = arret_demande() => {}
+    }
+    Ok(())
+}
+
 async fn ecouter(config: &Config) -> Result<(), ErreurRcon> {
     let mut flux = jeu(config).chat()?;
     println!("Chat lu dans {}. Ctrl+C pour arrêter.", config.jeu.log);
@@ -442,6 +512,11 @@ fn executer(action: Option<Action>, config: &Config) -> ExitCode {
             lent,
             sortie,
         }) => terminer(attendre(lire_a_voix_haute(config, &phrase, lent, &sortie))),
+        Some(Action::Pack { sons }) => match construire_pack(config, &sons) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => erreur(e),
+        },
+        Some(Action::ServirPack) => terminer(attendre(servir_pack(config))),
         Some(Action::Datapack { .. }) => erreur("le datapack se recopie sans configuration"),
     }
 }

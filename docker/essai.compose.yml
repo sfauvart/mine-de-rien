@@ -25,6 +25,11 @@ services:
       MOTD: "Mine de rien - essai"
       # Recopié dans world/datapacks à chaque démarrage : le monde suit le dépôt.
       DATAPACKS: /datapacks/mine_de_rien
+      # Pack de sons des dictées, servi sur le poste par « cargo run -- servir-pack ». Le jeu
+      # du testeur tourne sur le même poste : localhost. Facultatif pour le joueur : sans
+      # service de pack, le serveur d'essai reste utilisable.
+      RESOURCE_PACK: ${PACK_URL:-http://localhost:8765/mine-de-rien.zip}
+      RESOURCE_PACK_ENFORCE: "FALSE"
     ports:
       - "25566:25565"
       - "25576:25575"

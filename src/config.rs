@@ -267,6 +267,26 @@ impl Assistant {
     }
 }
 
+/// Le service HTTP qui donne au jeu de l'enfant le pack de sons des dictées. Section absente :
+/// pas de service. L'adresse que le jeu demande est celle de la machine sur le réseau de la
+/// maison ; elle se donne au serveur Minecraft (`PACK_URL` de `.env`), pas ici.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Pack {
+    pub port: u16,
+    /// Interface d'écoute : toutes par défaut, pour être joint depuis le poste de l'enfant.
+    pub ecoute: String,
+}
+
+impl Default for Pack {
+    fn default() -> Self {
+        Self {
+            port: 8765,
+            ecoute: "0.0.0.0".to_owned(),
+        }
+    }
+}
+
 /// Serveur en paisible tant qu'il reste un coffre à faire.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -309,6 +329,8 @@ pub struct Config {
     /// Absente, elle ne s'écrit pas : une configuration sans voix se relit comme en 0.1.2.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub voix: Option<Voix>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pack: Option<Pack>,
     #[serde(default)]
     pub stockage: Stockage,
     #[serde(default)]

@@ -63,5 +63,10 @@ cle = "${ANTHROPIC_API_KEY}"
 # vitesse_normale = 1.4           # 1 = débit naturel de la voix, davantage = plus lent
 # vitesse_lente = 1.8             # la phrase relue lentement, premier indice de Pixel
 
+# Service qui donne au jeu de l'enfant le pack de sons des dictées (docs/installation.md).
+# L'adresse que le jeu demande se règle dans .env (PACK_URL), pas ici.
+# [pack]
+# port = 8765
+
 [stockage]
 sqlite = "/data/mine-de-rien.sqlite"
