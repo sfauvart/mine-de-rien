@@ -114,7 +114,7 @@ Deux points à tenir pendant le port :
 - [x] **Phase 2 : Texte Minecraft, expressions et division**
 - [x] **Phase 3 : Anglais, indices, registre et saisie**
 - [x] **Phase 4 : La base SQLite et le rapport**
-- [ ] **Phase 5 : Parler au serveur : RCON et log**
+- [x] **Phase 5 : Parler au serveur : RCON et log**
 - [ ] **Phase 6 : Atelier, emplacement et mode paisible**
 - [ ] **Phase 7 : Le coffre du soir et la boucle de surveillance**
 - [ ] **Phase 8 : LLM local et lecture de photo**
@@ -595,3 +595,27 @@ de route, taille de l'image.)*
   `test_notification_d_ouverture_compte_les_indices`) : ils seront portés en phases 7 et 10.
 - Dépendance ajoutée : `chrono` (sans fuseaux, `std` et `now` seulement) et `rusqlite`
   avec SQLite embarqué. Ni l'une ni l'autre n'ouvre de connexion réseau.
+
+**Phase 5.**
+- Choix tenu pour tous les adaptateurs : un trait asynchrone objet (`async-trait`, `?Send`),
+  partagé par `Rc<dyn AdaptateurJeu>`. Les faux jeux des tests implémentent le trait.
+- Une seule erreur pour tout l'adaptateur de jeu, `ErreurRcon` : un pseudo refusé par
+  `dire` ou un chemin de log manquant, qui étaient des `ValueError`, en sont maintenant.
+- Le flux du chat n'est pas un canal `tokio::mpsc` mais un `FluxChat` qu'on interroge
+  (`suivant().await`) : pas de tâche de fond à lancer ni à arrêter.
+- Mieux qu'en Python, sans changement visible : une erreur à l'envoi autre qu'une connexion
+  coupée (délai dépassé) déclenche aussi la reconnexion, au lieu de remonter en `OSError`
+  que la boucle ne rattrapait pas. Un log illisible est journalisé au lieu d'arrêter Pixel.
+- Les limites RCON sont bien en **octets** (1 446 pour une commande, 4 096 pour un morceau),
+  comme en Python : testé avec des accents.
+- `src/journal.rs` remplace `logging` : une ligne datée sur la sortie d'erreur, et une
+  capture pour les tests qui vérifient qu'un texte n'est pas journalisé.
+- Essai sur Paper 26.3 (`cargo test --test java_rcon -- --ignored`) : 600 commandes en
+  rafale sur une seule connexion, accents à l'aller et au retour, reconnexion après
+  `docker compose restart`. `dire` sans joueur connecté rend « No player was found », comme
+  la version Python.
+- **Non vérifié sur le vrai serveur** : la réponse de plus de 4 096 caractères. Paper 26.3
+  abrège lui-même ses longues sorties (« [a], [b], ... » pour 300 objectifs,
+  « components: {...} » pour `data get`) : je n'ai trouvé aucune commande qui en produise
+  une. Le recollage par sentinelle reste couvert par le faux serveur.
+- `ecouter` affiche l'heure locale de réception, comme en Python. Reste à jouer en jeu.
