@@ -42,3 +42,24 @@ pub fn comparer<T: serde::Serialize, E: std::fmt::Display>(
         ),
     }
 }
+
+/// Copie d'une base de référence écrite par Python (`tests/donnees/bases/v<N>.sqlite`) :
+/// l'ouvrir la migre, donc jamais l'original. Le dossier temporaire vit autant que la copie.
+pub fn copie_base(nom: &str) -> (tempfile::TempDir, PathBuf) {
+    let dossier = tempfile::tempdir().unwrap();
+    let copie = dossier.path().join("copie.sqlite");
+    std::fs::copy(
+        racine()
+            .join("tests/donnees/bases")
+            .join(format!("{nom}.sqlite")),
+        &copie,
+    )
+    .unwrap();
+    (dossier, copie)
+}
+
+pub fn instant(iso: &str) -> chrono::DateTime<chrono::Utc> {
+    chrono::DateTime::parse_from_rfc3339(iso)
+        .unwrap()
+        .with_timezone(&chrono::Utc)
+}

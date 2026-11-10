@@ -113,7 +113,7 @@ Deux points à tenir pendant le port :
 - [x] **Phase 1 : Le crate, la configuration et le datapack embarqué**
 - [x] **Phase 2 : Texte Minecraft, expressions et division**
 - [x] **Phase 3 : Anglais, indices, registre et saisie**
-- [ ] **Phase 4 : La base SQLite et le rapport**
+- [x] **Phase 4 : La base SQLite et le rapport**
 - [ ] **Phase 5 : Parler au serveur : RCON et log**
 - [ ] **Phase 6 : Atelier, emplacement et mode paisible**
 - [ ] **Phase 7 : Le coffre du soir et la boucle de surveillance**
@@ -575,3 +575,23 @@ de route, taille de l'image.)*
   le fait la lecture de photo, qui n'arrive qu'en phase 8.
 - Les fichiers de l'oracle sont écrits un cas par ligne (912 Ko en tout).
 - Les deux `.toml` du lexique sont embarqués depuis leur dossier Python jusqu'à la phase 11.
+
+**Phase 4.**
+- `tests/donnees/bases/v1.sqlite`, `v2.sqlite`, `v3.sqlite` sont écrites par
+  `scripts/oracle.py` avec les mêmes neuf coffres (v3 en a un dixième, de source photo).
+  Rust les rouvre toutes en version 3 et y lit exactement ce que Python y lit.
+- Le test croisé `python_relit_une_base_ecrite_par_rust` lance `uv run python` : à retirer
+  en phase 11, comme prévu.
+- Les dates sont écrites à la seconde (`2026-11-08T18:45:26+00:00`), sans microsecondes :
+  c'est ce que faisait `_iso`, contrairement à ce que disait « Pièges de traduction ».
+- Toutes les méthodes du dépôt rendent un `Result` : une erreur SQLite pendant une lecture
+  était une exception non rattrapée en Python, c'est maintenant une `ErreurStockage` que la
+  boucle sait traverser. `statut` et `source` sont des `enum` ; une valeur inconnue dans la
+  base est une erreur, pas une panique (testé).
+- `src/games/coffre_du_soir.rs` et `src/games/pixel.rs` existent déjà, réduits à
+  `formater_duree` et `EVENEMENT_INDICE` dont le rapport a besoin.
+- Trois tests de `tests/test_rapport.py` passent par l'orchestrateur
+  (`test_aucun_message_aux_parents_ne_contient_le_pseudo`,
+  `test_notification_d_ouverture_compte_les_indices`) : ils seront portés en phases 7 et 10.
+- Dépendance ajoutée : `chrono` (sans fuseaux, `std` et `now` seulement) et `rusqlite`
+  avec SQLite embarqué. Ni l'une ni l'autre n'ouvre de connexion réseau.
