@@ -143,6 +143,12 @@ impl Rejeu {
 #[async_trait(?Send)]
 impl AdaptateurJeu for Rejeu {
     async fn commande(&self, commande: &str) -> Result<String, ErreurRcon> {
+        // La lecture du nom de la clé (spec 2026-11-dictee-audio, phase 6) n'existait pas
+        // dans la version Python : c'est la seule commande que Rust envoie en plus. Elle ne
+        // consomme rien de la transcription et ne trouve pas de clé nommée.
+        if commande.starts_with("data get entity ") && commande.contains("mdr_cle") {
+            return Ok("Found no elements matching Inventory".to_owned());
+        }
         let attendu = self.suivant(&json!(["commande", commande]));
         assert_eq!(
             json!(commande),

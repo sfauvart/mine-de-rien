@@ -252,6 +252,14 @@ pub struct Evenement {
     pub quand: DateTime<Utc>,
 }
 
+/// Ce que l'enfant a écrit sur la clé devant un coffre : un essai, juste ou non.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tentative {
+    pub proposition: String,
+    pub correcte: bool,
+    pub faite_le: DateTime<Utc>,
+}
+
 /// Une dictée à préparer, telle que le parent l'a confirmée.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DicteeStockee {
@@ -671,6 +679,47 @@ impl Depot {
                 exercice_id,
                 genre,
                 quand: date_requise(quand)?,
+            });
+        }
+        Ok(sortie)
+    }
+
+    /// Note un essai de l'enfant sur le coffre `exercice_id`.
+    pub fn noter_tentative(
+        &self,
+        exercice_id: i64,
+        proposition: &str,
+        correcte: bool,
+        quand: DateTime<Utc>,
+    ) -> Result<(), ErreurStockage> {
+        self.cx.execute(
+            "INSERT INTO tentatives (exercice_id, proposition, correcte, faite_le)
+             VALUES (?, ?, ?, ?)",
+            params![exercice_id, proposition, correcte, iso(quand)],
+        )?;
+        Ok(())
+    }
+
+    /// Les essais de l'enfant sur un coffre, du premier au dernier.
+    pub fn tentatives(&self, exercice_id: i64) -> Result<Vec<Tentative>, ErreurStockage> {
+        let mut preparee = self.cx.prepare(
+            "SELECT proposition, correcte, faite_le FROM tentatives \
+             WHERE exercice_id = ? ORDER BY id",
+        )?;
+        let lignes = preparee.query_map([exercice_id], |l| {
+            Ok((
+                l.get::<_, String>(0)?,
+                l.get::<_, i64>(1)?,
+                l.get::<_, String>(2)?,
+            ))
+        })?;
+        let mut sortie = Vec::new();
+        for ligne in lignes {
+            let (proposition, correcte, faite_le) = ligne?;
+            sortie.push(Tentative {
+                proposition,
+                correcte: correcte != 0,
+                faite_le: date_requise(faite_le)?,
             });
         }
         Ok(sortie)
