@@ -12,6 +12,7 @@ use chrono::Local;
 use crate::adapters::game::base::AdaptateurJeu;
 use crate::adapters::game::java_rcon::{DELAI, JavaRcon};
 use crate::adapters::game::rcon::ErreurRcon;
+use crate::adapters::llm::creer as creer_llm;
 use crate::alea::Alea;
 use crate::config::{Config, charger_config};
 use crate::games::atelier::{self, ErreurAtelier};
@@ -19,7 +20,7 @@ use crate::games::coffre_du_soir::{CoffreDuSoir, NotificateurConsole};
 use crate::games::paisible::ModePaisible;
 use crate::orchestrateur::{ErreurFile, INTERVALLE, Orchestrateur, mettre_en_file};
 use crate::storage::sqlite::{Depot, ErreurStockage, maintenant};
-use crate::{VERSION, datapack};
+use crate::{VERSION, datapack, photo};
 
 #[derive(Parser)]
 #[command(
@@ -213,6 +214,54 @@ async fn lancer(config: &Config) -> Result<(), String> {
     Ok(())
 }
 
+async fn interroger_llm(
+    config: &Config,
+    consigne: &str,
+    image: Option<&std::path::Path>,
+) -> Result<(), String> {
+    let llm = creer_llm(&config.llm).map_err(|e| e.to_string())?;
+    let octets = image
+        .map(std::fs::read)
+        .transpose()
+        .map_err(|e| e.to_string())?;
+    let reponse = llm
+        .completer(
+            "Tu réponds en français.",
+            consigne,
+            octets.as_deref(),
+            false,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    println!("{reponse}");
+    Ok(())
+}
+
+async fn lire_photo(
+    config: &Config,
+    image: &std::path::Path,
+    consigne: &str,
+    nombre: usize,
+) -> Result<(), String> {
+    let llm = creer_llm(&config.llm).map_err(|e| e.to_string())?;
+    let octets = std::fs::read(image).map_err(|e| e.to_string())?;
+    let debut = std::time::Instant::now();
+    let mut alea = Alea::nouveau();
+    let lecture = photo::lire(llm.as_ref(), &octets, consigne, &mut alea)
+        .await
+        .map_err(|e| e.to_string())?;
+    let mut lignes = photo::resumer(&lecture);
+    lignes.push(format!(
+        "Lu en {:.0} s. Tirage de {nombre} :",
+        debut.elapsed().as_secs_f64()
+    ));
+    for ex in photo::tirer(&lecture, nombre, &mut alea) {
+        lignes.push(format!("• {} → {}", ex.enonce, ex.reponse));
+    }
+    println!("{}", lignes.join("\n"));
+    Ok(())
+}
+
 async fn ecouter(config: &Config) -> Result<(), ErreurRcon> {
     let mut flux = jeu(config).chat()?;
     println!("Chat lu dans {}. Ctrl+C pour arrêter.", config.jeu.log);
@@ -264,6 +313,16 @@ fn executer(action: Option<Action>, config: &Config) -> ExitCode {
         Some(Action::Atelier) => terminer(attendre(construire_atelier(config))),
         Some(Action::Coffre { texte }) => coffre(config, &texte),
         Some(Action::Lancer) => terminer(attendre(lancer(config))),
-        Some(_) => erreur("commande pas encore portée en Rust : utiliser la version Python."),
+        Some(Action::Llm { consigne, image }) => terminer(attendre(interroger_llm(
+            config,
+            &consigne,
+            image.as_deref(),
+        ))),
+        Some(Action::LirePhoto {
+            image,
+            consigne,
+            nombre,
+        }) => terminer(attendre(lire_photo(config, &image, &consigne, nombre))),
+        Some(Action::Datapack { .. }) => erreur("le datapack se recopie sans configuration"),
     }
 }

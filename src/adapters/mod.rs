@@ -3,3 +3,4 @@
 //! Chaque adaptateur externe doit avoir une alternative auto-hébergée.
 
 pub mod game;
+pub mod llm;

@@ -117,7 +117,7 @@ Deux points à tenir pendant le port :
 - [x] **Phase 5 : Parler au serveur : RCON et log**
 - [x] **Phase 6 : Atelier, emplacement et mode paisible**
 - [x] **Phase 7 : Le coffre du soir et la boucle de surveillance**
-- [ ] **Phase 8 : LLM local et lecture de photo**
+- [x] **Phase 8 : LLM local et lecture de photo**
 - [ ] **Phase 9 : Pixel**
 - [ ] **Phase 10 : Telegram et les commandes des parents**
 - [ ] **Phase 11 : La bascule**
@@ -663,3 +663,32 @@ de route, taille de l'image.)*
 - `lancer` ne démarre encore ni Pixel (phase 9) ni Telegram (phase 10).
 - Reste à jouer en jeu : renommer la clé sur l'enclume, ouvrir le coffre, la notification
   d'ouverture, le coffre reposé après disparition.
+
+**Phase 8.**
+- `reqwest` est pris en version 0.12 et non 0.13 : c'est celle de `teloxide` 0.17, qui
+  arrive en phase 10. Une seule version dans le binaire. TLS `rustls`, racines embarquées.
+- Le contrat du LLM est un trait, comme celui du jeu. L'ébauche Anthropic rend une
+  `ErreurLlm` quand on l'appelle sans image ; en Python c'était une `NotImplementedError`
+  que personne ne rattrapait. Elle ne fait toujours aucun appel réseau.
+- Les tests du LLM tournent contre un petit serveur HTTP local écrit dans le test, à la
+  place de `httpx.MockTransport`. Ajoutés : le délai dépassé et quatre réponses au format
+  inattendu.
+- Images : crate `image` limité aux décodeurs JPEG et PNG. Pillow en lisait davantage
+  (WebP, HEIC selon l'installation) ; Telegram n'envoie que du JPEG, seul `lire-photo` en
+  ligne de commande est concerné. Écart assumé.
+- La taille des morceaux reproduit l'arrondi de `Image.thumbnail` : sur 17 tailles
+  d'image, Rust et Pillow donnent les mêmes dimensions. Le redressement EXIF est vérifié
+  sur une image de synthèse (`tests/donnees/photo/orientation-6.jpg`, deux aplats de
+  couleur, rien de personnel).
+- Les pixels, eux, diffèrent : autre filtre de réduction, autre encodeur JPEG. Les tests ne
+  peuvent pas dire si le modèle lit aussi bien.
+- Oracle : 80 cas (consignes au modèle au caractère près, 35 calculs recopiés, les quatre
+  fiches enregistrées, lignes mal formées citées comme le faisait `str()` de Python).
+- Essai avec le LLM local de la maison (Gemma 4 E4B) : `llm "…"` répond ; `lire-photo`
+  sur une **fiche de synthèse** fabriquée pour l'essai (huit lignes imprimées) rend les
+  mêmes huit exercices en Python et en Rust, en 19 s et 24 s. Seule différence : Python a
+  compté le titre comme « texte hors lexique », Rust ne l'a pas vu ; il est ignoré dans les
+  deux cas.
+- **Non fait** : l'essai sur deux vraies fiches photographiées demandé par la spec. Les
+  photos ne sont pas dans le dépôt (elles montrent le prénom de l'enfant) et je n'en ai
+  pas. À faire par le parent : `lire-photo` sur une fiche déjà lue par la version Python.

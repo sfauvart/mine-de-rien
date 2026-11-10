@@ -133,3 +133,50 @@ pub(crate) fn sans_milliers(texte: &str, separateurs: &[char]) -> String {
         .map(|i| c[i])
         .collect()
 }
+
+/// `str(valeur)` de Python pour une valeur lue d'un JSON : `{'genre': 'mot'}`, `None`, `True`.
+/// Sert à citer au parent une ligne mal formée renvoyée par le LLM, comme le faisait Python.
+pub(crate) fn str_python(valeur: &serde_json::Value) -> String {
+    use serde_json::Value;
+    match valeur {
+        Value::Null => "None".to_owned(),
+        Value::Bool(true) => "True".to_owned(),
+        Value::Bool(false) => "False".to_owned(),
+        Value::Number(n) => n.to_string(),
+        Value::String(texte) => texte.clone(),
+        autre => repr_python(autre),
+    }
+}
+
+fn repr_python(valeur: &serde_json::Value) -> String {
+    use serde_json::Value;
+    match valeur {
+        Value::String(texte) => repr(texte),
+        Value::Array(liste) => {
+            format!(
+                "[{}]",
+                liste.iter().map(repr_python).collect::<Vec<_>>().join(", ")
+            )
+        }
+        Value::Object(objet) => {
+            let paires: Vec<String> = objet
+                .iter()
+                .map(|(cle, v)| format!("{}: {}", repr(cle), repr_python(v)))
+                .collect();
+            format!("{{{}}}", paires.join(", "))
+        }
+        simple => str_python(simple),
+    }
+}
+
+/// `str.capitalize()` de Python : première lettre en majuscule, le reste en minuscules.
+pub(crate) fn capitaliser(texte: &str) -> String {
+    let mut lettres = texte.chars();
+    match lettres.next() {
+        Some(premiere) => premiere
+            .to_uppercase()
+            .chain(lettres.flat_map(char::to_lowercase))
+            .collect(),
+        None => String::new(),
+    }
+}
