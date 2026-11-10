@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use unicode_normalization::UnicodeNormalization;
 
@@ -13,7 +13,7 @@ pub fn normaliser(texte: &str) -> String {
         .collect()
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Exercice {
     /// ex. "maths/division-posee"
     pub competence: String,
@@ -22,6 +22,7 @@ pub struct Exercice {
     /// la clé exacte attendue (c'est elle qui verrouille le coffre)
     pub reponse: String,
     /// matière pour l'habillage par le LLM
+    #[serde(default)]
     pub donnees: Map<String, Value>,
 }
 

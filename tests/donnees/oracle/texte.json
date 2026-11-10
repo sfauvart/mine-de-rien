@@ -1,1128 +1,117 @@
 [
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "348 ÷ 12 = ?"
-  },
-  "sortie": "348 ÷ 12 = ?"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "348 ÷ 12 = ?"
-  },
-  "sortie": "348 ÷"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "348 ÷ 12 = ?"
-  },
-  "sortie": "{\"text\": \"348 ÷ 12 = ?\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "348 ÷ 12 = ?"
-  },
-  "sortie": "{\"text\": \"348 ÷ 12 = ?\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "348 ÷ 12 = ?"
-  },
-  "sortie": [
-   "348 ÷ 12 = ?",
-   "",
-   "",
-   ""
-  ]
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "348 ÷ 12 = ?"
-  },
-  "sortie": "34812=?"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "sortie": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "sortie": "l'élè"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "sortie": "{\"text\": \"l'élève a dit \\\"bonjour\\\" \\\\ puis ]} et {\\\"text\\\":\\\"op\\\"} ; œufs à 12 €\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "sortie": "{\"text\": \"l'élève a dit \\\"bonjour\\\" \\\\ puis ]} et {\\\"text\\\":\\\"op\\\"} ; œufs à 12 €\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "sortie": null
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "sortie": "l'eleveadit\"bonjour\"\\puis]}et{\"text\":\"op\"};ufsa12"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "a\u0000b\u001bc§ld"
-  },
-  "sortie": "abcld"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "a\u0000b\u001bc§ld"
-  },
-  "sortie": "abcld"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "a\u0000b\u001bc§ld"
-  },
-  "sortie": "{\"text\": \"abcld\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "a\u0000b\u001bc§ld"
-  },
-  "sortie": "{\"text\": \"abcld\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "a\u0000b\u001bc§ld"
-  },
-  "sortie": [
-   "abcld",
-   "",
-   "",
-   ""
-  ]
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "a\u0000b\u001bc§ld"
-  },
-  "sortie": "a\u0000b\u001bcld"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "ligne 1\nligne 2\tfin\r"
-  },
-  "sortie": "ligne 1 ligne 2 fin "
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "ligne 1\nligne 2\tfin\r"
-  },
-  "sortie": "ligne"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "ligne 1\nligne 2\tfin\r"
-  },
-  "sortie": "{\"text\": \"ligne 1 ligne 2 fin \"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "ligne 1\nligne 2\tfin\r"
-  },
-  "sortie": "{\"text\": \"ligne 1 ligne 2 fin \", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "ligne 1\nligne 2\tfin\r"
-  },
-  "sortie": [
-   "ligne 1 ligne 2",
-   "fin",
-   "",
-   ""
-  ]
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "ligne 1\nligne 2\tfin\r"
-  },
-  "sortie": "ligne1ligne2fin"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  },
-  "sortie": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  },
-  "sortie": "xxxxx"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  },
-  "sortie": "{\"text\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  },
-  "sortie": "{\"text\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  },
-  "sortie": null
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  },
-  "sortie": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": ""
-  },
-  "sortie": ""
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": ""
-  },
-  "sortie": ""
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": ""
-  },
-  "sortie": "{\"text\": \"\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": ""
-  },
-  "sortie": "{\"text\": \"\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": ""
-  },
-  "sortie": [
-   "",
-   "",
-   "",
-   ""
-  ]
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": ""
-  },
-  "sortie": ""
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "Combien font trois fois douze et demi ?"
-  },
-  "sortie": "Combien font trois fois douze et demi ?"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "Combien font trois fois douze et demi ?"
-  },
-  "sortie": "Combi"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "Combien font trois fois douze et demi ?"
-  },
-  "sortie": "{\"text\": \"Combien font trois fois douze et demi ?\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "Combien font trois fois douze et demi ?"
-  },
-  "sortie": "{\"text\": \"Combien font trois fois douze et demi ?\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "Combien font trois fois douze et demi ?"
-  },
-  "sortie": [
-   "Combien font",
-   "trois fois",
-   "douze et demi ?",
-   ""
-  ]
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "Combien font trois fois douze et demi ?"
-  },
-  "sortie": "combienfonttroisfoisdouzeetdemi?"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "anticonstitutionnellement"
-  },
-  "sortie": "anticonstitutionnellement"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "anticonstitutionnellement"
-  },
-  "sortie": "antic"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "anticonstitutionnellement"
-  },
-  "sortie": "{\"text\": \"anticonstitutionnellement\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "anticonstitutionnellement"
-  },
-  "sortie": "{\"text\": \"anticonstitutionnellement\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "anticonstitutionnellement"
-  },
-  "sortie": null
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "anticonstitutionnellement"
-  },
-  "sortie": "anticonstitutionnellement"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "Écris « château » en anglais, en lettres ?"
-  },
-  "sortie": "Écris « château » en anglais, en lettres ?"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "Écris « château » en anglais, en lettres ?"
-  },
-  "sortie": "Écris"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "Écris « château » en anglais, en lettres ?"
-  },
-  "sortie": "{\"text\": \"Écris « château » en anglais, en lettres ?\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "Écris « château » en anglais, en lettres ?"
-  },
-  "sortie": "{\"text\": \"Écris « château » en anglais, en lettres ?\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "Écris « château » en anglais, en lettres ?"
-  },
-  "sortie": [
-   "Écris « château",
-   "» en anglais,",
-   "en lettres ?",
-   ""
-  ]
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "Écris « château » en anglais, en lettres ?"
-  },
-  "sortie": "ecrischateauenanglais,enlettres?"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"
-  },
-  "sortie": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"
-  },
-  "sortie": "un de"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"
-  },
-  "sortie": "{\"text\": \"un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"
-  },
-  "sortie": "{\"text\": \"un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"
-  },
-  "sortie": null
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"
-  },
-  "sortie": "undeuxtroisquatrecinqsixsepthuitneufdixonzedouzetreizequatorze"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"
-  },
-  "sortie": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"
-  },
-  "sortie": "aaaaa"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"
-  },
-  "sortie": "{\"text\": \"aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"
-  },
-  "sortie": "{\"text\": \"aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"
-  },
-  "sortie": [
-   "aaaaaaaaaaaaaaa",
-   "bbbbbbbbbbbbbbb",
-   "ccccccccccccccc",
-   "ddddddddddddddd"
-  ]
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"
-  },
-  "sortie": "aaaaaaaaaaaaaaabbbbbbbbbbbbbbbcccccccccccccccddddddddddddddd"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"
-  },
-  "sortie": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"
-  },
-  "sortie": "aaaaa"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"
-  },
-  "sortie": "{\"text\": \"aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"
-  },
-  "sortie": "{\"text\": \"aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"
-  },
-  "sortie": null
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"
-  },
-  "sortie": "aaaaaaaaaaaaaaabbbbbbbbbbbbbbbcccccccccccccccddddddddddddddde"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "espace insécable et fine"
-  },
-  "sortie": "espace insécable et fine"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "espace insécable et fine"
-  },
-  "sortie": "espac"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "espace insécable et fine"
-  },
-  "sortie": "{\"text\": \"espace insécable et fine\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "espace insécable et fine"
-  },
-  "sortie": "{\"text\": \"espace insécable et fine\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "espace insécable et fine"
-  },
-  "sortie": [
-   "espace",
-   "insécable et",
-   "fine",
-   ""
-  ]
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "espace insécable et fine"
-  },
-  "sortie": "espaceinsecableetfine"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "émoji 🎉 et é décomposé"
-  },
-  "sortie": "émoji 🎉 et é décomposé"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "émoji 🎉 et é décomposé"
-  },
-  "sortie": "émoji"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "émoji 🎉 et é décomposé"
-  },
-  "sortie": "{\"text\": \"émoji 🎉 et é décomposé\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "émoji 🎉 et é décomposé"
-  },
-  "sortie": "{\"text\": \"émoji 🎉 et é décomposé\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "émoji 🎉 et é décomposé"
-  },
-  "sortie": [
-   "émoji 🎉 et é",
-   "décomposé",
-   "",
-   ""
-  ]
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "émoji 🎉 et é décomposé"
-  },
-  "sortie": "emojietedecompose"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": "  bords   multiples  "
-  },
-  "sortie": "  bords   multiples  "
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": "  bords   multiples  "
-  },
-  "sortie": "  bor"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": "  bords   multiples  "
-  },
-  "sortie": "{\"text\": \"  bords   multiples  \"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": "  bords   multiples  "
-  },
-  "sortie": "{\"text\": \"  bords   multiples  \", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": "  bords   multiples  "
-  },
-  "sortie": [
-   "bords multiples",
-   "",
-   "",
-   ""
-  ]
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "  bords   multiples  "
-  },
-  "sortie": "bordsmultiples"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "texte": " fin"
-  },
-  "sortie": " fin"
- },
- {
-  "entree": {
-   "f": "nettoyer",
-   "max": 5,
-   "texte": " fin"
-  },
-  "sortie": " fin"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [],
-   "texte": " fin"
-  },
-  "sortie": "{\"text\": \" fin\"}"
- },
- {
-  "entree": {
-   "f": "composant",
-   "style": [
-    [
-     "color",
-     "gold"
-    ],
-    [
-     "bold",
-     true
-    ],
-    [
-     "italic",
-     false
-    ]
-   ],
-   "texte": " fin"
-  },
-  "sortie": "{\"text\": \" fin\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"
- },
- {
-  "entree": {
-   "f": "lignes_panneau",
-   "texte": " fin"
-  },
-  "sortie": [
-   "fin",
-   "",
-   "",
-   ""
-  ]
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": " fin"
-  },
-  "sortie": "fin"
- },
- {
-  "entree": {
-   "f": "tellraw",
-   "joueur": "Steve_42",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "sortie": "tellraw Steve_42 {\"text\": \"l'élève a dit \\\"bonjour\\\" \\\\ puis ]} et {\\\"text\\\":\\\"op\\\"} ; œufs à 12 €\", \"color\": \"aqua\"}"
- },
- {
-  "entree": {
-   "f": "tellraw",
-   "joueur": "@a",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "erreur": "pseudo Minecraft invalide : '@a'"
- },
- {
-  "entree": {
-   "f": "tellraw",
-   "joueur": "@p[name=x]",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "erreur": "pseudo Minecraft invalide : '@p[name=x]'"
- },
- {
-  "entree": {
-   "f": "tellraw",
-   "joueur": "Steve op",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "erreur": "pseudo Minecraft invalide : 'Steve op'"
- },
- {
-  "entree": {
-   "f": "tellraw",
-   "joueur": "",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "erreur": "pseudo Minecraft invalide : ''"
- },
- {
-  "entree": {
-   "f": "tellraw",
-   "joueur": "aaaaaaaaaaaaaaaa",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "sortie": "tellraw aaaaaaaaaaaaaaaa {\"text\": \"l'élève a dit \\\"bonjour\\\" \\\\ puis ]} et {\\\"text\\\":\\\"op\\\"} ; œufs à 12 €\", \"color\": \"aqua\"}"
- },
- {
-  "entree": {
-   "f": "tellraw",
-   "joueur": "aaaaaaaaaaaaaaaaa",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "erreur": "pseudo Minecraft invalide : 'aaaaaaaaaaaaaaaaa'"
- },
- {
-  "entree": {
-   "f": "tellraw",
-   "joueur": "Stève",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "erreur": "pseudo Minecraft invalide : 'Stève'"
- },
- {
-  "entree": {
-   "f": "tellraw",
-   "joueur": "l'ami",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "erreur": "pseudo Minecraft invalide : \"l'ami\""
- },
- {
-  "entree": {
-   "f": "tellraw",
-   "joueur": "abc",
-   "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"
-  },
-  "sortie": "tellraw abc {\"text\": \"l'élève a dit \\\"bonjour\\\" \\\\ puis ]} et {\\\"text\\\":\\\"op\\\"} ; œufs à 12 €\", \"color\": \"aqua\"}"
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": " 12 R 3 "
-  },
-  "sortie": "12r3"
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "12r3"
-  },
-  "sortie": "12r3"
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "Château"
-  },
-  "sortie": "chateau"
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "ŒUF"
-  },
-  "sortie": "uf"
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "ﬁn"
-  },
-  "sortie": "fin"
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "ça va"
-  },
-  "sortie": "cava"
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "É t é"
-  },
-  "sortie": "ete"
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "x²"
-  },
-  "sortie": "x2"
- },
- {
-  "entree": {
-   "f": "normaliser",
-   "texte": "½"
-  },
-  "sortie": "12"
- }
+{"entree": {"f": "nettoyer", "texte": "348 ÷ 12 = ?"}, "sortie": "348 ÷ 12 = ?"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "348 ÷ 12 = ?"}, "sortie": "348 ÷"},
+{"entree": {"f": "composant", "style": [], "texte": "348 ÷ 12 = ?"}, "sortie": "{\"text\": \"348 ÷ 12 = ?\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "348 ÷ 12 = ?"}, "sortie": "{\"text\": \"348 ÷ 12 = ?\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "348 ÷ 12 = ?"}, "sortie": ["348 ÷ 12 = ?", "", "", ""]},
+{"entree": {"f": "normaliser", "texte": "348 ÷ 12 = ?"}, "sortie": "34812=?"},
+{"entree": {"f": "nettoyer", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "sortie": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "sortie": "l'élè"},
+{"entree": {"f": "composant", "style": [], "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "sortie": "{\"text\": \"l'élève a dit \\\"bonjour\\\" \\\\ puis ]} et {\\\"text\\\":\\\"op\\\"} ; œufs à 12 €\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "sortie": "{\"text\": \"l'élève a dit \\\"bonjour\\\" \\\\ puis ]} et {\\\"text\\\":\\\"op\\\"} ; œufs à 12 €\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "sortie": null},
+{"entree": {"f": "normaliser", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "sortie": "l'eleveadit\"bonjour\"\\puis]}et{\"text\":\"op\"};ufsa12"},
+{"entree": {"f": "nettoyer", "texte": "a\u0000b\u001bc§ld"}, "sortie": "abcld"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "a\u0000b\u001bc§ld"}, "sortie": "abcld"},
+{"entree": {"f": "composant", "style": [], "texte": "a\u0000b\u001bc§ld"}, "sortie": "{\"text\": \"abcld\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "a\u0000b\u001bc§ld"}, "sortie": "{\"text\": \"abcld\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "a\u0000b\u001bc§ld"}, "sortie": ["abcld", "", "", ""]},
+{"entree": {"f": "normaliser", "texte": "a\u0000b\u001bc§ld"}, "sortie": "a\u0000b\u001bcld"},
+{"entree": {"f": "nettoyer", "texte": "ligne 1\nligne 2\tfin\r"}, "sortie": "ligne 1 ligne 2 fin "},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "ligne 1\nligne 2\tfin\r"}, "sortie": "ligne"},
+{"entree": {"f": "composant", "style": [], "texte": "ligne 1\nligne 2\tfin\r"}, "sortie": "{\"text\": \"ligne 1 ligne 2 fin \"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "ligne 1\nligne 2\tfin\r"}, "sortie": "{\"text\": \"ligne 1 ligne 2 fin \", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "ligne 1\nligne 2\tfin\r"}, "sortie": ["ligne 1 ligne 2", "fin", "", ""]},
+{"entree": {"f": "normaliser", "texte": "ligne 1\nligne 2\tfin\r"}, "sortie": "ligne1ligne2fin"},
+{"entree": {"f": "nettoyer", "texte": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "sortie": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "sortie": "xxxxx"},
+{"entree": {"f": "composant", "style": [], "texte": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "sortie": "{\"text\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "sortie": "{\"text\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "sortie": null},
+{"entree": {"f": "normaliser", "texte": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "sortie": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
+{"entree": {"f": "nettoyer", "texte": ""}, "sortie": ""},
+{"entree": {"f": "nettoyer", "max": 5, "texte": ""}, "sortie": ""},
+{"entree": {"f": "composant", "style": [], "texte": ""}, "sortie": "{\"text\": \"\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": ""}, "sortie": "{\"text\": \"\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": ""}, "sortie": ["", "", "", ""]},
+{"entree": {"f": "normaliser", "texte": ""}, "sortie": ""},
+{"entree": {"f": "nettoyer", "texte": "Combien font trois fois douze et demi ?"}, "sortie": "Combien font trois fois douze et demi ?"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "Combien font trois fois douze et demi ?"}, "sortie": "Combi"},
+{"entree": {"f": "composant", "style": [], "texte": "Combien font trois fois douze et demi ?"}, "sortie": "{\"text\": \"Combien font trois fois douze et demi ?\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "Combien font trois fois douze et demi ?"}, "sortie": "{\"text\": \"Combien font trois fois douze et demi ?\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "Combien font trois fois douze et demi ?"}, "sortie": ["Combien font", "trois fois", "douze et demi ?", ""]},
+{"entree": {"f": "normaliser", "texte": "Combien font trois fois douze et demi ?"}, "sortie": "combienfonttroisfoisdouzeetdemi?"},
+{"entree": {"f": "nettoyer", "texte": "anticonstitutionnellement"}, "sortie": "anticonstitutionnellement"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "anticonstitutionnellement"}, "sortie": "antic"},
+{"entree": {"f": "composant", "style": [], "texte": "anticonstitutionnellement"}, "sortie": "{\"text\": \"anticonstitutionnellement\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "anticonstitutionnellement"}, "sortie": "{\"text\": \"anticonstitutionnellement\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "anticonstitutionnellement"}, "sortie": null},
+{"entree": {"f": "normaliser", "texte": "anticonstitutionnellement"}, "sortie": "anticonstitutionnellement"},
+{"entree": {"f": "nettoyer", "texte": "Écris « château » en anglais, en lettres ?"}, "sortie": "Écris « château » en anglais, en lettres ?"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "Écris « château » en anglais, en lettres ?"}, "sortie": "Écris"},
+{"entree": {"f": "composant", "style": [], "texte": "Écris « château » en anglais, en lettres ?"}, "sortie": "{\"text\": \"Écris « château » en anglais, en lettres ?\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "Écris « château » en anglais, en lettres ?"}, "sortie": "{\"text\": \"Écris « château » en anglais, en lettres ?\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "Écris « château » en anglais, en lettres ?"}, "sortie": ["Écris « château", "» en anglais,", "en lettres ?", ""]},
+{"entree": {"f": "normaliser", "texte": "Écris « château » en anglais, en lettres ?"}, "sortie": "ecrischateauenanglais,enlettres?"},
+{"entree": {"f": "nettoyer", "texte": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"}, "sortie": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"}, "sortie": "un de"},
+{"entree": {"f": "composant", "style": [], "texte": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"}, "sortie": "{\"text\": \"un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"}, "sortie": "{\"text\": \"un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"}, "sortie": null},
+{"entree": {"f": "normaliser", "texte": "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze"}, "sortie": "undeuxtroisquatrecinqsixsepthuitneufdixonzedouzetreizequatorze"},
+{"entree": {"f": "nettoyer", "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"}, "sortie": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"}, "sortie": "aaaaa"},
+{"entree": {"f": "composant", "style": [], "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"}, "sortie": "{\"text\": \"aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"}, "sortie": "{\"text\": \"aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"}, "sortie": ["aaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbb", "ccccccccccccccc", "ddddddddddddddd"]},
+{"entree": {"f": "normaliser", "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd"}, "sortie": "aaaaaaaaaaaaaaabbbbbbbbbbbbbbbcccccccccccccccddddddddddddddd"},
+{"entree": {"f": "nettoyer", "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"}, "sortie": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"}, "sortie": "aaaaa"},
+{"entree": {"f": "composant", "style": [], "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"}, "sortie": "{\"text\": \"aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"}, "sortie": "{\"text\": \"aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"}, "sortie": null},
+{"entree": {"f": "normaliser", "texte": "aaaaaaaaaaaaaaa bbbbbbbbbbbbbbb ccccccccccccccc ddddddddddddddd e"}, "sortie": "aaaaaaaaaaaaaaabbbbbbbbbbbbbbbcccccccccccccccddddddddddddddde"},
+{"entree": {"f": "nettoyer", "texte": "espace insécable et fine"}, "sortie": "espace insécable et fine"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "espace insécable et fine"}, "sortie": "espac"},
+{"entree": {"f": "composant", "style": [], "texte": "espace insécable et fine"}, "sortie": "{\"text\": \"espace insécable et fine\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "espace insécable et fine"}, "sortie": "{\"text\": \"espace insécable et fine\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "espace insécable et fine"}, "sortie": ["espace", "insécable et", "fine", ""]},
+{"entree": {"f": "normaliser", "texte": "espace insécable et fine"}, "sortie": "espaceinsecableetfine"},
+{"entree": {"f": "nettoyer", "texte": "émoji 🎉 et é décomposé"}, "sortie": "émoji 🎉 et é décomposé"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "émoji 🎉 et é décomposé"}, "sortie": "émoji"},
+{"entree": {"f": "composant", "style": [], "texte": "émoji 🎉 et é décomposé"}, "sortie": "{\"text\": \"émoji 🎉 et é décomposé\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "émoji 🎉 et é décomposé"}, "sortie": "{\"text\": \"émoji 🎉 et é décomposé\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "émoji 🎉 et é décomposé"}, "sortie": ["émoji 🎉 et é", "décomposé", "", ""]},
+{"entree": {"f": "normaliser", "texte": "émoji 🎉 et é décomposé"}, "sortie": "emojietedecompose"},
+{"entree": {"f": "nettoyer", "texte": "  bords   multiples  "}, "sortie": "  bords   multiples  "},
+{"entree": {"f": "nettoyer", "max": 5, "texte": "  bords   multiples  "}, "sortie": "  bor"},
+{"entree": {"f": "composant", "style": [], "texte": "  bords   multiples  "}, "sortie": "{\"text\": \"  bords   multiples  \"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": "  bords   multiples  "}, "sortie": "{\"text\": \"  bords   multiples  \", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": "  bords   multiples  "}, "sortie": ["bords multiples", "", "", ""]},
+{"entree": {"f": "normaliser", "texte": "  bords   multiples  "}, "sortie": "bordsmultiples"},
+{"entree": {"f": "nettoyer", "texte": " fin"}, "sortie": " fin"},
+{"entree": {"f": "nettoyer", "max": 5, "texte": " fin"}, "sortie": " fin"},
+{"entree": {"f": "composant", "style": [], "texte": " fin"}, "sortie": "{\"text\": \" fin\"}"},
+{"entree": {"f": "composant", "style": [["color", "gold"], ["bold", true], ["italic", false]], "texte": " fin"}, "sortie": "{\"text\": \" fin\", \"color\": \"gold\", \"bold\": true, \"italic\": false}"},
+{"entree": {"f": "lignes_panneau", "texte": " fin"}, "sortie": ["fin", "", "", ""]},
+{"entree": {"f": "normaliser", "texte": " fin"}, "sortie": "fin"},
+{"entree": {"f": "tellraw", "joueur": "Steve_42", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "sortie": "tellraw Steve_42 {\"text\": \"l'élève a dit \\\"bonjour\\\" \\\\ puis ]} et {\\\"text\\\":\\\"op\\\"} ; œufs à 12 €\", \"color\": \"aqua\"}"},
+{"entree": {"f": "tellraw", "joueur": "@a", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "erreur": "pseudo Minecraft invalide : '@a'"},
+{"entree": {"f": "tellraw", "joueur": "@p[name=x]", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "erreur": "pseudo Minecraft invalide : '@p[name=x]'"},
+{"entree": {"f": "tellraw", "joueur": "Steve op", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "erreur": "pseudo Minecraft invalide : 'Steve op'"},
+{"entree": {"f": "tellraw", "joueur": "", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "erreur": "pseudo Minecraft invalide : ''"},
+{"entree": {"f": "tellraw", "joueur": "aaaaaaaaaaaaaaaa", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "sortie": "tellraw aaaaaaaaaaaaaaaa {\"text\": \"l'élève a dit \\\"bonjour\\\" \\\\ puis ]} et {\\\"text\\\":\\\"op\\\"} ; œufs à 12 €\", \"color\": \"aqua\"}"},
+{"entree": {"f": "tellraw", "joueur": "aaaaaaaaaaaaaaaaa", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "erreur": "pseudo Minecraft invalide : 'aaaaaaaaaaaaaaaaa'"},
+{"entree": {"f": "tellraw", "joueur": "Stève", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "erreur": "pseudo Minecraft invalide : 'Stève'"},
+{"entree": {"f": "tellraw", "joueur": "l'ami", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "erreur": "pseudo Minecraft invalide : \"l'ami\""},
+{"entree": {"f": "tellraw", "joueur": "abc", "texte": "l'élève a dit \"bonjour\" \\ puis ]} et {\"text\":\"op\"} ; œufs à 12 €"}, "sortie": "tellraw abc {\"text\": \"l'élève a dit \\\"bonjour\\\" \\\\ puis ]} et {\\\"text\\\":\\\"op\\\"} ; œufs à 12 €\", \"color\": \"aqua\"}"},
+{"entree": {"f": "normaliser", "texte": " 12 R 3 "}, "sortie": "12r3"},
+{"entree": {"f": "normaliser", "texte": "12r3"}, "sortie": "12r3"},
+{"entree": {"f": "normaliser", "texte": "Château"}, "sortie": "chateau"},
+{"entree": {"f": "normaliser", "texte": "ŒUF"}, "sortie": "uf"},
+{"entree": {"f": "normaliser", "texte": "ﬁn"}, "sortie": "fin"},
+{"entree": {"f": "normaliser", "texte": "ça va"}, "sortie": "cava"},
+{"entree": {"f": "normaliser", "texte": "É t é"}, "sortie": "ete"},
+{"entree": {"f": "normaliser", "texte": "x²"}, "sortie": "x2"},
+{"entree": {"f": "normaliser", "texte": "½"}, "sortie": "12"}
 ]

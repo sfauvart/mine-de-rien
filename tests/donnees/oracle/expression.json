@@ -1,817 +1,106 @@
 [
- {
-  "entree": "348 ÷ 12",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "348 ÷ 12"
-   },
-   "enonce": "348 ÷ 12 = ?",
-   "reponse": "29"
-  }
- },
- {
-  "entree": "3,5 + 1,25",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "3,5 + 1,25"
-   },
-   "enonce": "3,5 + 1,25 = ?",
-   "reponse": "4,75"
-  }
- },
- {
-  "entree": "(12 + 8) x 3",
-  "sortie": {
-   "competence": "maths/calcul",
-   "donnees": {
-    "expression": "(12 + 8) × 3"
-   },
-   "enonce": "(12 + 8) × 3 = ?",
-   "reponse": "60"
-  }
- },
- {
-  "entree": "348:12",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "348 ÷ 12"
-   },
-   "enonce": "348 ÷ 12 = ?",
-   "reponse": "29"
-  }
- },
- {
-  "entree": "348 / 12 = ?",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "348 ÷ 12"
-   },
-   "enonce": "348 ÷ 12 = ?",
-   "reponse": "29"
-  }
- },
- {
-  "entree": "12*7 =",
-  "sortie": {
-   "competence": "maths/multiplication-posee",
-   "donnees": {
-    "expression": "12 × 7"
-   },
-   "enonce": "12 × 7 = ?",
-   "reponse": "84"
-  }
- },
- {
-  "entree": "3.5 + 1.5",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "3,5 + 1,5"
-   },
-   "enonce": "3,5 + 1,5 = ?",
-   "reponse": "5"
-  }
- },
- {
-  "entree": "0,1 + 0,2",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "0,1 + 0,2"
-   },
-   "enonce": "0,1 + 0,2 = ?",
-   "reponse": "0,3"
-  }
- },
- {
-  "entree": "7 - 7",
-  "sortie": {
-   "competence": "maths/soustraction-posee",
-   "donnees": {
-    "expression": "7 - 7"
-   },
-   "enonce": "7 - 7 = ?",
-   "reponse": "0"
-  }
- },
- {
-  "entree": "2 + 3 × 4",
-  "sortie": {
-   "competence": "maths/calcul",
-   "donnees": {
-    "expression": "2 + 3 × 4"
-   },
-   "enonce": "2 + 3 × 4 = ?",
-   "reponse": "14"
-  }
- },
- {
-  "entree": "(2 + 3) × 4",
-  "sortie": {
-   "competence": "maths/calcul",
-   "donnees": {
-    "expression": "(2 + 3) × 4"
-   },
-   "enonce": "(2 + 3) × 4 = ?",
-   "reponse": "20"
-  }
- },
- {
-  "entree": "100 - 20 - 30",
-  "sortie": {
-   "competence": "maths/soustraction-posee",
-   "donnees": {
-    "expression": "100 - 20 - 30"
-   },
-   "enonce": "100 - 20 - 30 = ?",
-   "reponse": "50"
-  }
- },
- {
-  "entree": "100 ÷ 5 ÷ 2",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "100 ÷ 5 ÷ 2"
-   },
-   "enonce": "100 ÷ 5 ÷ 2 = ?",
-   "reponse": "10"
-  }
- },
- {
-  "entree": "1 ÷ 4",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "1 ÷ 4"
-   },
-   "enonce": "1 ÷ 4 = ?",
-   "reponse": "0,25"
-  }
- },
- {
-  "entree": "10 ÷ 3",
-  "erreur": "Le résultat ne tombe pas juste (plus de deux chiffres après la virgule) : le coffre ne saurait pas quelle réponse attendre."
- },
- {
-  "entree": "1 ÷ 8",
-  "erreur": "Le résultat ne tombe pas juste (plus de deux chiffres après la virgule) : le coffre ne saurait pas quelle réponse attendre."
- },
- {
-  "entree": "5 - 9",
-  "erreur": "Le résultat est négatif : ce n'est pas un exercice de CM2."
- },
- {
-  "entree": "2 ** 8",
-  "erreur": "Expression mal formée près de « × »."
- },
- {
-  "entree": "__import__('os')",
-  "erreur": "Caractère non reconnu : « _ »."
- },
- {
-  "entree": "2 ^ 8",
-  "erreur": "Caractère non reconnu : « ^ »."
- },
- {
-  "entree": "3",
-  "erreur": "Il manque une opération (+, -, ×, ÷)."
- },
- {
-  "entree": "(1 + 2",
-  "erreur": "Parenthèse non fermée."
- },
- {
-  "entree": "1 + 2)",
-  "erreur": "Expression mal formée près de « ) »."
- },
- {
-  "entree": "1 ÷ 0",
-  "erreur": "Division par zéro."
- },
- {
-  "entree": "1 ÷ (2 - 2)",
-  "erreur": "Division par zéro."
- },
- {
-  "entree": "-5 + 9",
-  "erreur": "Expression mal formée près de « - »."
- },
- {
-  "entree": "1 +",
-  "erreur": "Expression incomplète."
- },
- {
-  "entree": "",
-  "erreur": "Expression vide."
- },
- {
-  "entree": "1234567890 + 1",
-  "erreur": "Nombre trop grand pour un exercice de CM2."
- },
- {
-  "entree": "1000+2000+3000+4000+5000+6000+7000+8000+9000",
-  "erreur": "Expression trop longue pour tenir sur le panneau (4 lignes de 15)."
- },
- {
-  "entree": "  12 X 7  ",
-  "sortie": {
-   "competence": "maths/multiplication-posee",
-   "donnees": {
-    "expression": "12 × 7"
-   },
-   "enonce": "12 × 7 = ?",
-   "reponse": "84"
-  }
- },
- {
-  "entree": "12 x 7 =?",
-  "sortie": {
-   "competence": "maths/multiplication-posee",
-   "donnees": {
-    "expression": "12 × 7"
-   },
-   "enonce": "12 × 7 = ?",
-   "reponse": "84"
-  }
- },
- {
-  "entree": "12 x 7 = ? ",
-  "sortie": {
-   "competence": "maths/multiplication-posee",
-   "donnees": {
-    "expression": "12 × 7"
-   },
-   "enonce": "12 × 7 = ?",
-   "reponse": "84"
-  }
- },
- {
-  "entree": "12 x 7 ?",
-  "erreur": "Caractère non reconnu : « ? »."
- },
- {
-  "entree": "12 x 7 = ??",
-  "erreur": "Caractère non reconnu : « = »."
- },
- {
-  "entree": "= ?",
-  "erreur": "Expression vide."
- },
- {
-  "entree": "=",
-  "erreur": "Expression vide."
- },
- {
-  "entree": "12 x 7 = 84",
-  "erreur": "Caractère non reconnu : « = »."
- },
- {
-  "entree": "1,5 x 2",
-  "sortie": {
-   "competence": "maths/multiplication-posee",
-   "donnees": {
-    "expression": "1,5 × 2"
-   },
-   "enonce": "1,5 × 2 = ?",
-   "reponse": "3"
-  }
- },
- {
-  "entree": "1,50 + 1,50",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "1,50 + 1,50"
-   },
-   "enonce": "1,50 + 1,50 = ?",
-   "reponse": "3"
-  }
- },
- {
-  "entree": "0,5 ÷ 0,25",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "0,5 ÷ 0,25"
-   },
-   "enonce": "0,5 ÷ 0,25 = ?",
-   "reponse": "2"
-  }
- },
- {
-  "entree": "1 ÷ 3 × 3",
-  "sortie": {
-   "competence": "maths/calcul",
-   "donnees": {
-    "expression": "1 ÷ 3 × 3"
-   },
-   "enonce": "1 ÷ 3 × 3 = ?",
-   "reponse": "1"
-  }
- },
- {
-  "entree": "2 ÷ 3 + 1 ÷ 3",
-  "sortie": {
-   "competence": "maths/calcul",
-   "donnees": {
-    "expression": "2 ÷ 3 + 1 ÷ 3"
-   },
-   "enonce": "2 ÷ 3 + 1 ÷ 3 = ?",
-   "reponse": "1"
-  }
- },
- {
-  "entree": "((1 + 2) × (3 + 4))",
-  "sortie": {
-   "competence": "maths/calcul",
-   "donnees": {
-    "expression": "((1 + 2) × ( 3 + 4))"
-   },
-   "enonce": "((1 + 2) × ( 3 + 4)) = ?",
-   "reponse": "21"
-  }
- },
- {
-  "entree": "()",
-  "erreur": "Il manque une opération (+, -, ×, ÷)."
- },
- {
-  "entree": "(1)",
-  "erreur": "Il manque une opération (+, -, ×, ÷)."
- },
- {
-  "entree": "(1) + 2",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "(1) + 2"
-   },
-   "enonce": "(1) + 2 = ?",
-   "reponse": "3"
-  }
- },
- {
-  "entree": "1 + (2",
-  "erreur": "Parenthèse non fermée."
- },
- {
-  "entree": ")1 + 2(",
-  "erreur": "Expression mal formée près de « ) »."
- },
- {
-  "entree": "1 2 + 3",
-  "erreur": "Expression mal formée près de « 2 »."
- },
- {
-  "entree": "1,2,3 + 1",
-  "erreur": "Caractère non reconnu : « , »."
- },
- {
-  "entree": "1, + 2",
-  "erreur": "Caractère non reconnu : « , »."
- },
- {
-  "entree": ",5 + 2",
-  "erreur": "Caractère non reconnu : « , »."
- },
- {
-  "entree": "1. + 2",
-  "erreur": "Caractère non reconnu : « . »."
- },
- {
-  "entree": "12 + 3.",
-  "erreur": "Caractère non reconnu : « . »."
- },
- {
-  "entree": "3 + 4 + ",
-  "erreur": "Expression incomplète."
- },
- {
-  "entree": "007 + 3",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "007 + 3"
-   },
-   "enonce": "007 + 3 = ?",
-   "reponse": "10"
-  }
- },
- {
-  "entree": "999999999 + 1",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "999999999 + 1"
-   },
-   "enonce": "999999999 + 1 = ?",
-   "reponse": "1000000000"
-  }
- },
- {
-  "entree": "999999999 × 999999999",
-  "sortie": {
-   "competence": "maths/multiplication-posee",
-   "donnees": {
-    "expression": "999999999 × 999999999"
-   },
-   "enonce": "999999999 × 999999999 = ?",
-   "reponse": "999999998000000001"
-  }
- },
- {
-  "entree": "0 ÷ 5",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "0 ÷ 5"
-   },
-   "enonce": "0 ÷ 5 = ?",
-   "reponse": "0"
-  }
- },
- {
-  "entree": "5 ÷ 5",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "5 ÷ 5"
-   },
-   "enonce": "5 ÷ 5 = ?",
-   "reponse": "1"
-  }
- },
- {
-  "entree": "12,34 + 0,66",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "12,34 + 0,66"
-   },
-   "enonce": "12,34 + 0,66 = ?",
-   "reponse": "13"
-  }
- },
- {
-  "entree": "12,345 + 1",
-  "erreur": "Le résultat ne tombe pas juste (plus de deux chiffres après la virgule) : le coffre ne saurait pas quelle réponse attendre."
- },
- {
-  "entree": "0,005 + 0,005",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "0,005 + 0,005"
-   },
-   "enonce": "0,005 + 0,005 = ?",
-   "reponse": "0,01"
-  }
- },
- {
-  "entree": "1,005 × 2",
-  "sortie": {
-   "competence": "maths/multiplication-posee",
-   "donnees": {
-    "expression": "1,005 × 2"
-   },
-   "enonce": "1,005 × 2 = ?",
-   "reponse": "2,01"
-  }
- },
- {
-  "entree": "100 - 99,99",
-  "sortie": {
-   "competence": "maths/soustraction-posee",
-   "donnees": {
-    "expression": "100 - 99,99"
-   },
-   "enonce": "100 - 99,99 = ?",
-   "reponse": "0,01"
-  }
- },
- {
-  "entree": "10 - 0,01",
-  "sortie": {
-   "competence": "maths/soustraction-posee",
-   "donnees": {
-    "expression": "10 - 0,01"
-   },
-   "enonce": "10 - 0,01 = ?",
-   "reponse": "9,99"
-  }
- },
- {
-  "entree": "3 × 0,1",
-  "sortie": {
-   "competence": "maths/multiplication-posee",
-   "donnees": {
-    "expression": "3 × 0,1"
-   },
-   "enonce": "3 × 0,1 = ?",
-   "reponse": "0,3"
-  }
- },
- {
-  "entree": "1 ÷ 100",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "1 ÷ 100"
-   },
-   "enonce": "1 ÷ 100 = ?",
-   "reponse": "0,01"
-  }
- },
- {
-  "entree": "1 ÷ 1000",
-  "erreur": "Le résultat ne tombe pas juste (plus de deux chiffres après la virgule) : le coffre ne saurait pas quelle réponse attendre."
- },
- {
-  "entree": "25 × 4 ÷ 10",
-  "sortie": {
-   "competence": "maths/calcul",
-   "donnees": {
-    "expression": "25 × 4 ÷ 10"
-   },
-   "enonce": "25 × 4 ÷ 10 = ?",
-   "reponse": "10"
-  }
- },
- {
-  "entree": "8 ÷ 2 × 4",
-  "sortie": {
-   "competence": "maths/calcul",
-   "donnees": {
-    "expression": "8 ÷ 2 × 4"
-   },
-   "enonce": "8 ÷ 2 × 4 = ?",
-   "reponse": "16"
-  }
- },
- {
-  "entree": "8 - 2 + 4",
-  "sortie": {
-   "competence": "maths/calcul",
-   "donnees": {
-    "expression": "8 - 2 + 4"
-   },
-   "enonce": "8 - 2 + 4 = ?",
-   "reponse": "10"
-  }
- },
- {
-  "entree": "2 × (3 + 4) - 5",
-  "sortie": {
-   "competence": "maths/calcul",
-   "donnees": {
-    "expression": "2 × ( 3 + 4) - 5"
-   },
-   "enonce": "2 × ( 3 + 4) - 5 = ?",
-   "reponse": "9"
-  }
- },
- {
-  "entree": "2 x 3 X 4 * 5",
-  "sortie": {
-   "competence": "maths/multiplication-posee",
-   "donnees": {
-    "expression": "2 × 3 × 4 × 5"
-   },
-   "enonce": "2 × 3 × 4 × 5 = ?",
-   "reponse": "120"
-  }
- },
- {
-  "entree": "48 : 6 / 2",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "48 ÷ 6 ÷ 2"
-   },
-   "enonce": "48 ÷ 6 ÷ 2 = ?",
-   "reponse": "4"
-  }
- },
- {
-  "entree": "12 + trois",
-  "erreur": "Caractère non reconnu : « t »."
- },
- {
-  "entree": "12 € + 3",
-  "erreur": "Caractère non reconnu : « € »."
- },
- {
-  "entree": "12 + 3 €",
-  "erreur": "Caractère non reconnu : « € »."
- },
- {
-  "entree": "douze",
-  "erreur": "Caractère non reconnu : « d »."
- },
- {
-  "entree": "1 + 2 = 3 = ?",
-  "erreur": "Caractère non reconnu : « = »."
- },
- {
-  "entree": "1 = 2",
-  "erreur": "Caractère non reconnu : « = »."
- },
- {
-  "entree": "1\t+\t2",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "1 + 2"
-   },
-   "enonce": "1 + 2 = ?",
-   "reponse": "3"
-  }
- },
- {
-  "entree": "1\n+\n2",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "1 + 2"
-   },
-   "enonce": "1 + 2 = ?",
-   "reponse": "3"
-  }
- },
- {
-  "entree": "1 + 2\n= ?",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "1 + 2"
-   },
-   "enonce": "1 + 2 = ?",
-   "reponse": "3"
-  }
- },
- {
-  "entree": "１ + 2",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "１ + 2"
-   },
-   "enonce": "１ + 2 = ?",
-   "reponse": "3"
-  }
- },
- {
-  "entree": "٣ + 1",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "٣ + 1"
-   },
-   "enonce": "٣ + 1 = ?",
-   "reponse": "4"
-  }
- },
- {
-  "entree": "1 − 2",
-  "erreur": "Caractère non reconnu : « − »."
- },
- {
-  "entree": "5 – 3",
-  "erreur": "Caractère non reconnu : « – »."
- },
- {
-  "entree": "1 + 2;",
-  "erreur": "Caractère non reconnu : « ; »."
- },
- {
-  "entree": "3,5+1,25",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "3,5 + 1,25"
-   },
-   "enonce": "3,5 + 1,25 = ?",
-   "reponse": "4,75"
-  }
- },
- {
-  "entree": "(3,5+1,25)x2",
-  "sortie": {
-   "competence": "maths/calcul",
-   "donnees": {
-    "expression": "(3,5 + 1,25) × 2"
-   },
-   "enonce": "(3,5 + 1,25) × 2 = ?",
-   "reponse": "9,5"
-  }
- },
- {
-  "entree": "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1",
-  "erreur": "Expression trop longue pour tenir sur le panneau (4 lignes de 15)."
- },
- {
-  "entree": "123456789 + 123456789 + 123456789",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "123456789 + 123456789 + 123456789"
-   },
-   "enonce": "123456789 + 123456789 + 123456789 = ?",
-   "reponse": "370370367"
-  }
- },
- {
-  "entree": "9 ÷ 0,5",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "9 ÷ 0,5"
-   },
-   "enonce": "9 ÷ 0,5 = ?",
-   "reponse": "18"
-  }
- },
- {
-  "entree": "0 × 0",
-  "sortie": {
-   "competence": "maths/multiplication-posee",
-   "donnees": {
-    "expression": "0 × 0"
-   },
-   "enonce": "0 × 0 = ?",
-   "reponse": "0"
-  }
- },
- {
-  "entree": "0 + 0",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "0 + 0"
-   },
-   "enonce": "0 + 0 = ?",
-   "reponse": "0"
-  }
- },
- {
-  "entree": "1,10 + 2,20",
-  "sortie": {
-   "competence": "maths/addition-posee",
-   "donnees": {
-    "expression": "1,10 + 2,20"
-   },
-   "enonce": "1,10 + 2,20 = ?",
-   "reponse": "3,3"
-  }
- },
- {
-  "entree": "200 ÷ 8",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "200 ÷ 8"
-   },
-   "enonce": "200 ÷ 8 = ?",
-   "reponse": "25"
-  }
- },
- {
-  "entree": "7 ÷ 2",
-  "sortie": {
-   "competence": "maths/division-posee",
-   "donnees": {
-    "expression": "7 ÷ 2"
-   },
-   "enonce": "7 ÷ 2 = ?",
-   "reponse": "3,5"
-  }
- },
- {
-  "entree": "1 ÷ 16",
-  "erreur": "Le résultat ne tombe pas juste (plus de deux chiffres après la virgule) : le coffre ne saurait pas quelle réponse attendre."
- },
- {
-  "entree": "0,25 × 0,2",
-  "sortie": {
-   "competence": "maths/multiplication-posee",
-   "donnees": {
-    "expression": "0,25 × 0,2"
-   },
-   "enonce": "0,25 × 0,2 = ?",
-   "reponse": "0,05"
-  }
- },
- {
-  "entree": "12 345 + 1",
-  "erreur": "Expression mal formée près de « 345 »."
- },
- {
-  "entree": "1 000 + 1",
-  "erreur": "Expression mal formée près de « 000 »."
- }
+{"entree": "348 ÷ 12", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "348 ÷ 12"}, "enonce": "348 ÷ 12 = ?", "reponse": "29"}},
+{"entree": "3,5 + 1,25", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "3,5 + 1,25"}, "enonce": "3,5 + 1,25 = ?", "reponse": "4,75"}},
+{"entree": "(12 + 8) x 3", "sortie": {"competence": "maths/calcul", "donnees": {"expression": "(12 + 8) × 3"}, "enonce": "(12 + 8) × 3 = ?", "reponse": "60"}},
+{"entree": "348:12", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "348 ÷ 12"}, "enonce": "348 ÷ 12 = ?", "reponse": "29"}},
+{"entree": "348 / 12 = ?", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "348 ÷ 12"}, "enonce": "348 ÷ 12 = ?", "reponse": "29"}},
+{"entree": "12*7 =", "sortie": {"competence": "maths/multiplication-posee", "donnees": {"expression": "12 × 7"}, "enonce": "12 × 7 = ?", "reponse": "84"}},
+{"entree": "3.5 + 1.5", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "3,5 + 1,5"}, "enonce": "3,5 + 1,5 = ?", "reponse": "5"}},
+{"entree": "0,1 + 0,2", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "0,1 + 0,2"}, "enonce": "0,1 + 0,2 = ?", "reponse": "0,3"}},
+{"entree": "7 - 7", "sortie": {"competence": "maths/soustraction-posee", "donnees": {"expression": "7 - 7"}, "enonce": "7 - 7 = ?", "reponse": "0"}},
+{"entree": "2 + 3 × 4", "sortie": {"competence": "maths/calcul", "donnees": {"expression": "2 + 3 × 4"}, "enonce": "2 + 3 × 4 = ?", "reponse": "14"}},
+{"entree": "(2 + 3) × 4", "sortie": {"competence": "maths/calcul", "donnees": {"expression": "(2 + 3) × 4"}, "enonce": "(2 + 3) × 4 = ?", "reponse": "20"}},
+{"entree": "100 - 20 - 30", "sortie": {"competence": "maths/soustraction-posee", "donnees": {"expression": "100 - 20 - 30"}, "enonce": "100 - 20 - 30 = ?", "reponse": "50"}},
+{"entree": "100 ÷ 5 ÷ 2", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "100 ÷ 5 ÷ 2"}, "enonce": "100 ÷ 5 ÷ 2 = ?", "reponse": "10"}},
+{"entree": "1 ÷ 4", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "1 ÷ 4"}, "enonce": "1 ÷ 4 = ?", "reponse": "0,25"}},
+{"entree": "10 ÷ 3", "erreur": "Le résultat ne tombe pas juste (plus de deux chiffres après la virgule) : le coffre ne saurait pas quelle réponse attendre."},
+{"entree": "1 ÷ 8", "erreur": "Le résultat ne tombe pas juste (plus de deux chiffres après la virgule) : le coffre ne saurait pas quelle réponse attendre."},
+{"entree": "5 - 9", "erreur": "Le résultat est négatif : ce n'est pas un exercice de CM2."},
+{"entree": "2 ** 8", "erreur": "Expression mal formée près de « × »."},
+{"entree": "__import__('os')", "erreur": "Caractère non reconnu : « _ »."},
+{"entree": "2 ^ 8", "erreur": "Caractère non reconnu : « ^ »."},
+{"entree": "3", "erreur": "Il manque une opération (+, -, ×, ÷)."},
+{"entree": "(1 + 2", "erreur": "Parenthèse non fermée."},
+{"entree": "1 + 2)", "erreur": "Expression mal formée près de « ) »."},
+{"entree": "1 ÷ 0", "erreur": "Division par zéro."},
+{"entree": "1 ÷ (2 - 2)", "erreur": "Division par zéro."},
+{"entree": "-5 + 9", "erreur": "Expression mal formée près de « - »."},
+{"entree": "1 +", "erreur": "Expression incomplète."},
+{"entree": "", "erreur": "Expression vide."},
+{"entree": "1234567890 + 1", "erreur": "Nombre trop grand pour un exercice de CM2."},
+{"entree": "1000+2000+3000+4000+5000+6000+7000+8000+9000", "erreur": "Expression trop longue pour tenir sur le panneau (4 lignes de 15)."},
+{"entree": "  12 X 7  ", "sortie": {"competence": "maths/multiplication-posee", "donnees": {"expression": "12 × 7"}, "enonce": "12 × 7 = ?", "reponse": "84"}},
+{"entree": "12 x 7 =?", "sortie": {"competence": "maths/multiplication-posee", "donnees": {"expression": "12 × 7"}, "enonce": "12 × 7 = ?", "reponse": "84"}},
+{"entree": "12 x 7 = ? ", "sortie": {"competence": "maths/multiplication-posee", "donnees": {"expression": "12 × 7"}, "enonce": "12 × 7 = ?", "reponse": "84"}},
+{"entree": "12 x 7 ?", "erreur": "Caractère non reconnu : « ? »."},
+{"entree": "12 x 7 = ??", "erreur": "Caractère non reconnu : « = »."},
+{"entree": "= ?", "erreur": "Expression vide."},
+{"entree": "=", "erreur": "Expression vide."},
+{"entree": "12 x 7 = 84", "erreur": "Caractère non reconnu : « = »."},
+{"entree": "1,5 x 2", "sortie": {"competence": "maths/multiplication-posee", "donnees": {"expression": "1,5 × 2"}, "enonce": "1,5 × 2 = ?", "reponse": "3"}},
+{"entree": "1,50 + 1,50", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "1,50 + 1,50"}, "enonce": "1,50 + 1,50 = ?", "reponse": "3"}},
+{"entree": "0,5 ÷ 0,25", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "0,5 ÷ 0,25"}, "enonce": "0,5 ÷ 0,25 = ?", "reponse": "2"}},
+{"entree": "1 ÷ 3 × 3", "sortie": {"competence": "maths/calcul", "donnees": {"expression": "1 ÷ 3 × 3"}, "enonce": "1 ÷ 3 × 3 = ?", "reponse": "1"}},
+{"entree": "2 ÷ 3 + 1 ÷ 3", "sortie": {"competence": "maths/calcul", "donnees": {"expression": "2 ÷ 3 + 1 ÷ 3"}, "enonce": "2 ÷ 3 + 1 ÷ 3 = ?", "reponse": "1"}},
+{"entree": "((1 + 2) × (3 + 4))", "sortie": {"competence": "maths/calcul", "donnees": {"expression": "((1 + 2) × ( 3 + 4))"}, "enonce": "((1 + 2) × ( 3 + 4)) = ?", "reponse": "21"}},
+{"entree": "()", "erreur": "Il manque une opération (+, -, ×, ÷)."},
+{"entree": "(1)", "erreur": "Il manque une opération (+, -, ×, ÷)."},
+{"entree": "(1) + 2", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "(1) + 2"}, "enonce": "(1) + 2 = ?", "reponse": "3"}},
+{"entree": "1 + (2", "erreur": "Parenthèse non fermée."},
+{"entree": ")1 + 2(", "erreur": "Expression mal formée près de « ) »."},
+{"entree": "1 2 + 3", "erreur": "Expression mal formée près de « 2 »."},
+{"entree": "1,2,3 + 1", "erreur": "Caractère non reconnu : « , »."},
+{"entree": "1, + 2", "erreur": "Caractère non reconnu : « , »."},
+{"entree": ",5 + 2", "erreur": "Caractère non reconnu : « , »."},
+{"entree": "1. + 2", "erreur": "Caractère non reconnu : « . »."},
+{"entree": "12 + 3.", "erreur": "Caractère non reconnu : « . »."},
+{"entree": "3 + 4 + ", "erreur": "Expression incomplète."},
+{"entree": "007 + 3", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "007 + 3"}, "enonce": "007 + 3 = ?", "reponse": "10"}},
+{"entree": "999999999 + 1", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "999999999 + 1"}, "enonce": "999999999 + 1 = ?", "reponse": "1000000000"}},
+{"entree": "999999999 × 999999999", "sortie": {"competence": "maths/multiplication-posee", "donnees": {"expression": "999999999 × 999999999"}, "enonce": "999999999 × 999999999 = ?", "reponse": "999999998000000001"}},
+{"entree": "0 ÷ 5", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "0 ÷ 5"}, "enonce": "0 ÷ 5 = ?", "reponse": "0"}},
+{"entree": "5 ÷ 5", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "5 ÷ 5"}, "enonce": "5 ÷ 5 = ?", "reponse": "1"}},
+{"entree": "12,34 + 0,66", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "12,34 + 0,66"}, "enonce": "12,34 + 0,66 = ?", "reponse": "13"}},
+{"entree": "12,345 + 1", "erreur": "Le résultat ne tombe pas juste (plus de deux chiffres après la virgule) : le coffre ne saurait pas quelle réponse attendre."},
+{"entree": "0,005 + 0,005", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "0,005 + 0,005"}, "enonce": "0,005 + 0,005 = ?", "reponse": "0,01"}},
+{"entree": "1,005 × 2", "sortie": {"competence": "maths/multiplication-posee", "donnees": {"expression": "1,005 × 2"}, "enonce": "1,005 × 2 = ?", "reponse": "2,01"}},
+{"entree": "100 - 99,99", "sortie": {"competence": "maths/soustraction-posee", "donnees": {"expression": "100 - 99,99"}, "enonce": "100 - 99,99 = ?", "reponse": "0,01"}},
+{"entree": "10 - 0,01", "sortie": {"competence": "maths/soustraction-posee", "donnees": {"expression": "10 - 0,01"}, "enonce": "10 - 0,01 = ?", "reponse": "9,99"}},
+{"entree": "3 × 0,1", "sortie": {"competence": "maths/multiplication-posee", "donnees": {"expression": "3 × 0,1"}, "enonce": "3 × 0,1 = ?", "reponse": "0,3"}},
+{"entree": "1 ÷ 100", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "1 ÷ 100"}, "enonce": "1 ÷ 100 = ?", "reponse": "0,01"}},
+{"entree": "1 ÷ 1000", "erreur": "Le résultat ne tombe pas juste (plus de deux chiffres après la virgule) : le coffre ne saurait pas quelle réponse attendre."},
+{"entree": "25 × 4 ÷ 10", "sortie": {"competence": "maths/calcul", "donnees": {"expression": "25 × 4 ÷ 10"}, "enonce": "25 × 4 ÷ 10 = ?", "reponse": "10"}},
+{"entree": "8 ÷ 2 × 4", "sortie": {"competence": "maths/calcul", "donnees": {"expression": "8 ÷ 2 × 4"}, "enonce": "8 ÷ 2 × 4 = ?", "reponse": "16"}},
+{"entree": "8 - 2 + 4", "sortie": {"competence": "maths/calcul", "donnees": {"expression": "8 - 2 + 4"}, "enonce": "8 - 2 + 4 = ?", "reponse": "10"}},
+{"entree": "2 × (3 + 4) - 5", "sortie": {"competence": "maths/calcul", "donnees": {"expression": "2 × ( 3 + 4) - 5"}, "enonce": "2 × ( 3 + 4) - 5 = ?", "reponse": "9"}},
+{"entree": "2 x 3 X 4 * 5", "sortie": {"competence": "maths/multiplication-posee", "donnees": {"expression": "2 × 3 × 4 × 5"}, "enonce": "2 × 3 × 4 × 5 = ?", "reponse": "120"}},
+{"entree": "48 : 6 / 2", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "48 ÷ 6 ÷ 2"}, "enonce": "48 ÷ 6 ÷ 2 = ?", "reponse": "4"}},
+{"entree": "12 + trois", "erreur": "Caractère non reconnu : « t »."},
+{"entree": "12 € + 3", "erreur": "Caractère non reconnu : « € »."},
+{"entree": "12 + 3 €", "erreur": "Caractère non reconnu : « € »."},
+{"entree": "douze", "erreur": "Caractère non reconnu : « d »."},
+{"entree": "1 + 2 = 3 = ?", "erreur": "Caractère non reconnu : « = »."},
+{"entree": "1 = 2", "erreur": "Caractère non reconnu : « = »."},
+{"entree": "1\t+\t2", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "1 + 2"}, "enonce": "1 + 2 = ?", "reponse": "3"}},
+{"entree": "1\n+\n2", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "1 + 2"}, "enonce": "1 + 2 = ?", "reponse": "3"}},
+{"entree": "1 + 2\n= ?", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "1 + 2"}, "enonce": "1 + 2 = ?", "reponse": "3"}},
+{"entree": "１ + 2", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "１ + 2"}, "enonce": "１ + 2 = ?", "reponse": "3"}},
+{"entree": "٣ + 1", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "٣ + 1"}, "enonce": "٣ + 1 = ?", "reponse": "4"}},
+{"entree": "1 − 2", "erreur": "Caractère non reconnu : « − »."},
+{"entree": "5 – 3", "erreur": "Caractère non reconnu : « – »."},
+{"entree": "1 + 2;", "erreur": "Caractère non reconnu : « ; »."},
+{"entree": "3,5+1,25", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "3,5 + 1,25"}, "enonce": "3,5 + 1,25 = ?", "reponse": "4,75"}},
+{"entree": "(3,5+1,25)x2", "sortie": {"competence": "maths/calcul", "donnees": {"expression": "(3,5 + 1,25) × 2"}, "enonce": "(3,5 + 1,25) × 2 = ?", "reponse": "9,5"}},
+{"entree": "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1", "erreur": "Expression trop longue pour tenir sur le panneau (4 lignes de 15)."},
+{"entree": "123456789 + 123456789 + 123456789", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "123456789 + 123456789 + 123456789"}, "enonce": "123456789 + 123456789 + 123456789 = ?", "reponse": "370370367"}},
+{"entree": "9 ÷ 0,5", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "9 ÷ 0,5"}, "enonce": "9 ÷ 0,5 = ?", "reponse": "18"}},
+{"entree": "0 × 0", "sortie": {"competence": "maths/multiplication-posee", "donnees": {"expression": "0 × 0"}, "enonce": "0 × 0 = ?", "reponse": "0"}},
+{"entree": "0 + 0", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "0 + 0"}, "enonce": "0 + 0 = ?", "reponse": "0"}},
+{"entree": "1,10 + 2,20", "sortie": {"competence": "maths/addition-posee", "donnees": {"expression": "1,10 + 2,20"}, "enonce": "1,10 + 2,20 = ?", "reponse": "3,3"}},
+{"entree": "200 ÷ 8", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "200 ÷ 8"}, "enonce": "200 ÷ 8 = ?", "reponse": "25"}},
+{"entree": "7 ÷ 2", "sortie": {"competence": "maths/division-posee", "donnees": {"expression": "7 ÷ 2"}, "enonce": "7 ÷ 2 = ?", "reponse": "3,5"}},
+{"entree": "1 ÷ 16", "erreur": "Le résultat ne tombe pas juste (plus de deux chiffres après la virgule) : le coffre ne saurait pas quelle réponse attendre."},
+{"entree": "0,25 × 0,2", "sortie": {"competence": "maths/multiplication-posee", "donnees": {"expression": "0,25 × 0,2"}, "enonce": "0,25 × 0,2 = ?", "reponse": "0,05"}},
+{"entree": "12 345 + 1", "erreur": "Expression mal formée près de « 345 »."},
+{"entree": "1 000 + 1", "erreur": "Expression mal formée près de « 000 »."}
 ]
