@@ -70,6 +70,17 @@ pub fn cle_valide(reponse: &str) -> bool {
         && (CLE_MOTS.is_match(reponse) || CLE_NOMBRE.is_match(reponse))
 }
 
+// Clé de dictée : un mot du texte, tel quel. Majuscules permises, apostrophe droite et trait
+// d'union entre deux lettres, pas d'espace.
+static CLE_DICTEE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^[A-Za-zÀ-ÖØ-öø-ÿŒœÆæ]+(?:['-][A-Za-zÀ-ÖØ-öø-ÿŒœÆæ]+)*$").unwrap()
+});
+
+/// Une clé de coffre de dictée : le mot exactement comme dans le texte de la maîtresse.
+pub fn cle_dictee_valide(reponse: &str) -> bool {
+    longueur(reponse) <= LONGUEUR_CLE && CLE_DICTEE.is_match(reponse)
+}
+
 /// Garde-fou : la réponse d'un générateur doit avoir l'écriture unique du coffre.
 fn verifier_cle(ex: &Exercice) -> Result<(), ErreurSaisie> {
     if !cle_valide(&ex.reponse) {

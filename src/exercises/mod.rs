@@ -4,6 +4,7 @@
 pub mod anglais;
 pub mod base;
 pub mod expression;
+pub mod francais;
 pub mod indices;
 pub mod maths;
 pub mod registre;

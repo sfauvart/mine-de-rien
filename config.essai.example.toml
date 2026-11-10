@@ -12,7 +12,7 @@ pseudo_minecraft = "Steve"      # remplacer par le pseudo utilisé pour se conne
 [jeu]
 adaptateur = "java-rcon"
 hote = "localhost"
-port = 25567
+port = 25576
 mot_de_passe = "essai"
 log = "data/essai/logs/latest.log"
 
