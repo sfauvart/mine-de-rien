@@ -297,6 +297,168 @@ def oracle_saisie() -> list[dict]:
     return cas
 
 
+
+BASES = RACINE / "tests" / "donnees" / "bases"
+MAINTENANT = "2026-11-14T18:00:00+00:00"
+
+
+def _quand(jours: float = 0, minutes: float = 0, secondes: int = 0) -> str:
+    from datetime import datetime, timedelta
+
+    base = datetime.fromisoformat(MAINTENANT)
+    instant = base - timedelta(days=jours) + timedelta(minutes=minutes, seconds=secondes)
+    return instant.isoformat(timespec="seconds")
+
+
+def _ecrire_bases() -> None:
+    """Trois bases écrites par le Python, une par version du schéma, avec les mêmes coffres."""
+    import sqlite3
+
+    from mine_de_rien.storage.sqlite import MIGRATIONS, SCHEMA
+
+    division, addition = "maths/division-posee", "maths/addition-posee"
+    anglais = json.dumps(
+        {"anglais": "august", "francais": "août", "famille": "mois", "sens": "vers-anglais"},
+        ensure_ascii=False)
+    # competence, enonce, reponse, donnees, source, statut, demande_par, cree, pose, ouvert
+    lignes = [
+        (division, "ancien", "1", "{}", "competence", "ouvert", "111",
+         _quand(9, -1), _quand(9), _quand(9, 90)),
+        (division, "72 ÷ 6 = ?", "12", '{"dividende": 72, "diviseur": 6, "quotient": 12, "reste": 0}',
+         "competence", "ouvert", "111", _quand(4, -1), _quand(4), _quand(4, 10)),
+        (division, "84 ÷ 7 = ?", "12", '{"expression": "84 ÷ 7"}', "expression", "ouvert", "111",
+         _quand(3, -1), _quand(3), _quand(3, 45)),
+        (division, "96 ÷ 3 = ?", "32", '{"expression": "96 ÷ 3"}', "expression", "ouvert", "cli",
+         _quand(2, -1), _quand(2), _quand(2, 4)),
+        (addition, "annulé", "1", "{}", "expression", "annule", "111",
+         _quand(2, -1), _quand(2, 30), None),
+        ("anglais/vocabulaire", "août en anglais ?", "august", anglais, "competence", "ouvert",
+         "222", _quand(2, 50), _quand(2, 60), _quand(2, 100, 30)),
+        (addition, "3,5 + 1,25 = ?", "4,75", '{"expression": "3,5 + 1,25"}', "expression", "pose",
+         "111", _quand(3), _quand(0, -50 * 60), None),
+        ("maths/calcul", "(12 + 8) × 3 = ?", "60", '{"expression": "(12 + 8) × 3"}', "expression",
+         "en_file", "111", _quand(0, -30), None, None),
+        ("anglais/vocabulaire", "Wednesday en français ?", "mercredi",
+         '{"anglais": "wednesday", "francais": "mercredi", "famille": "jours", "sens": "vers-francais"}',
+         "competence", "en_file", "222", _quand(0, -20), None, None),
+    ]
+    evenements = [(2, "indice", _quand(4, 2)), (2, "indice", _quand(4, 5)),
+                  (4, "indice", _quand(2, 1)), (4, "indice", _quand(2, 2)),
+                  (4, "indice", _quand(2, 3)), (6, "indice", _quand(2, 70)),
+                  (6, "indice", _quand(2, 75)), (6, "indice", _quand(2, 80)),
+                  (6, "indice", _quand(2, 85)), (7, "coffre_disparu", _quand(1)),
+                  (None, "demarrage", _quand(1, 5)), (1, "indice", _quand(9, 10))]
+    BASES.mkdir(parents=True, exist_ok=True)
+    for version in (1, 2, 3):
+        chemin = BASES / f"v{version}.sqlite"
+        chemin.unlink(missing_ok=True)
+        cx = sqlite3.connect(chemin)
+        cx.executescript(SCHEMA)
+        cx.executemany(
+            """INSERT INTO exercices (competence, enonce, reponse, donnees, jeu, source, statut,
+                   demande_par, recompense, recompense_nombre, cree_le, pose_le, ouvert_le)
+               VALUES (?, ?, ?, ?, 'coffre-du-soir', ?, ?, ?, 'minecraft:diamond', 3, ?, ?, ?)""",
+            lignes)
+        if version >= 2:
+            cx.executescript(MIGRATIONS[0])
+            cx.execute("UPDATE exercices SET niveaux_donnes = 1 WHERE pose_le IS NOT NULL")
+            cx.executemany("INSERT INTO evenements (exercice_id, genre, quand) VALUES (?, ?, ?)",
+                           evenements)
+        if version >= 3:
+            cx.executescript(MIGRATIONS[1])
+            cx.execute(
+                """INSERT INTO exercices (competence, enonce, reponse, donnees, jeu, source,
+                       statut, demande_par, recompense, recompense_nombre, cree_le)
+                   VALUES ('maths/doubles-moities', 'Double de 17 = ?', '34',
+                           '{"famille": "doubles", "nombre": "17"}', 'coffre-du-soir', 'photo',
+                           'en_file', '111', 'minecraft:emerald', 5, ?)""", (_quand(0, -10),))
+        cx.execute(f"PRAGMA user_version = {version}")
+        cx.commit()
+        cx.close()
+
+
+def _stocke(s) -> dict | None:
+    if s is None:
+        return None
+    d = dataclasses.asdict(s)
+    for cle in ("cree_le", "pose_le", "ouvert_le"):
+        d[cle] = d[cle].isoformat(timespec="seconds") if d[cle] else None
+    d["duree"] = s.duree.total_seconds() if s.duree is not None else None
+    return d
+
+
+def _copie(version: int, dossier: str):
+    import shutil
+
+    from mine_de_rien.storage.sqlite import Depot
+
+    copie = Path(dossier) / "copie.sqlite"
+    shutil.copy(BASES / f"v{version}.sqlite", copie)
+    return Depot.ouvrir(copie)
+
+
+def oracle_stockage() -> list[dict]:
+    from datetime import datetime
+
+    _ecrire_bases()
+    debut, fin = datetime.fromisoformat("2000-01-01T00:00:00+00:00"), datetime.fromisoformat(
+        "2100-01-01T00:00:00+00:00")
+    cas = []
+    for version in (1, 2, 3):
+        with tempfile.TemporaryDirectory() as dossier:
+            depot = _copie(version, dossier)
+            tous = depot.entre(debut, fin)
+            cas.append({"entree": {"base": f"v{version}"}, "sortie": {
+                "exercices": [_stocke(s) for s in tous],
+                "en_file": [s.id for s in depot.en_file()],
+                "suivant": _stocke(depot.suivant()),
+                "actif": _stocke(depot.actif()),
+                "dernier_ouvert": _stocke(depot.dernier_ouvert()),
+                "poses": [s.id for s in depot.poses_entre(
+                    datetime.fromisoformat(_quand(7)), datetime.fromisoformat(MAINTENANT))],
+                "evenements": [
+                    {"exercice_id": e.exercice_id, "genre": e.genre,
+                     "quand": e.quand.isoformat(timespec="seconds")}
+                    for e in depot.evenements_entre(debut, fin)],
+                "indices": {str(s.id): depot.compter("indice", s.id) for s in tous},
+            }})
+            depot.fermer()
+    return cas
+
+
+def oracle_rapport() -> list[dict]:
+    from datetime import datetime, timedelta
+
+    from mine_de_rien.games.coffre_du_soir import formater_duree
+    from mine_de_rien.rapport import a_retravailler, nombre_indices, rapport
+
+    cas = []
+    for version in (1, 2, 3):
+        for jours in (0, 3, -5, 30):
+            quand = _quand(-jours)
+            with tempfile.TemporaryDirectory() as dossier:
+                depot = _copie(version, dossier)
+                instant = datetime.fromisoformat(quand)
+                cas.append({"entree": {"f": "rapport", "base": f"v{version}", "quand": quand},
+                            "sortie": rapport(depot, instant)})
+                if version == 3:
+                    for s in depot.entre(instant - timedelta(days=400), instant):
+                        for indices in (0, 3):
+                            cas.append({
+                                "entree": {"f": "a_retravailler", "base": "v3", "quand": quand,
+                                           "id": s.id, "indices": indices},
+                                "sortie": a_retravailler(s, instant, indices)})
+                depot.fermer()
+    for secondes in [None, -30, 0, 59, 60, 61, 3599, 3600, 3661, 7200, 47 * 3600 + 59 * 60,
+                     48 * 3600, 49 * 3600, 71 * 3600, 72 * 3600, 30 * 86400]:
+        duree = None if secondes is None else timedelta(seconds=secondes)
+        cas.append({"entree": {"f": "formater_duree", "secondes": secondes},
+                    "sortie": formater_duree(duree)})
+    for n in (0, 1, 2, 10):
+        cas.append({"entree": {"f": "nombre_indices", "n": n}, "sortie": nombre_indices(n)})
+    return cas
+
+
 ORACLES = {
     "config": oracle_config,
     "texte": oracle_texte,
@@ -304,6 +466,8 @@ ORACLES = {
     "vocabulaire": oracle_vocabulaire,
     "indices": oracle_indices,
     "saisie": oracle_saisie,
+    "stockage": oracle_stockage,
+    "rapport": oracle_rapport,
 }
 
 
