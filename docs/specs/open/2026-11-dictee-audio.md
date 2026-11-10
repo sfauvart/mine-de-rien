@@ -235,8 +235,8 @@ celle de la voix s'appelle `voix`.
 
 **Contexte.** Un son personnalisé n'existe pour le jeu que dans un pack de ressources. Le
 serveur annonce une adresse de pack, le jeu de l'enfant le télécharge à la connexion. Sans
-empreinte `sha1` annoncée, le jeu est censé retélécharger le pack à chaque connexion : c'est
-ce qui permet de le changer sans redémarrer le serveur. **C'est l'hypothèse à prouver.**
+empreinte `sha1` annoncée, le jeu retélécharge le pack à chaque connexion : c'est ce qui
+permet de le changer sans redémarrer le serveur. Prouvé en jeu le 2026-11-10.
 L'image de l'agent n'a ni `/tmp` ni système : le pack s'écrit dans `/data`, son seul dossier
 inscriptible.
 
@@ -644,5 +644,12 @@ de l'image, écarts constatés.)*
   « You specified a resource pack without providing a sha1 hash. Pack will be updated on
   the client only if you change the name of the pack » : le rechargement à la reconnexion
   reste donc à prouver, et le repli est plausible.
+- Partie jouée, 2026-11-10, second essai, packs de serveur réglés sur « Activés » : le pack
+  se charge, la phrase s'entend par `playsound` et par la fonction du datapack. Après
+  inversion des deux sons et reconnexion, **sans redémarrer le serveur**, c'est bien la
+  nouvelle phrase qui s'entend : l'hypothèse tient, le repli n'est pas nécessaire, malgré
+  l'avertissement du serveur.
+- Le parent a demandé d'enchaîner les phases 3 à 7 et de tout jouer à la fin : elles sont
+  livrées sans leur partie jouée, une par commit.
 - `lancer` démarre le service quand `[pack]` existe ; le port 8765 est publié par le
   compose même sans `[pack]`, personne n'y répond alors.
