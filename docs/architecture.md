@@ -12,9 +12,11 @@
 3. **Le LLM n'est jamais la source de vérité.** Générateurs déterministes par compétence,
    réponse calculée. Le LLM habille l'énoncé et lit les photos du cahier. Un modèle local de
    7 à 8 milliards de paramètres suffit alors.
-4. **Trois adaptateurs.** Jeu, canal, LLM. Chaque adaptateur externe a une alternative
-   auto-hébergée : Telegram → Matrix ou page web locale ; Anthropic → API compatible OpenAI
-   (llama.cpp, Ollama, LM Studio).
+4. **Quatre adaptateurs.** Jeu, canal, LLM, et depuis la dictée audio
+   ([spec](specs/open/2026-11-dictee-audio.md)) la voix. Chaque adaptateur externe a une
+   alternative auto-hébergée : Telegram → Matrix ou page web locale ; Anthropic → API
+   compatible OpenAI (llama.cpp, Ollama, LM Studio). La voix n'a que des fournisseurs
+   locaux : Piper, dans son propre conteneur (licence GPL, jamais lié au binaire).
 5. **Pseudonymisation vers tout LLM distant.** Seul l'alias configuré et le texte de
    l'exercice partent.
 6. **SQLite local** pour compétences, tentatives et rapports. Licence MIT.

@@ -31,3 +31,25 @@ services:
     volumes:
       - ../data/essai:/data
       - ../datapacks:/datapacks:ro
+
+  # Voix de synthèse pour les dictées, jointe par `cargo run` sur le poste (port 5055).
+  #   docker compose -f docker/essai.compose.yml --profile voix up -d voix
+  # La voix se télécharge une fois dans data/voix, partagé avec le vrai serveur :
+  #   docker compose -f docker/essai.compose.yml --profile voix run --rm voix \
+  #     piper.download_voices --download-dir /voix fr_FR-siwis-medium
+  voix:
+    profiles: ["voix"]
+    image: mine-de-rien-voix:piper-1.8.0
+    build:
+      context: .
+      dockerfile: voix.Dockerfile
+    command:
+      - piper.http_server
+      - --host=0.0.0.0
+      - --port=5000
+      - --data-dir=/voix
+      - --model=${VOIX:-fr_FR-siwis-medium}
+    ports:
+      - "127.0.0.1:5055:5000"
+    volumes:
+      - ../data/voix:/voix

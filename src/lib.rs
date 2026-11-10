@@ -13,6 +13,7 @@ pub mod orchestrateur;
 pub mod photo;
 pub mod rapport;
 pub mod saisie;
+pub mod son;
 pub mod storage;
 mod util;
 

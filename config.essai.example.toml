@@ -32,5 +32,11 @@ adaptateur = "telegram"
 jeton = ""        # "${TELEGRAM_BOT_TOKEN}" pour essayer Telegram (variable d'environnement)
 parents = []      # identifiants numériques, donnés par /start au bot : [123456789]
 
+# Voix du compose d'essai (--profile voix), pour « cargo run -- voix … ».
+[voix]
+adaptateur = "piper"
+url = "http://localhost:5055"
+voix = "fr_FR-siwis-medium"
+
 [stockage]
 sqlite = "data/mine-de-rien-essai.sqlite"

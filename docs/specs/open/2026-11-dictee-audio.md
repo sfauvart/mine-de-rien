@@ -130,7 +130,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 
 **Branche** : `feat/dictee-audio`, pas encore créée, `/next` l'ouvre à la première phase.
 
-- [ ] **Phase 1 : Une voix locale lit une phrase**
+- [x] **Phase 1 : Une voix locale lit une phrase**
 - [ ] **Phase 2 : Le jeu joue un son fabriqué par l'agent**
 - [ ] **Phase 3 : Du texte aux trous**
 - [ ] **Phase 4 : Le coffre de dictée**
@@ -189,7 +189,11 @@ celle de la voix s'appelle `voix`.
 - `src/config.rs`, `config.example.toml`, `config.essai.example.toml` : section `[voix]`
   (adaptateur, url, nom de la voix, vitesses normale et lente). Absente : pas de dictée,
   le reste de l'agent marche comme avant.
-- `docker-compose.yml` : service `voix`, profil `voix`.
+- `docker/voix.Dockerfile` (nouveau) : Piper et son serveur HTTP, versions figées.
+- `docker-compose.yml` : service `voix` (profil `voix`, réseau sans sortie) et service
+  ponctuel `voix-telecharger` (profil `voix-installation`). `docker/essai.compose.yml` :
+  service `voix`, port 5055 du poste.
+- `docs/installation.md`, `.env.example` : télécharger la voix, lancer le conteneur.
 - `src/cli.rs` : `voix "<phrase>" [--lent] --sortie fichier.ogg`.
 - `Cargo.toml` : l'encodeur Vorbis.
 - `CLAUDE.md`, `docs/architecture.md` : le quatrième adaptateur.
@@ -201,16 +205,17 @@ celle de la voix s'appelle `voix`.
   les phrases des dictées 5 et 6. À écouter de près : « la plus haute tour », « huit-cent-
   vingt-huit mètres », « trois tours Eiffel », « Elles rient aux éclats ». Le parent choisit
   la voix ; le choix et les défauts entendus vont dans « Retours de jeu ».
-- Le serveur HTTP de Piper et son image Docker sont à choisir pendant cet essai (serveur
-  HTTP fourni par Piper, ou serveur compatible `/v1/audio/speech`). L'adaptateur cache ce
-  choix derrière `dire`.
+- Serveur retenu : celui que fournit Piper (`python -m piper.http_server`, paquet
+  `piper-tts[http]` 1.8.0), dans une image construite par le projet, faute d'image
+  officielle. `POST /synthesize` avec `text`, `voice` et `length_scale` rend un WAV PCM
+  16 bits mono à 22 050 Hz. L'adaptateur cache ce choix derrière `dire`.
 - Vitesse lente : le paramètre de durée de Piper, pas un ralentissement du fichier, qui
   déformerait la voix.
-- Encodeur Vorbis, à trancher ici, je n'en ai essayé aucun : un crate qui embarque
-  l'encodeur de référence en C (candidat : `vorbis_rs`), ou un encodeur en Rust pur s'il en
-  existe un qui donne un son correct. Critères, dans l'ordre : Minecraft lit le fichier ; la
-  construction `musl` passe pour les deux architectures ; licence compatible avec MIT ; le
-  moins de dépendances. Le WAV de Piper (PCM 16 bits) se lit à la main ou avec `hound`.
+- Encodeur Vorbis retenu : `vorbis_rs` 0.5, qui embarque l'encodeur de référence en C
+  (licence BSD), sans sa fonction de tirage du numéro de flux : le numéro est fixe, deux
+  conversions du même WAV donnent le même fichier. Les encodeurs en Rust pur trouvés sur
+  crates.io sont en version 0.0 ou 0.1 : écartés sans essai. Le WAV se lit à la main, sans
+  `hound`. Reste à prouver en phase 2 : que Minecraft lit le fichier.
 - Si aucun encodeur ne passe la construction de l'image, la phase s'arrête et le dit : la
   ligne « outil audio dans l'image » de « Hors périmètre » est alors à rediscuter.
 - Si aucune voix n'est jugée assez bonne, même arrêt : on rouvre « voix du parent ».
@@ -583,3 +588,24 @@ raté et sa graphie.
 
 *(à remplir au fil des phases : voix choisie, encodeur retenu, rechargement du pack, taille
 de l'image, écarts constatés.)*
+
+**Phase 1.**
+- Voix : *(choix du parent, à l'écoute des trois voix françaises de Piper sur les dictées 5
+  et 6 ; `fr_FR-siwis-medium` par défaut en attendant)*.
+- Piper lit une dictée entière en une à deux secondes sur le poste ; une phrase lue et
+  convertie par `mine-de-rien voix` prend 0,1 à 0,2 s. Vitesse lente : `length_scale` 1,4
+  (4,6 s au lieu de 3,3 s pour la première phrase de la dictée 6).
+- Le fichier produit est reconnu par `ffprobe` (Vorbis, mono, 22 050 Hz, environ 50 kb/s,
+  29 Ko pour 3,3 s) et décodé sans erreur par `ffmpeg`. Minecraft ne l'a pas encore lu.
+- Image de l'agent, construite pour les deux architectures sans émulation, comme avant :
+  8,04 Mo pour amd64 et 6,56 Mo pour arm64 (7,09 et 5,82 Mo sans l'encodeur). Le binaire
+  statique de l'image amd64 lit et convertit une phrase (Vorbis mono à 22 050 Hz).
+- Le serveur de Piper sait télécharger des voix (`/download`, `/all-voices`). L'agent
+  n'appelle pas ces routes, et le compose place le conteneur sur un réseau `internal` :
+  vérifié, l'agent le joint et lui n'atteint pas Internet. Le téléchargement de la voix
+  est un service ponctuel à part, lancé à la main une fois.
+- Le compose d'essai, lui, publie la voix sur `127.0.0.1:5055` pour `cargo run`, sur le
+  réseau ordinaire : c'est le poste du parent, pas le serveur de la maison.
+- `voix: null` aurait cassé l'oracle de la configuration : la section absente ne se
+  sérialise pas, l'oracle n'est pas touché.
+- La sous-commande refuse sans `[voix]` : « Section [voix] absente de la configuration. »

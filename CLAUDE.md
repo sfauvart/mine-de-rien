@@ -50,7 +50,8 @@ changement de comportement, à assumer dans le commit ou à corriger.
 
 ## Arborescence
 
-- `src/adapters/` : jeu (RCON Java), canal (Telegram), LLM (Anthropic, compatible OpenAI)
+- `src/adapters/` : jeu (RCON Java), canal (Telegram), LLM (Anthropic, compatible OpenAI),
+  voix (Piper, locale)
 - `src/exercises/` : générateurs par compétence
 - `src/games/` : mises en scène dans Minecraft (coffre du soir, Pixel, ...)
 - `src/storage/` : SQLite
