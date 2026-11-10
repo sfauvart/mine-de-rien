@@ -110,7 +110,7 @@ Deux points à tenir pendant le port :
 
 **Branche** : `feat/agent-en-rust`, pas encore créée, `/next` l'ouvre à la première phase.
 
-- [ ] **Phase 1 : Le crate, la configuration et le datapack embarqué**
+- [x] **Phase 1 : Le crate, la configuration et le datapack embarqué**
 - [ ] **Phase 2 : Texte Minecraft, expressions et division**
 - [ ] **Phase 3 : Anglais, indices, registre et saisie**
 - [ ] **Phase 4 : La base SQLite et le rapport**
@@ -538,3 +538,16 @@ c'est fini.
 
 *(à remplir au fil des phases : écarts constatés avec le Python, choix tranchés en cours
 de route, taille de l'image.)*
+
+**Phase 1.**
+- `[llm] adaptateur` reste un texte, pas un `enum` : une valeur inconnue ne doit pas
+  empêcher le lancement, elle désactive le LLM, comme en Python. `[jeu]` et `[canal]` sont
+  des `enum` : une valeur inconnue y est maintenant refusée à la lecture.
+- La substitution des `${VARIABLES}` se fait après l'analyse du TOML, comme en Python, et
+  non avant comme l'écrivait la conception : une valeur contenant un guillemet ne casse
+  pas le fichier.
+- Les variables d'environnement sont injectées dans `lire_config` : `std::env::set_var`
+  est `unsafe` en édition 2024, et le crate interdit `unsafe`.
+- Le runtime `tokio` n'est pas encore démarré dans `main` : il le sera à la phase 5, la
+  première qui en a besoin.
+- `pytest` annonce 860 tests passés : les 261 fonctions de test sont paramétrées.
