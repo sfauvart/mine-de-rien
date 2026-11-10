@@ -911,6 +911,121 @@ def oracle_coffre_du_soir() -> list[dict]:
     return cas
 
 
+
+CALCULS_PHOTO = [
+    "Double de 17", "Double de 17 = 35", "348 ÷ 12 = 30", "Moitié de 3", "moitie  de 1 000",
+    "Double de 2,5", "Moitié de 1,25", "10 ÷ 3", "799", "799 – 760", "799 — 760", "799 − 760",
+    "1 200 + 12 345", "1 200 + 12 345", "1 200 + 12 345", "MOITIÉ DE 8", "Double d'8",
+    "double de8", "Double  de\t12", "Le double de 4", "Double de 4 et 5", "Double de", "Moitie de 7",
+    "Double de 1000", "Moitié de 1 200", "Double de 0,5", "Double de 12.5", "75,5 - 50 =",
+    "= 12", "", "3 x 4 = 12 = 13", "Doublé de 3", "Double de 3 ", " (12 + 8) x 3", "2 + 3 × (4 + 1)",
+]
+
+LECTURES_PHOTO = {
+    "résultat du LLM jamais lu": [{"lignes": [
+        {"genre": "calcul", "texte": "Double de 17 = 35"},
+        {"genre": "calcul", "texte": "348 ÷ 12 = 30"}]}],
+    "rejets": [{"lignes": [
+        {"genre": "calcul", "texte": "Moitié de 1,25"}, {"genre": "calcul", "texte": "10 ÷ 3"},
+        {"genre": "calcul", "texte": "799"}, {"genre": "mot", "texte": "Greetings"},
+        {"genre": "mot", "texte": "book"}, {"genre": "mot", "texte": "orange"}]}],
+    "doublons": [{"lignes": [
+        {"genre": "calcul", "texte": "Double de 20"}, {"genre": "calcul", "texte": "Double de 20 = 40"},
+        {"genre": "mot", "texte": "May"}, {"genre": "mot", "texte": "may"}]},
+        {"lignes": [{"genre": "calcul", "texte": "Double de 20"},
+                    {"genre": "calcul", "texte": "3 x 4"}]}],
+    "lignes mal formées": [{"lignes": [
+        "texte nu", {"genre": "mot"}, None, 12, True, [1, "a"], {"genre": "calcul", "texte": 3},
+        {"texte": "   "}, {"texte": "Double de 2"}, {"genre": "autre", "texte": "3 + 4"},
+        {"genre": "mot", "texte": "x" * 100}, {"genre": "calcul", "texte": "9" * 100},
+        {"l'élève": "a \"dit\"", "liste": [None, False, 1.5]}]}],
+    "pas de liste": [{"autre": []}],
+    "liste qui n'en est pas une": [{"lignes": "Double de 2"}],
+    "vide": [{"lignes": []}],
+    "onze calculs écartés": [{"lignes": [{"genre": "calcul", "texte": f"{n} ÷ 0"}
+                                         for n in range(1, 12)]}],
+    "familles mêlées": [{"lignes": [
+        {"genre": "mot", "texte": "Wednesday"}, {"genre": "calcul", "texte": "12 x 7"},
+        {"genre": "mot", "texte": "red"}, {"genre": "mot", "texte": "seven"},
+        {"genre": "calcul", "texte": "Moitié de 8"}, {"genre": "mot", "texte": "good night"},
+        {"genre": "mot", "texte": "february"}, {"genre": "calcul", "texte": "Double de 9"}]}],
+}
+
+TAILLES_PHOTO = [(1280, 885), (885, 1280), (4000, 3000), (3000, 4000), (1536, 1536), (1537, 1536),
+                 (1536, 1537), (100, 100), (2000, 2000), (5000, 100), (100, 5000), (3264, 2448),
+                 (2448, 3264), (1601, 1200), (1, 1), (2, 1), (3073, 1000)]
+
+
+def _lecture(photo, reponses) -> dict:
+    import random
+
+    from mine_de_rien.exercises.anglais import vocabulaire
+
+    lecture = photo.interpreter(reponses, random.Random(0))
+    # Le sens d'un mot est tiré au hasard : on ne compare que ce qui n'en dépend pas.
+    exercices = [
+        {"anglais": ex.donnees["anglais"], "famille": ex.donnees["famille"]}
+        if ex.competence == vocabulaire.competence else _exercice(ex)
+        for ex in lecture.exercices
+    ]
+    return {"exercices": exercices, "rejets": [[r.texte, r.raison] for r in lecture.rejets],
+            "resume": photo.resumer(lecture)}
+
+
+def oracle_photo() -> list[dict]:
+    import io
+
+    from PIL import Image
+
+    from mine_de_rien import photo
+    from mine_de_rien.adapters.llm.base import ErreurLlm, lire_json
+    from mine_de_rien.exercises.expression import ErreurExpression
+
+    cas = [{"entree": {"f": "constantes"},
+            "sortie": {"systeme": photo.SYSTEME, "consigne": photo.CONSIGNE}}]
+    for texte in CALCULS_PHOTO:
+        cas.append({"entree": {"f": "calcul", "texte": texte},
+                    **_tente(lambda t=texte: _exercice(photo._calcul(t)), (ErreurExpression,))})
+    donnees = RACINE / "tests" / "donnees" / "photo"
+    for fichier in sorted(donnees.glob("*.json")):
+        reponses = json.loads(fichier.read_text("utf-8"))
+        cas.append({"entree": {"f": "interpreter", "fichier": fichier.name},
+                    "sortie": _lecture(photo, reponses)})
+    for nom, reponses in LECTURES_PHOTO.items():
+        cas.append({"entree": {"f": "interpreter", "nom": nom, "reponses": reponses},
+                    **_tente(lambda r=reponses: _lecture(photo, r), (ErreurLlm,))})
+    for largeur, hauteur in TAILLES_PHOTO:
+        tampon = io.BytesIO()
+        Image.new("RGB", (largeur, hauteur), "white").save(tampon, format="JPEG")
+        morceaux = photo.preparer(tampon.getvalue())
+        cas.append({"entree": {"f": "preparer", "taille": [largeur, hauteur]},
+                    "sortie": [list(Image.open(io.BytesIO(m)).size) for m in morceaux]})
+
+    # Une image de synthèse, sans rien de personnel : moitié gauche rouge, moitié droite bleue,
+    # 60 × 20, à tourner d'un quart de tour selon l'EXIF (orientation 6).
+    image = Image.new("RGB", (60, 20), (220, 30, 30))
+    image.paste((30, 30, 220), (30, 0, 60, 20))
+    exif = Image.Exif()
+    exif[0x0112] = 6
+    chemin = donnees / "orientation-6.jpg"
+    image.save(chemin, format="JPEG", quality=95, exif=exif)
+    (morceau,) = photo.preparer(chemin.read_bytes())
+    redressee = Image.open(io.BytesIO(morceau))
+    haut, bas = redressee.getpixel((10, 5)), redressee.getpixel((10, 55))
+    cas.append({"entree": {"f": "orientation", "fichier": chemin.name},
+                "sortie": {"taille": list(redressee.size),
+                           "haut": "rouge" if haut[0] > haut[2] else "bleu",
+                           "bas": "rouge" if bas[0] > bas[2] else "bleu"}})
+
+    for texte in ['{"a": 1}', '```json\n{"lignes": []}\n```', '  ```\n{"b": 2}\n```  ',
+                  "Voici les lignes : Double de 2", "[1, 2]", "", "```json\n[1]\n```",
+                  '{"a": "é"} ', '```\n{"a": {"b": [1, 2]}}```', "``` {} ```", '"texte"', "12",
+                  'Voici : ```json\n{"a": 1}\n```']:
+        cas.append({"entree": {"f": "lire_json", "texte": texte},
+                    **_tente(lambda t=texte: lire_json(t), (ErreurLlm,))})
+    return cas
+
+
 ORACLES = {
     "config": oracle_config,
     "texte": oracle_texte,
@@ -924,6 +1039,7 @@ ORACLES = {
     "emplacement": oracle_emplacement,
     "paisible": oracle_paisible,
     "coffre_du_soir": oracle_coffre_du_soir,
+    "photo": oracle_photo,
 }
 
 

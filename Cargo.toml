@@ -20,14 +20,17 @@ path = "src/main.rs"
 
 [dependencies]
 async-trait = "0.1.92"
+base64 = "0.23.1"
 chrono = { version = "0.4.45", default-features = false, features = ["std", "clock"] }
 clap = { version = "4.6.7", features = ["derive"] }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 include_dir = "0.7.4"
 num-bigint = "0.4"
 num-rational = "0.4.2"
 num-traits = "0.2.19"
 rand = "0.10.3"
 regex = "1.13.1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 rusqlite = { version = "0.41.1", features = ["bundled"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["preserve_order"] }
