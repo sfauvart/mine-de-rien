@@ -29,6 +29,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
+use chrono_tz::Tz;
 use regex::Regex;
 
 use crate::adapters::channel::base::{Canal, MessageParent};
@@ -50,6 +51,7 @@ use crate::games::paisible::ModePaisible;
 use crate::games::pixel::EVENEMENT_INDICE;
 use crate::rapport::{essais_rates, nombre_indices, rapport};
 use crate::saisie::{ErreurSaisie, NOMBRE_MAX, Source, interpreter};
+use crate::seance::{self, creer_seance_du_jour, jour_local};
 use crate::storage::sqlite::{Demande, Depot, ErreurStockage, ExerciceStocke, Statut, maintenant};
 use crate::util::{mots, strip};
 use crate::{journal, photo};
@@ -87,6 +89,16 @@ pub struct Orchestrateur {
     reconnexion_demandee: Cell<Option<i64>>,
     /// Le dernier nom lu sur la clé, pour le coffre actif : un nom nouveau est un essai.
     cle_vue: RefCell<Option<(i64, Option<String>)>>,
+    /// Les séances de dictée quotidiennes, si elles sont réglées.
+    seances: Option<Seances>,
+}
+
+/// Ce qu'il faut pour créer la séance de dictée du jour à la connexion de l'enfant.
+pub struct Seances {
+    pub coffres: usize,
+    pub fuseau: Tz,
+    pub recompense: ConfigCoffre,
+    pub alea: RefCell<Alea>,
 }
 
 impl Orchestrateur {
@@ -111,7 +123,55 @@ impl Orchestrateur {
             premier_tour: Cell::new(true),
             reconnexion_demandee: Cell::new(None),
             cle_vue: RefCell::new(None),
+            seances: None,
         }
+    }
+
+    /// Avec les séances de dictée : à la première connexion de chaque jour, quelques coffres
+    /// de la dictée à préparer entrent dans la file.
+    pub fn avec_seances(
+        mut self,
+        coffres: usize,
+        fuseau: Tz,
+        recompense: ConfigCoffre,
+        alea: Alea,
+    ) -> Self {
+        self.seances = Some(Seances {
+            coffres,
+            fuseau,
+            recompense,
+            alea: RefCell::new(alea),
+        });
+        self
+    }
+
+    /// L'enfant vient de se connecter : la séance de dictée du jour, si elle n'existe pas
+    /// encore. Une dictée illisible ne doit pas arrêter la surveillance des coffres.
+    async fn seance_du_jour(&self) -> Result<(), ErreurTour> {
+        let Some(seances) = &self.seances else {
+            return Ok(());
+        };
+        let demande = Demande {
+            source: Source::Dictee,
+            demande_par: "seance",
+            recompense: &seances.recompense.recompense,
+            recompense_nombre: seances.recompense.recompense_nombre,
+        };
+        let creee = creer_seance_du_jour(
+            &self.depot,
+            (self.horloge)(),
+            seances.fuseau,
+            seances.coffres,
+            &mut seances.alea.borrow_mut(),
+            demande,
+        );
+        match creee {
+            Ok(Some(seance)) => self.notificateur.notifier(&seance.annonce()).await,
+            Ok(None) => {}
+            Err(ErreurDictees::Stockage(e)) => return Err(e.into()),
+            Err(e) => journal::avertissement(format!("séance de dictée impossible : {e}")),
+        }
+        Ok(())
     }
 
     /// Relève ce que l'enfant a écrit sur la clé. Le premier nom lu devant un coffre est le
@@ -189,6 +249,9 @@ impl Orchestrateur {
             self.connecte_depuis.set(Some((self.horloge)()));
         }
         self.premier_tour.set(false);
+        if vient_de_se_connecter {
+            self.seance_du_jour().await?;
+        }
         self.coffre.actualiser_atelier().await?;
 
         let resultat = match self.depot.actif()? {
@@ -498,6 +561,9 @@ pub struct CommandesParents {
     dictees_en_attente: RefCell<HashMap<i64, DicteeEnAttente>>,
     /// Fichier audio à envoyer au parent après la réponse en cours : nom et contenu.
     audio: RefCell<HashMap<i64, (String, Vec<u8>)>>,
+    /// Le fuseau de la maison, pour dater les dictées ; UTC tant qu'il n'est pas réglé.
+    fuseau: Tz,
+    coffres_par_seance: usize,
 }
 
 impl CommandesParents {
@@ -522,7 +588,16 @@ impl CommandesParents {
             dictees: None,
             dictees_en_attente: RefCell::new(HashMap::new()),
             audio: RefCell::new(HashMap::new()),
+            fuseau: Tz::UTC,
+            coffres_par_seance: COFFRES_PAR_SEANCE,
         }
+    }
+
+    /// Le fuseau de la maison et la taille d'une séance de dictée (`[dictee]`).
+    pub fn avec_seances(mut self, fuseau: Tz, coffres_par_seance: usize) -> Self {
+        self.fuseau = fuseau;
+        self.coffres_par_seance = coffres_par_seance;
+        self
     }
 
     /// Avec une voix et un pack de sons : les parents peuvent envoyer des dictées.
@@ -544,9 +619,41 @@ impl CommandesParents {
         self.audio.borrow_mut().remove(&parent)
     }
 
-    /// Le jour d'aujourd'hui, pour dater les dictées.
+    /// Le jour qu'il est à la maison, pour dater les dictées.
     fn aujourdhui(&self) -> NaiveDate {
-        (self.horloge)().date_naive()
+        jour_local((self.horloge)(), self.fuseau)
+    }
+
+    /// Le rapport de la semaine, suivi d'un point sur les dictées en cours.
+    fn rapport(&self) -> Result<String, ErreurCommande> {
+        let mut lignes = vec![rapport(&self.depot, (self.horloge)())?];
+        let en_cours = self.depot.dictees_depuis(self.aujourdhui())?;
+        if !en_cours.is_empty() {
+            lignes.push(String::new());
+            lignes.push("Dictées en cours :".to_owned());
+        }
+        for dictee in en_cours {
+            let bilan = match seance::bilan(&self.depot, dictee.id, self.fuseau) {
+                Ok(bilan) => bilan,
+                Err(ErreurDictees::Stockage(e)) => return Err(e.into()),
+                Err(e) => {
+                    lignes.push(format!("• n°{} : {e}", dictee.id));
+                    continue;
+                }
+            };
+            let fragiles = bilan
+                .fragiles_en_clair()
+                .map(|f| format!(" ; fragiles : {f}"))
+                .unwrap_or_default();
+            lignes.push(format!(
+                "• n°{}, {} : {} mot(s) acquis sur {}{fragiles}",
+                dictee.id,
+                ecrire_jour(dictee.jour),
+                bilan.acquis,
+                bilan.mots
+            ));
+        }
+        Ok(lignes.join("\n"))
     }
 
     fn aide(&self) -> String {
@@ -614,7 +721,7 @@ impl CommandesParents {
             }
             "/file" => self.file()?,
             "/annuler" => self.annuler(argument).await?,
-            "/rapport" => rapport(&self.depot, (self.horloge)())?,
+            "/rapport" => self.rapport()?,
             "/dictee" => self.dictee(message.expediteur, argument).await?,
             "/oui" if self.dictee_en_attente(message.expediteur).is_some() => {
                 self.confirmer_dictee(message.expediteur)?
@@ -924,9 +1031,12 @@ impl CommandesParents {
         };
         Ok(format!(
             "Dictée n°{numero} enregistrée pour le {}.\n\
+             À partir de demain et jusqu'à la veille, {n} coffres l'attendront à sa première \
+             connexion de chaque jour.\n\
              L'enfant doit se déconnecter puis se reconnecter pour que son jeu charge les sons.\n\
-             /dictee seance {numero} : une séance de {COFFRES_PAR_SEANCE} coffres tout de suite.",
-            ecrire_jour(attente.jour)
+             /dictee seance {numero} : une séance de {n} coffres tout de suite.",
+            ecrire_jour(attente.jour),
+            n = self.coffres_par_seance
         ))
     }
 
@@ -1047,12 +1157,15 @@ impl CommandesParents {
             recompense: &self.config_coffre.recompense,
             recompense_nombre: self.config_coffre.recompense_nombre,
         };
+        // Les mêmes poids que la séance du jour : un mot acquis ne revient pas, un mot raté
+        // hier repose.
+        let poids = seance::poids(&self.depot, dictee.id, self.aujourdhui(), self.fuseau)?;
         let coffres = match dictees::seance(
             &self.depot,
             &dictee,
-            COFFRES_PAR_SEANCE,
+            self.coffres_par_seance,
             &mut self.alea.borrow_mut(),
-            &HashMap::new(),
+            &poids,
             demande,
             (self.horloge)(),
         ) {
@@ -1061,7 +1174,11 @@ impl CommandesParents {
             Err(e) => return Ok(format!("Séance impossible : {e}")),
         };
         if coffres.is_empty() {
-            return Ok("Plus aucun mot à demander dans cette dictée.".to_owned());
+            return Ok(
+                "Aucun mot à demander maintenant : ils sont acquis, déjà en file, ou reposent \
+                 après une erreur."
+                    .to_owned(),
+            );
         }
         Ok(coffres
             .iter()

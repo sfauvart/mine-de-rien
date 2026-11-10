@@ -387,10 +387,18 @@ par mot, et écouter l'aperçu** : chaque mot peut devenir la réponse d'un coff
 faute ici serait enseignée à l'enfant. `/oui` enregistre la dictée, `/non` abandonne. Sans
 réponse, elle est oubliée au bout de 30 minutes.
 
+Ensuite, plus rien à faire : **du lendemain jusqu'à la veille de la dictée, quatre coffres
+l'attendent à sa première connexion de chaque jour**, et le bot l'annonce (« Séance de
+dictée du jour : 4 coffre(s)… »). Un jour sans connexion n'est pas rattrapé. Un mot raté
+repose un jour puis revient en priorité ; un mot réussi du premier coup deux fois de suite
+ne revient plus. La veille, l'annonce donne les mots encore fragiles, avec ce que l'enfant
+avait écrit. `/rapport` fait le même point à tout moment. Le nombre de coffres (3 à 5) et
+le fuseau horaire se règlent dans la section `[dictee]` de `config.toml`.
+
 | Message | Effet |
 |---|---|
 | `/dictee` | les dictées en cours, avec leur numéro |
-| `/dictee seance 3` | quatre coffres de la dictée n°3, tout de suite |
+| `/dictee seance 3` | une séance de plus pour la dictée n°3, tout de suite |
 | `/dictee mots 3 plus trois` | ces mots sortiront en premier |
 | `/dictee annuler 3` | retire la dictée n°3, ses coffres en attente et ses sons |
 

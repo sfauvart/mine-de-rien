@@ -1128,3 +1128,118 @@ async fn un_mot_de_dictee_rate_garde_sa_graphie_et_ne_va_pas_au_journal() {
     // Ni dans le jeu : le faux coffre n'a reçu aucun texte à dire.
     assert!(!m.coffre.actions().iter().any(|a| a.contains("plu")));
 }
+
+/// Un monde sans coffre en file, avec une dictée de trois phrases confirmée la veille pour
+/// dans cinq jours, et les séances quotidiennes réglées sur le fuseau de Paris.
+fn monde_avec_seances() -> Monde {
+    use mine_de_rien::storage::sqlite::PhraseSonore;
+    let dossier = tempfile::tempdir().unwrap();
+    let depot = Rc::new(Depot::ouvrir(&dossier.path().join("mdr.sqlite")).unwrap());
+    let (coffre, notifs) = (FauxCoffre::nouveau(), Rc::new(Notifs::default()));
+    let horloge: Horloge = Rc::new(Cell::new(t0())); // samedi 7 novembre, 19 h à Paris
+    let lue = Rc::clone(&horloge);
+    let orch = Orchestrateur::new(
+        depot.clone(),
+        coffre.clone(),
+        notifs.clone(),
+        Box::new(move || lue.get()),
+        None,
+    )
+    .avec_seances(
+        4,
+        chrono_tz::Europe::Paris,
+        mine_de_rien::config::Coffre::default(),
+        mine_de_rien::alea::Alea::graine(3),
+    );
+    let texte = "Dans la ville de Dubaï s'élève la plus haute tour. Deux-millions de personnes \
+                 la visitent chaque année. Elles rient aux éclats.";
+    let phrases: Vec<PhraseSonore> = mine_de_rien::exercises::francais::dictee::decouper(texte)
+        .into_iter()
+        .map(|p| PhraseSonore {
+            texte: p.texte,
+            son: b"OggS".to_vec(),
+            son_lent: b"OggS".to_vec(),
+        })
+        .collect();
+    let jeudi = chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
+    depot
+        .ajouter_dictee(jeudi, texte, &phrases, "111", t0() - TimeDelta::days(1))
+        .unwrap();
+    Monde {
+        _dossier: dossier,
+        depot,
+        coffre,
+        notifs,
+        horloge,
+        orch,
+    }
+}
+
+fn coffres_de_dictee(m: &Monde) -> usize {
+    m.depot.coffres_de_dictee(1).unwrap().len()
+}
+
+#[tokio::test]
+async fn la_premiere_connexion_du_jour_cree_la_seance_de_dictee() {
+    let m = monde_avec_seances();
+    // Personne : rien.
+    m.orch.tour().await.unwrap();
+    assert_eq!(coffres_de_dictee(&m), 0);
+    assert!(m.notifs.messages().is_empty());
+
+    // Il se connecte samedi : quatre coffres, les parents sont prévenus, le premier est posé.
+    m.coffre.en_ligne.set(true);
+    m.orch.tour().await.unwrap();
+    assert_eq!(coffres_de_dictee(&m), 4);
+    assert_eq!(
+        m.notifs.messages()[0],
+        "Séance de dictée du jour : 4 coffre(s), dictée n°1 pour le jeudi 12 novembre."
+    );
+    assert!(actif(&m.depot).is_some());
+    assert!(m.notifs.messages().iter().all(|n| !n.contains("Zorglub")));
+
+    // Les tours suivants, puis une reconnexion le même jour : rien de plus.
+    m.orch.tour().await.unwrap();
+    m.coffre.en_ligne.set(false);
+    m.orch.tour().await.unwrap();
+    m.coffre.en_ligne.set(true);
+    avancer(&m.horloge, TimeDelta::hours(2));
+    m.orch.tour().await.unwrap();
+    assert_eq!(coffres_de_dictee(&m), 4);
+
+    // Resté connecté après minuit : pas de séance tant qu'il ne se reconnecte pas.
+    avancer(&m.horloge, TimeDelta::hours(12));
+    m.orch.tour().await.unwrap();
+    assert_eq!(coffres_de_dictee(&m), 4);
+    // Dimanche, il revient : quatre autres.
+    m.coffre.en_ligne.set(false);
+    m.orch.tour().await.unwrap();
+    m.coffre.en_ligne.set(true);
+    m.orch.tour().await.unwrap();
+    assert_eq!(coffres_de_dictee(&m), 8);
+    let annonces = m
+        .notifs
+        .messages()
+        .iter()
+        .filter(|n| n.starts_with("Séance de dictée du jour"))
+        .count();
+    assert_eq!(annonces, 2);
+}
+
+#[tokio::test]
+async fn sans_reglage_ou_sans_dictee_aucune_seance() {
+    // Les séances ne sont pas réglées : une dictée en base ne crée rien.
+    let m = monde_de_dictee(None);
+    m.depot.annuler(1).unwrap();
+    m.coffre.en_ligne.set(true);
+    m.orch.tour().await.unwrap();
+    assert!(m.depot.en_file().unwrap().is_empty());
+
+    // Réglées, mais la dictée est annulée : rien non plus, et la surveillance continue.
+    let m = monde_avec_seances();
+    m.depot.annuler_dictee(1).unwrap();
+    m.coffre.en_ligne.set(true);
+    m.orch.tour().await.unwrap();
+    assert_eq!(coffres_de_dictee(&m), 0);
+    assert!(m.notifs.messages().is_empty());
+}

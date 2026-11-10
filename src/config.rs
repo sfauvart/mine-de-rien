@@ -287,6 +287,58 @@ impl Default for Pack {
     }
 }
 
+/// Les séances de dictée : chaque jour, à la première connexion de l'enfant, quelques coffres
+/// tirés dans la dictée à préparer.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Dictee {
+    /// Coffres par séance : des séances courtes, de 3 à 5.
+    pub coffres_par_seance: usize,
+    /// Le fuseau de la maison : « chaque jour » se compte chez soi, pas en UTC.
+    pub fuseau: String,
+}
+
+impl Default for Dictee {
+    fn default() -> Self {
+        Self {
+            coffres_par_seance: 4,
+            fuseau: "Europe/Paris".to_owned(),
+        }
+    }
+}
+
+impl Dictee {
+    pub const COFFRES_MIN: usize = 3;
+    pub const COFFRES_MAX: usize = 5;
+
+    fn est_par_defaut(&self) -> bool {
+        *self == Self::default()
+    }
+
+    /// Le fuseau de la maison, déjà vérifié à la lecture de la configuration.
+    pub fn tz(&self) -> chrono_tz::Tz {
+        self.fuseau.parse().unwrap_or(chrono_tz::Europe::Paris)
+    }
+
+    fn verifier(&self) -> Result<(), ErreurConfig> {
+        if !(Self::COFFRES_MIN..=Self::COFFRES_MAX).contains(&self.coffres_par_seance) {
+            return Err(ErreurConfig(format!(
+                "[dictee] coffres_par_seance doit être entre {} et {} : {}",
+                Self::COFFRES_MIN,
+                Self::COFFRES_MAX,
+                self.coffres_par_seance
+            )));
+        }
+        if self.fuseau.parse::<chrono_tz::Tz>().is_err() {
+            return Err(ErreurConfig(format!(
+                "[dictee] fuseau inconnu : {} (exemple : \"Europe/Paris\")",
+                repr(&self.fuseau)
+            )));
+        }
+        Ok(())
+    }
+}
+
 /// Serveur en paisible tant qu'il reste un coffre à faire.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -331,6 +383,9 @@ pub struct Config {
     pub voix: Option<Voix>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pack: Option<Pack>,
+    /// Aux valeurs d'usage, elle ne s'écrit pas : même relecture qu'en 0.1.2.
+    #[serde(default, skip_serializing_if = "Dictee::est_par_defaut")]
+    pub dictee: Dictee,
     #[serde(default)]
     pub stockage: Stockage,
     #[serde(default)]
@@ -388,6 +443,7 @@ pub fn lire_config(
     if let Some(voix) = &config.voix {
         voix.verifier()?;
     }
+    config.dictee.verifier()?;
     Ok(config)
 }
 

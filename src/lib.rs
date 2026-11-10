@@ -15,6 +15,7 @@ pub mod pack;
 pub mod photo;
 pub mod rapport;
 pub mod saisie;
+pub mod seance;
 pub mod service_pack;
 pub mod son;
 pub mod storage;

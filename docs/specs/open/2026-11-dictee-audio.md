@@ -136,7 +136,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 - [x] **Phase 4 : Le coffre de dictée**
 - [x] **Phase 5 : La dictée depuis Telegram**
 - [x] **Phase 6 : Lire ce que l'enfant a tapé**
-- [ ] **Phase 7 : La séance de chaque jour**
+- [x] **Phase 7 : La séance de chaque jour**
 
 Les phases 1, 3 et 6 sont indépendantes. La phase 2 dépend de la 1, la phase 4 des phases 2
 et 3, la phase 5 de la 4, la phase 7 des phases 5 et 6. Les phases 1 et 2 portent le risque
@@ -744,3 +744,42 @@ de l'image, écarts constatés.)*
 - Oracle : plutôt que de retoucher chaque transcription, le rejeu des tests
   (`tests/commun/mod.rs`) répond lui-même à cette seule commande, sans rien consommer de la
   transcription. Aucun fichier d'oracle n'est modifié dans cette phase.
+
+**Phase 7.**
+- Pas de migration 6 : `derniere_seance` existe depuis la migration 5. L'histoire d'un mot
+  se lit dans les coffres de la dictée (`json_extract` sur `donnees`) et leurs tentatives.
+- Les poids sont ceux du tableau de la conception, plus un cas qu'elle ne disait pas : un
+  trou dont un coffre attend déjà (en file ou posé) pèse 0, pour ne pas être tiré deux fois.
+- « Séance déjà faite aujourd'hui » se lit sur toutes les dictées : une seule séance par
+  jour, même avec deux dictées en cours. Elle sert celle dont le jour est le plus proche.
+- La séance se crée à la connexion vue par l'agent. Un enfant resté connecté après minuit
+  n'en reçoit pas tant qu'il ne se reconnecte pas. S'il est déjà là quand l'agent démarre,
+  la séance est créée, mais le coffre attend sa reconnexion (règle du pack, phase 4).
+- Révision : le quatrième coffre reprend un mot encore raté d'une dictée passée de moins
+  de 30 jours, s'il y en a un et que la séance a plus d'un coffre.
+- Défaut trouvé par les tests et corrigé : un mot raté lundi et redemandé jeudi n'était
+  plus compté « fragile » dans le bilan, parce que son coffre du jour attendait. Le bilan
+  ne regarde que les coffres ouverts.
+- Les parents reçoivent une annonce par séance (« Séance de dictée du jour : 4 coffre(s),
+  dictée n°3 pour le vendredi 13 novembre. »), une explication quand il n'y a plus rien à
+  demander, et la veille les mots encore fragiles avec leurs graphies. `/rapport` fait le
+  même point pour chaque dictée en cours.
+- `/dictee seance N` utilise maintenant les mêmes poids : un mot acquis ou raté le jour
+  même n'y revient pas.
+- Fuseau : `chrono-tz`, table embarquée, `Europe/Paris` par défaut. Testé à 23 h 30 et
+  0 h 30 de Paris, en hiver et en été. Une configuration sans `[dictee]` se relit comme
+  avant (l'oracle de configuration n'est pas touché).
+- Image, pour les deux architectures, sans émulation : **10,2 Mo pour amd64 et 7,9 Mo pour
+  arm64** (8,0 et 6,6 Mo après la phase 1 ; la table des fuseaux pèse environ 2 Mo).
+  `mine-de-rien --version` répond dans l'image.
+- 416 tests, `clippy` et `fmt` passent. Fichiers d'oracle modifiés sur tout le chantier :
+  un seul, `coffre_du_soir.json`, pour la ligne de description de la clé (phase 4).
+
+**Ce qui n'a pas été joué**, phases 3 à 7, à la demande du parent qui teste à la fin :
+- le clic droit de l'Écouteur, et la phrase à trou qu'il réaffiche ;
+- le renommage de la clé avec majuscule, apostrophe et accent, et l'ouverture du coffre ;
+- la lecture du nom de la clé sur un vrai joueur (essais ratés) ;
+- les trois paliers de Pixel devant un coffre de dictée ;
+- l'attente de la reconnexion quand le pack vient d'être refait ;
+- l'aperçu audio dans le vrai Telegram, et la photo d'une vraie feuille de la maîtresse ;
+- la séance créée à la connexion, le lendemain d'une confirmation.
