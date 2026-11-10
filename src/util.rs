@@ -112,3 +112,24 @@ pub(crate) fn json_python(valeur: &serde_json::Value) -> String {
     ecrire_json(valeur, &mut sortie);
     sortie
 }
+
+/// Retire les séparateurs de milliers : un caractère de `separateurs` placé entre un chiffre
+/// et exactement trois chiffres (« 13 545 » → « 13545 », mais « 4,7 et 5 » ne bouge pas).
+/// C'était une expression régulière à regards avant et arrière, que le crate `regex` n'a pas.
+pub(crate) fn sans_milliers(texte: &str, separateurs: &[char]) -> String {
+    let c: Vec<char> = texte.chars().collect();
+    let chiffre = |i: usize| c.get(i).is_some_and(char::is_ascii_digit);
+    (0..c.len())
+        .filter(|&i| {
+            let separateur = separateurs.contains(&c[i])
+                && i > 0
+                && chiffre(i - 1)
+                && chiffre(i + 1)
+                && chiffre(i + 2)
+                && chiffre(i + 3)
+                && !chiffre(i + 4);
+            !separateur
+        })
+        .map(|i| c[i])
+        .collect()
+}

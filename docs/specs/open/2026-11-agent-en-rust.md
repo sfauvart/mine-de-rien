@@ -112,7 +112,7 @@ Deux points à tenir pendant le port :
 
 - [x] **Phase 1 : Le crate, la configuration et le datapack embarqué**
 - [x] **Phase 2 : Texte Minecraft, expressions et division**
-- [ ] **Phase 3 : Anglais, indices, registre et saisie**
+- [x] **Phase 3 : Anglais, indices, registre et saisie**
 - [ ] **Phase 4 : La base SQLite et le rapport**
 - [ ] **Phase 5 : Parler au serveur : RCON et log**
 - [ ] **Phase 6 : Atelier, emplacement et mode paisible**
@@ -562,3 +562,16 @@ de route, taille de l'image.)*
   projet des changements d'API de `rand` (0.10 a renommé ses traits).
 - Les composants texte sont écrits par un sérialiseur maison qui reproduit `json.dumps` de
   Python (séparateurs `", "` et `": "`), pour que les commandes soient identiques à l'octet.
+
+**Phase 3.**
+- L'oracle des indices porte 2 678 cas (paliers de plus de 2 000 exercices tirés par le
+  Python, filtre, nombres en lettres) : tous identiques, hors chiffres non ASCII.
+- `cle_valide` ne passe plus par une fraction : une clé en chiffres est valide si elle a
+  exactement l'écriture d'`ecrire_reponse`, ce qu'une expression régulière suffit à dire.
+  Les 47 clés limites de l'oracle donnent le même verdict.
+- Écart assumé : une réponse de générateur inutilisable dans un coffre était une
+  `RuntimeError` qui tuait la tâche Telegram ; c'est maintenant un refus rendu au parent.
+- Les tests d'indices sur les doubles et moitiés construisent l'exercice à la main, comme
+  le fait la lecture de photo, qui n'arrive qu'en phase 8.
+- Les fichiers de l'oracle sont écrits un cas par ligne (912 Ko en tout).
+- Les deux `.toml` du lexique sont embarqués depuis leur dossier Python jusqu'à la phase 11.

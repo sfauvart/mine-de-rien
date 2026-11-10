@@ -6,6 +6,7 @@ pub mod config;
 pub mod datapack;
 pub mod exercises;
 pub mod minecraft;
+pub mod saisie;
 mod util;
 
 /// Version du paquet, celle de `Cargo.toml` : ce qu'affiche `mine-de-rien --version`.
