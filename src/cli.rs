@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use chrono::Local;
 
+use crate::adapters::channel::telegram::Telegram;
 use crate::adapters::game::base::AdaptateurJeu;
 use crate::adapters::game::java_rcon::{DELAI, JavaRcon};
 use crate::adapters::game::rcon::ErreurRcon;
@@ -16,10 +17,13 @@ use crate::adapters::llm::creer as creer_llm;
 use crate::alea::Alea;
 use crate::config::{Config, charger_config};
 use crate::games::atelier::{self, ErreurAtelier};
-use crate::games::coffre_du_soir::{CoffreDuSoir, NotificateurConsole};
+use crate::games::coffre_du_soir::{CoffreDuSoir, Notificateur, NotificateurConsole};
 use crate::games::paisible::ModePaisible;
 use crate::games::pixel::Pixel;
-use crate::orchestrateur::{ErreurFile, INTERVALLE, Orchestrateur, mettre_en_file};
+use crate::orchestrateur::{
+    CommandesParents, ErreurFile, INTERVALLE, NotificateurCanal, Orchestrateur, mettre_en_file,
+    servir,
+};
 use crate::storage::sqlite::{Depot, ErreurStockage, maintenant};
 use crate::{VERSION, datapack, photo};
 
@@ -197,13 +201,29 @@ async fn lancer(config: &Config) -> Result<(), String> {
         "Surveillance de l'atelier, coffres dans {}. Ctrl+C pour arrêter.",
         config.stockage.sqlite
     );
-    println!("Pas de jeton Telegram : les notifications s'affichent ici.");
+    let parents = &config.canal.parents;
+    let canal = if config.canal.jeton.is_empty() {
+        println!("Pas de jeton Telegram : les notifications s'affichent ici.");
+        None
+    } else {
+        if parents.is_empty() {
+            eprintln!("Aucun parent dans [canal] parents : seul /start répondra.");
+        }
+        let canal = Rc::new(Telegram::new(&config.canal.jeton, parents));
+        canal.demarrer().await.map_err(|e| e.to_string())?;
+        println!("Telegram : {} parent(s) autorisé(s).", parents.len());
+        Some(canal)
+    };
     let llm = match creer_llm(&config.llm) {
         Ok(llm) => Some(llm),
         Err(e) => {
             eprintln!("LLM désactivé (photos, Pixel en mots-clés) : {e}");
             None
         }
+    };
+    let notificateur: Rc<dyn Notificateur> = match &canal {
+        Some(canal) => Rc::new(NotificateurCanal::new(canal.clone())),
+        None => Rc::new(NotificateurConsole),
     };
     let paisible = if config.paisible.actif {
         Some(
@@ -215,18 +235,18 @@ async fn lancer(config: &Config) -> Result<(), String> {
     };
     let orchestrateur = Orchestrateur::new(
         depot.clone(),
-        coffre,
-        Rc::new(NotificateurConsole),
+        coffre.clone(),
+        notificateur,
         Box::new(maintenant),
         paisible,
     );
     let pixel = if pixel_actif {
         let pixel = Pixel::new(
             jeu.clone(),
-            depot,
+            depot.clone(),
             pseudo,
             &config.assistant.nom,
-            llm,
+            llm.clone(),
             Box::new(maintenant),
         )
         .map_err(|e| e.to_string())?;
@@ -240,15 +260,31 @@ async fn lancer(config: &Config) -> Result<(), String> {
     } else {
         None
     };
+    let commandes = CommandesParents::new(
+        depot,
+        config.coffre.clone(),
+        Some(coffre),
+        parents,
+        Box::new(maintenant),
+        llm,
+        Alea::nouveau(),
+    );
     let ecoute = async {
         match &pixel {
             Some(pixel) => pixel.ecouter().await,
             None => std::future::pending().await,
         }
     };
+    let service = async {
+        match &canal {
+            Some(canal) => servir(canal.as_ref(), &commandes).await,
+            None => std::future::pending().await,
+        }
+    };
     let resultat = tokio::select! {
         () = orchestrateur.tourner(INTERVALLE) => Ok(()),
         fin = ecoute => fin.map_err(|e| e.to_string()),
+        () = service => Ok(()),
         () = arret_demande() => Ok(()),
     };
     // La base se ferme avec le dépôt, à la sortie de la fonction.

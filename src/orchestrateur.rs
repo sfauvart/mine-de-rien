@@ -21,21 +21,33 @@
 //! indépendamment de Telegram.
 
 use std::cell::{Cell, RefCell};
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::LazyLock;
 use std::time::Duration;
 
+use async_trait::async_trait;
 use chrono::{DateTime, TimeDelta, Utc};
+use regex::Regex;
 
+use crate::adapters::channel::base::{Canal, MessageParent};
+use crate::adapters::game::rcon::ErreurRcon;
+use crate::adapters::llm::base::Llm;
 use crate::alea::Alea;
 use crate::config::Coffre as ConfigCoffre;
 use crate::exercises::base::Exercice;
-use crate::games::coffre_du_soir::{Coffre, ErreurCoffre, Notificateur, formater_duree};
+use crate::games::atelier::{ErreurAtelier, pos};
+use crate::games::coffre_du_soir::{
+    Coffre, CoffreDuSoir, ErreurCoffre, Notificateur, formater_duree,
+};
+use crate::games::emplacement::{construire_pres_de, deplacer_pres_de};
 use crate::games::paisible::ModePaisible;
 use crate::games::pixel::EVENEMENT_INDICE;
-use crate::journal;
-use crate::rapport::nombre_indices;
-use crate::saisie::{ErreurSaisie, Source, interpreter};
-use crate::storage::sqlite::{Demande, Depot, ErreurStockage, ExerciceStocke, maintenant};
+use crate::rapport::{nombre_indices, rapport};
+use crate::saisie::{ErreurSaisie, NOMBRE_MAX, Source, interpreter};
+use crate::storage::sqlite::{Demande, Depot, ErreurStockage, ExerciceStocke, Statut, maintenant};
+use crate::util::strip;
+use crate::{journal, photo};
 
 pub const INTERVALLE: Duration = Duration::from_secs(3);
 pub const DELAI_SUIVANT: TimeDelta = TimeDelta::seconds(10);
@@ -276,4 +288,407 @@ pub fn mettre_en_file(
         saisie.source,
         demande_par,
     )?)
+}
+
+pub const NOMBRE_PHOTO: usize = 3;
+pub const DUREE_ATTENTE: TimeDelta = TimeDelta::minutes(30);
+static LEGENDE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?s)^\s*([0-9]+)?\s*(.*)$").unwrap());
+pub const LECTURE_EN_COURS: &str = "Je lis la photo… (jusqu'à deux minutes)";
+pub const RECHERCHE_EN_COURS: &str = "Je cherche un emplacement près de l'enfant…";
+pub const RAPPEL_FIDELITE: &str = "Compare cette liste à la fiche : si elle ne correspond pas, \
+    réponds /non et renvoie la photo à l'endroit.";
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LectureEnAttente {
+    pub exercices: Vec<Exercice>,
+    pub quand: DateTime<Utc>,
+}
+
+pub const AIDE: &str = "Commandes :\n\
+    /atelier : construit l'atelier près de l'enfant connecté, ou l'y déplace\n\
+    /coffre 348 ÷ 12 : un calcul recopié du cahier\n\
+    /coffre division 3 : trois exercices d'une compétence (division, anglais)\n\
+    Photo d'une fiche, « 5 » en légende : cinq exercices tirés au hasard, \
+    puis /oui pour les mettre en file ou /non\n\
+    /file : le coffre actif et ceux qui attendent\n\
+    /annuler 12 : retire le coffre n°12\n\
+    /annuler tout : retire le coffre actif et vide la file\n\
+    /rapport : les 7 derniers jours";
+
+/// La commande en minuscules et son argument (« /coffre@MonBot 12 » dans certains clients).
+fn commande(texte: &str) -> (String, &str) {
+    let (commande, argument) = strip(texte).split_once(' ').unwrap_or((strip(texte), ""));
+    (
+        commande
+            .split('@')
+            .next()
+            .unwrap_or_default()
+            .to_lowercase(),
+        strip(argument),
+    )
+}
+
+/// Ce qui empêche de répondre à un parent autrement que par « Erreur : … ».
+#[derive(Debug, thiserror::Error)]
+pub enum ErreurCommande {
+    #[error("{0}")]
+    Rcon(#[from] ErreurRcon),
+    #[error("{0}")]
+    Coffre(#[from] ErreurCoffre),
+    #[error("{0}")]
+    Stockage(#[from] ErreurStockage),
+}
+
+/// Traite les messages des parents. Ne répond rien à un expéditeur non autorisé.
+pub struct CommandesParents {
+    depot: Rc<Depot>,
+    config_coffre: ConfigCoffre,
+    coffre: Option<Rc<CoffreDuSoir>>,
+    parents: HashSet<i64>,
+    horloge: Horloge,
+    llm: Option<Rc<dyn Llm>>,
+    alea: RefCell<Alea>,
+    en_attente: RefCell<HashMap<i64, LectureEnAttente>>,
+}
+
+impl CommandesParents {
+    pub fn new(
+        depot: Rc<Depot>,
+        config_coffre: ConfigCoffre,
+        coffre: Option<Rc<CoffreDuSoir>>,
+        parents: &[i64],
+        horloge: Horloge,
+        llm: Option<Rc<dyn Llm>>,
+        alea: Alea,
+    ) -> Self {
+        Self {
+            depot,
+            config_coffre,
+            coffre,
+            parents: parents.iter().copied().collect(),
+            horloge,
+            llm,
+            alea: RefCell::new(alea),
+            en_attente: RefCell::new(HashMap::new()),
+        }
+    }
+
+    /// La lecture de photo qu'un parent n'a pas encore confirmée, s'il y en a une.
+    pub fn lecture_en_attente(&self, parent: i64) -> Option<LectureEnAttente> {
+        self.en_attente.borrow().get(&parent).cloned()
+    }
+
+    /// Message à envoyer tout de suite, avant une lecture de photo qui prend du temps.
+    pub fn accuse_reception(&self, message: &MessageParent) -> Option<&'static str> {
+        if !self.parents.contains(&message.expediteur) {
+            return None;
+        }
+        if message.image.is_some() && self.llm.as_ref().is_some_and(|llm| !llm.distant()) {
+            return Some(LECTURE_EN_COURS);
+        }
+        (commande(&message.texte).0 == "/atelier").then_some(RECHERCHE_EN_COURS)
+    }
+
+    pub async fn traiter(&self, message: &MessageParent) -> Result<Option<String>, ErreurCommande> {
+        if !self.parents.contains(&message.expediteur) {
+            return Ok(None);
+        }
+        if let Some(image) = &message.image {
+            return Ok(Some(self.photo(message, image).await?));
+        }
+        let (commande, argument) = commande(&message.texte);
+        let reponse = match commande.as_str() {
+            "/atelier" => self.atelier().await?,
+            "/coffre" => {
+                let demande_par = message.expediteur.to_string();
+                let mut alea = self.alea.borrow_mut();
+                match mettre_en_file(
+                    &self.depot,
+                    &self.config_coffre,
+                    argument,
+                    &demande_par,
+                    &mut alea,
+                ) {
+                    Ok(lignes) => lignes.join("\n"),
+                    Err(ErreurFile::Saisie(e)) => format!("Refusé : {e}"),
+                    Err(ErreurFile::Stockage(e)) => return Err(e.into()),
+                }
+            }
+            "/file" => self.file()?,
+            "/annuler" => self.annuler(argument).await?,
+            "/rapport" => rapport(&self.depot, (self.horloge)())?,
+            "/oui" => self.confirmer(message.expediteur)?,
+            "/non" => {
+                if self
+                    .en_attente
+                    .borrow_mut()
+                    .remove(&message.expediteur)
+                    .is_none()
+                {
+                    "Aucune lecture de photo en attente.".to_owned()
+                } else {
+                    "Abandonné : rien n'a été mis en file.".to_owned()
+                }
+            }
+            _ => AIDE.to_owned(),
+        };
+        Ok(Some(reponse))
+    }
+
+    async fn atelier(&self) -> Result<String, ErreurCommande> {
+        let Some(coffre) = &self.coffre else {
+            return Ok("Aucun serveur Minecraft configuré.".to_owned());
+        };
+        let _verrou = coffre.verrou().lock().await;
+        coffre.actualiser_atelier().await?;
+        let ancien = coffre.atelier();
+        let jeu = coffre.jeu.as_ref();
+        let construction = match ancien {
+            None => construire_pres_de(jeu, &coffre.pseudo).await,
+            Some(ancien) => {
+                if let Some(refus) = self.refus_de_deplacer(coffre).await? {
+                    return Ok(refus);
+                }
+                deplacer_pres_de(jeu, &coffre.pseudo, &ancien).await
+            }
+        };
+        let c = match construction {
+            Ok(c) => c,
+            Err(ErreurAtelier::Refus(message)) => return Ok(message),
+            Err(ErreurAtelier::Rcon(e)) => return Err(e.into()),
+        };
+        let verbe = if ancien.is_none() {
+            "construit"
+        } else {
+            "déplacé"
+        };
+        Ok(format!(
+            "Atelier {verbe} en {}, à {} blocs de l'enfant.",
+            pos(c.atelier.coffre()),
+            c.distance
+        ))
+    }
+
+    async fn refus_de_deplacer(
+        &self,
+        coffre: &CoffreDuSoir,
+    ) -> Result<Option<String>, ErreurCommande> {
+        if let Some(actif) = self.depot.actif()? {
+            return Ok(Some(format!(
+                "Le coffre n°{0} est en cours : l'annuler avec /annuler {0}, \
+                 ou attendre qu'il soit ouvert, puis relancer /atelier.",
+                actif.id
+            )));
+        }
+        if !coffre.coffre_vide().await? {
+            return Ok(Some(
+                "Le coffre de l'atelier contient encore des objets : l'enfant doit le vider, \
+                 puis relancer /atelier."
+                    .to_owned(),
+            ));
+        }
+        Ok(None)
+    }
+
+    async fn photo(&self, message: &MessageParent, image: &[u8]) -> Result<String, ErreurCommande> {
+        let Some(llm) = &self.llm else {
+            return Ok(
+                "La lecture de photo n'est pas configurée (section [llm] de config.toml)."
+                    .to_owned(),
+            );
+        };
+        if llm.distant() {
+            return Ok(
+                "La lecture de photo demande un LLM local ([llm] adaptateur = \
+                       \"openai-compatible\") : une photo ne part jamais vers un LLM distant."
+                    .to_owned(),
+            );
+        }
+        let bornes =
+            || format!("Entre 1 et {NOMBRE_MAX} exercices à la fois (le nombre en légende).");
+        let legende = LEGENDE.captures(&message.texte);
+        let nombre = match legende.as_ref().and_then(|m| m.get(1)) {
+            None => NOMBRE_PHOTO,
+            // Un nombre trop grand pour être lu est, à plus forte raison, hors des bornes.
+            Some(n) => match n.as_str().parse::<usize>() {
+                Ok(n) => n,
+                Err(_) => return Ok(bornes()),
+            },
+        };
+        if !(1..=NOMBRE_MAX).contains(&nombre) {
+            return Ok(bornes());
+        }
+        let consigne = legende
+            .as_ref()
+            .and_then(|m| m.get(2))
+            .map_or("", |m| m.as_str());
+        // Le tirage ne garde pas l'emprunt pendant l'attente du LLM.
+        let mut alea = Alea::graine(self.alea.borrow_mut().entier(0, i64::MAX) as u64);
+        let lecture = match photo::lire(llm.as_ref(), image, consigne, &mut alea).await {
+            Ok(lecture) => lecture,
+            Err(e) => return Ok(format!("Lecture impossible : {e}")),
+        };
+        if lecture.exercices.is_empty() {
+            return Ok("Je n'ai rien reconnu. La photo est-elle à l'endroit ?".to_owned());
+        }
+        let tires = photo::tirer(&lecture, nombre, &mut alea);
+        let mut lignes = photo::resumer(&lecture);
+        lignes.push(format!("Tirés au hasard ({}) :", tires.len()));
+        lignes.extend(
+            tires
+                .iter()
+                .map(|ex| format!("• {} (réponse {})", ex.enonce, ex.reponse)),
+        );
+        lignes.push(RAPPEL_FIDELITE.to_owned());
+        lignes.push("/oui pour les mettre en file, /non pour abandonner.".to_owned());
+        self.en_attente.borrow_mut().insert(
+            message.expediteur,
+            LectureEnAttente {
+                exercices: tires,
+                quand: (self.horloge)(),
+            },
+        );
+        Ok(lignes.join("\n"))
+    }
+
+    fn confirmer(&self, parent: i64) -> Result<String, ErreurCommande> {
+        let attente = self.en_attente.borrow_mut().remove(&parent);
+        let Some(attente) = attente.filter(|a| (self.horloge)() - a.quand <= DUREE_ATTENTE) else {
+            return Ok("Rien à confirmer : envoie d'abord la photo d'une fiche \
+                       (une lecture attend 30 minutes au plus)."
+                .to_owned());
+        };
+        let lignes = ajouter_exercices(
+            &self.depot,
+            &self.config_coffre,
+            &attente.exercices,
+            Source::Photo,
+            &parent.to_string(),
+        )?;
+        Ok(lignes.join("\n"))
+    }
+
+    fn file(&self) -> Result<String, ErreurCommande> {
+        let mut lignes = Vec::new();
+        match self.depot.actif()? {
+            Some(actif) => {
+                let depuis = match actif.pose_le {
+                    Some(pose_le) => formater_duree(Some((self.horloge)() - pose_le)),
+                    None => "?".to_owned(),
+                };
+                lignes.push(format!(
+                    "Coffre actif : n°{} {} (réponse {}), posé depuis {depuis}",
+                    actif.id, actif.exercice.enonce, actif.exercice.reponse
+                ));
+            }
+            None => lignes.push("Aucun coffre actif.".to_owned()),
+        }
+        let attente = self.depot.en_file()?;
+        if !attente.is_empty() {
+            lignes.push("En attente :".to_owned());
+            lignes.extend(
+                attente
+                    .iter()
+                    .map(|s| format!("• n°{} {}", s.id, s.exercice.enonce)),
+            );
+        }
+        Ok(lignes.join("\n"))
+    }
+
+    async fn annuler(&self, argument: &str) -> Result<String, ErreurCommande> {
+        if argument.to_lowercase() == "tout" {
+            return self.annuler_tout().await;
+        }
+        let chiffres = argument.trim_start_matches(['n', '°']);
+        let numero = chiffres
+            .parse::<i64>()
+            .ok()
+            .filter(|_| chiffres.chars().all(|c| c.is_ascii_digit()));
+        let Some(numero) = numero else {
+            return Ok("Préciser le numéro du coffre (/annuler 12), ou /annuler tout".to_owned());
+        };
+        let statut = self.depot.lire(numero)?.map(|s| s.statut);
+        if !matches!(statut, Some(Statut::EnFile | Statut::Pose)) {
+            return Ok(format!(
+                "Le coffre n°{numero} n'est ni actif ni en attente."
+            ));
+        }
+        if statut == Some(Statut::Pose)
+            && let Some(coffre) = &self.coffre
+            && let Err(e) = coffre.retirer().await
+        {
+            return Ok(format!(
+                "Le coffre n°{numero} n'a pas pu être retiré du jeu, réessayer : {e}"
+            ));
+        }
+        self.depot.annuler(numero)?;
+        Ok(format!("Coffre n°{numero} annulé."))
+    }
+
+    /// La file d'abord, sans attendre le jeu : la boucle ne pourra pas poser le suivant
+    /// pendant que le coffre actif est retiré.
+    async fn annuler_tout(&self) -> Result<String, ErreurCommande> {
+        let mut annules = Vec::new();
+        for s in self.depot.en_file()? {
+            if self.depot.annuler(s.id)?.is_some() {
+                annules.push(format!("n°{}", s.id));
+            }
+        }
+        let mut lignes = Vec::new();
+        if !annules.is_empty() {
+            lignes.push(format!("En attente annulés : {}", annules.join(", ")));
+        }
+        if let Some(actif) = self.depot.actif()? {
+            if let Some(coffre) = &self.coffre
+                && let Err(e) = coffre.retirer().await
+            {
+                lignes.push(format!(
+                    "Le coffre actif n°{} n'a pas pu être retiré du jeu, réessayer : {e}",
+                    actif.id
+                ));
+                return Ok(lignes.join("\n"));
+            }
+            self.depot.annuler(actif.id)?;
+            lignes.insert(0, format!("Coffre actif n°{} annulé.", actif.id));
+        }
+        if lignes.is_empty() {
+            return Ok("Rien à annuler : aucun coffre actif ni en attente.".to_owned());
+        }
+        Ok(lignes.join("\n"))
+    }
+}
+
+/// Les notifications de l'orchestrateur partent vers tous les parents du canal.
+pub struct NotificateurCanal {
+    canal: Rc<dyn Canal>,
+}
+
+impl NotificateurCanal {
+    pub fn new(canal: Rc<dyn Canal>) -> Self {
+        Self { canal }
+    }
+}
+
+#[async_trait(?Send)]
+impl Notificateur for NotificateurCanal {
+    async fn notifier(&self, message: &str) {
+        self.canal.envoyer(message).await;
+    }
+}
+
+/// Répond aux messages des parents, un par un, aussi longtemps que le canal est ouvert.
+pub async fn servir(canal: &dyn Canal, commandes: &CommandesParents) {
+    while let Some(message) = canal.recevoir().await {
+        if let Some(accuse) = commandes.accuse_reception(&message) {
+            canal.repondre(message.expediteur, accuse).await;
+        }
+        let reponse = match commandes.traiter(&message).await {
+            Ok(reponse) => reponse,
+            Err(e) => Some(format!("Erreur : {e}")),
+        };
+        if let Some(reponse) = reponse.filter(|r| !r.is_empty()) {
+            canal.repondre(message.expediteur, &reponse).await;
+        }
+    }
 }
