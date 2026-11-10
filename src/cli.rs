@@ -18,6 +18,7 @@ use crate::config::{Config, charger_config};
 use crate::games::atelier::{self, ErreurAtelier};
 use crate::games::coffre_du_soir::{CoffreDuSoir, NotificateurConsole};
 use crate::games::paisible::ModePaisible;
+use crate::games::pixel::Pixel;
 use crate::orchestrateur::{ErreurFile, INTERVALLE, Orchestrateur, mettre_en_file};
 use crate::storage::sqlite::{Depot, ErreurStockage, maintenant};
 use crate::{VERSION, datapack, photo};
@@ -181,15 +182,29 @@ async fn lancer(config: &Config) -> Result<(), String> {
     let pseudo = config.enfant.pseudo_minecraft.as_str();
     let jeu = Rc::new(jeu(config));
     let depot = Rc::new(depot(config).map_err(|e| e.to_string())?);
+    let pixel_actif = config.assistant.actif && !config.jeu.log.is_empty();
+    let assistant = pixel_actif.then_some(config.assistant.nom.as_str());
     let coffre = Rc::new(
-        CoffreDuSoir::new(jeu.clone(), pseudo, config.coffre.niveaux_offerts, None)
-            .map_err(|e| e.to_string())?,
+        CoffreDuSoir::new(
+            jeu.clone(),
+            pseudo,
+            config.coffre.niveaux_offerts,
+            assistant,
+        )
+        .map_err(|e| e.to_string())?,
     );
     println!(
         "Surveillance de l'atelier, coffres dans {}. Ctrl+C pour arrêter.",
         config.stockage.sqlite
     );
     println!("Pas de jeton Telegram : les notifications s'affichent ici.");
+    let llm = match creer_llm(&config.llm) {
+        Ok(llm) => Some(llm),
+        Err(e) => {
+            eprintln!("LLM désactivé (photos, Pixel en mots-clés) : {e}");
+            None
+        }
+    };
     let paisible = if config.paisible.actif {
         Some(
             ModePaisible::new(jeu.clone(), pseudo, &config.paisible.difficulte_normale)
@@ -199,19 +214,46 @@ async fn lancer(config: &Config) -> Result<(), String> {
         None
     };
     let orchestrateur = Orchestrateur::new(
-        depot,
+        depot.clone(),
         coffre,
         Rc::new(NotificateurConsole),
         Box::new(maintenant),
         paisible,
     );
-    tokio::select! {
-        () = orchestrateur.tourner(INTERVALLE) => {}
-        () = arret_demande() => {}
-    }
+    let pixel = if pixel_actif {
+        let pixel = Pixel::new(
+            jeu.clone(),
+            depot,
+            pseudo,
+            &config.assistant.nom,
+            llm,
+            Box::new(maintenant),
+        )
+        .map_err(|e| e.to_string())?;
+        let mode = if pixel.avec_llm() {
+            "LLM local"
+        } else {
+            "mots-clés"
+        };
+        println!("{} écoute le chat ({mode}).", config.assistant.nom);
+        Some(pixel)
+    } else {
+        None
+    };
+    let ecoute = async {
+        match &pixel {
+            Some(pixel) => pixel.ecouter().await,
+            None => std::future::pending().await,
+        }
+    };
+    let resultat = tokio::select! {
+        () = orchestrateur.tourner(INTERVALLE) => Ok(()),
+        fin = ecoute => fin.map_err(|e| e.to_string()),
+        () = arret_demande() => Ok(()),
+    };
     // La base se ferme avec le dépôt, à la sortie de la fonction.
     jeu.fermer().await;
-    Ok(())
+    resultat
 }
 
 async fn interroger_llm(
