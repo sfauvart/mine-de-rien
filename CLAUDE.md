@@ -5,14 +5,19 @@ piloté par les parents via Telegram, avec rapports de progression.
 
 ## Règles du projet
 
-- Code, commentaires, docs et messages de commit en français. Identifiants Python en français
+- L'agent est écrit en Rust : un seul crate, un seul binaire, `mine-de-rien`.
+- Code, commentaires, docs et messages de commit en français. Identifiants Rust en français
   quand ils désignent des notions métier (compétence, énoncé, tentative), en anglais pour la
   plomberie technique standard.
 - **Le LLM ne calcule jamais une réponse.** Tout exercice vient d'un générateur déterministe
-  dans `src/mine_de_rien/exercises/`, la réponse est calculée en Python.
+  dans `src/exercises/`, la réponse est calculée par le générateur.
+- Pas de `unsafe` (le crate l'interdit), pas de `unwrap()` hors des tests et des constantes :
+  une panique dans une tâche arrête l'agent. Les longueurs de texte se comptent en
+  caractères (`chars()`), jamais en octets.
 - Rien ne sort de la maison sans configuration explicite. Pas de télémétrie, pas d'appel réseau
-  caché. Le prénom et le chat de l'enfant ne sont jamais envoyés à un LLM distant.
-- Toute dépendance à un service externe passe par un adaptateur dans `src/mine_de_rien/adapters/`
+  caché. Le prénom et le chat de l'enfant ne sont jamais envoyés à un LLM distant. Une
+  dépendance ajoutée à `Cargo.toml` ne doit ouvrir aucune connexion de son propre chef.
+- Toute dépendance à un service externe passe par un adaptateur dans `src/adapters/`
   et doit avoir une alternative auto-hébergée.
 
 ## Façon de travailler
@@ -32,16 +37,24 @@ Ne pas pousser ni fusionner sans qu'on le demande.
 ## Commandes
 
 ```bash
-uv sync            # installer
-uv run pytest      # tests
-uv run ruff check  # lint
+cargo build                                 # compiler
+cargo test                                  # tests
+cargo fmt --check                           # mise en forme
+cargo clippy --all-targets -- -D warnings   # lint
+cargo run -- --config config.essai.toml lancer
 ```
+
+`tests/donnees/oracle/` garde ce que produisait l'ancienne version Python de l'agent
+(commandes Minecraft, messages, rapports) : un test `oracle_python` qui casse signale un
+changement de comportement, à assumer dans le commit ou à corriger.
 
 ## Arborescence
 
-- `src/mine_de_rien/adapters/` : jeu (RCON Java), canal (Telegram), LLM (Anthropic, compatible OpenAI)
-- `src/mine_de_rien/exercises/` : générateurs par compétence
-- `src/mine_de_rien/games/` : mises en scène dans Minecraft (coffre du soir, Bartholomé, ...)
-- `src/mine_de_rien/storage/` : SQLite
-- `datapacks/` : arbre de progrès
+- `src/adapters/` : jeu (RCON Java), canal (Telegram), LLM (Anthropic, compatible OpenAI)
+- `src/exercises/` : générateurs par compétence
+- `src/games/` : mises en scène dans Minecraft (coffre du soir, Pixel, ...)
+- `src/storage/` : SQLite
+- `src/orchestrateur.rs` : boucle de surveillance et commandes des parents
+- `tests/` : un fichier par module, `tests/commun/` pour les faux mondes partagés
+- `datapacks/` : zone de l'atelier, embarqué dans le binaire à la compilation
 - `docs/` : idées et décisions d'architecture

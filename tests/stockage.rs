@@ -1,7 +1,5 @@
 mod commun;
 
-use std::process::Command;
-
 use chrono::{DateTime, SecondsFormat, TimeDelta, Utc};
 use mine_de_rien::exercises::base::Exercice;
 use mine_de_rien::saisie::Source;
@@ -259,7 +257,7 @@ fn iso(quand: Option<DateTime<Utc>>) -> Value {
     json!(quand.map(|q| q.to_rfc3339_opts(SecondsFormat::Secs, false)))
 }
 
-/// L'exercice stocké, écrit comme le fait `scripts/oracle.py` pour la version Python.
+/// L'exercice stocké, écrit comme dans les fichiers de référence.
 fn stocke(s: &ExerciceStocke) -> Value {
     json!({
         "id": s.id,
@@ -352,78 +350,4 @@ fn les_bases_v1_et_v2_migrees_donnent_les_lignes_de_v3() {
             .collect()
     };
     assert_eq!(sans_niveaux(&v1), sans_niveaux(&v2));
-}
-
-/// Ce que Rust écrit, Python le relit. Lance la version Python : test retiré avec elle
-/// (phase 11 de la spec `2026-11-agent-en-rust`).
-#[test]
-fn python_relit_une_base_ecrite_par_rust() {
-    let dossier = tempfile::tempdir().unwrap();
-    let chemin = dossier.path().join("rust.sqlite");
-    let depot = Depot::ouvrir(&chemin).unwrap();
-    let aout = Exercice {
-        competence: "anglais/vocabulaire".to_owned(),
-        enonce: "août en anglais ?".to_owned(),
-        reponse: "august".to_owned(),
-        donnees: json!({"francais": "août", "citation": "l'élève a dit \"oui\""})
-            .as_object()
-            .cloned()
-            .unwrap(),
-    };
-    let a = depot.ajouter(&aout, DEMANDE, t0()).unwrap();
-    let b = ajouter(&depot, 2, t0());
-    ajouter(&depot, 3, t0());
-    depot.marquer_pose(a, t0() + TimeDelta::minutes(1)).unwrap();
-    depot.marquer_niveaux_donnes(a).unwrap();
-    depot
-        .noter("indice", Some(a), t0() + TimeDelta::minutes(2))
-        .unwrap();
-    depot
-        .marquer_ouvert(a, t0() + TimeDelta::minutes(5))
-        .unwrap();
-    depot.marquer_pose(b, t0() + TimeDelta::minutes(6)).unwrap();
-    depot
-        .noter("coffre_disparu", Some(b), t0() + TimeDelta::minutes(7))
-        .unwrap();
-    let vu_par_rust = json!(
-        depot
-            .entre(t0() - TimeDelta::days(1), t0() + TimeDelta::days(1))
-            .unwrap()
-            .iter()
-            .map(stocke)
-            .collect::<Vec<_>>()
-    );
-    let rapport_rust = mine_de_rien::rapport::rapport(&depot, t0() + TimeDelta::hours(1)).unwrap();
-    drop(depot);
-
-    let script = r#"
-import dataclasses, json, sys
-from datetime import datetime, timedelta
-from mine_de_rien.rapport import rapport
-from mine_de_rien.storage.sqlite import Depot
-t0 = datetime.fromisoformat("2026-11-07T18:00:00+00:00")
-depot = Depot.ouvrir(sys.argv[1])
-lignes = []
-for s in depot.entre(t0 - timedelta(days=1), t0 + timedelta(days=1)):
-    d = dataclasses.asdict(s)
-    for cle in ("cree_le", "pose_le", "ouvert_le"):
-        d[cle] = d[cle].isoformat(timespec="seconds") if d[cle] else None
-    d["duree"] = s.duree.total_seconds() if s.duree is not None else None
-    lignes.append(d)
-print(json.dumps({"lignes": lignes, "rapport": rapport(depot, t0 + timedelta(hours=1))}))
-"#;
-    let sortie = Command::new("uv")
-        .args(["run", "--quiet", "python", "-c", script])
-        .arg(&chemin)
-        .current_dir(commun::racine())
-        .output()
-        .expect("uv doit être installé tant que la version Python existe");
-    assert!(
-        sortie.status.success(),
-        "{}",
-        String::from_utf8_lossy(&sortie.stderr)
-    );
-    let vu_par_python: Value = serde_json::from_slice(&sortie.stdout).unwrap();
-    assert_eq!(vu_par_python["lignes"], vu_par_rust);
-    assert_eq!(vu_par_python["rapport"], rapport_rust.as_str());
 }

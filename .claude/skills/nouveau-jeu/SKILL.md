@@ -34,7 +34,7 @@ commencer.
 
 ## 1. Écrire la mécanique sur papier d'abord
 
-Dans la docstring du module `src/mine_de_rien/games/<slug>.py`, avant le code :
+Dans le commentaire d'en-tête (`//!`) du module `src/games/<slug>.rs`, avant le code :
 
 - **Le désir.** Ce que l'enfant obtient et pourquoi il le veut.
 - **Les commandes**, dans l'ordre, avec la version de Minecraft sur laquelle

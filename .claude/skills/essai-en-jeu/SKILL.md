@@ -80,6 +80,11 @@ essai "execute if block 0 -60 0 chest"             # vérifier : renvoie « Test
   servie, corriger, recommencer.
 - **Vérifier par l'état du monde**, pas par l'absence d'erreur : une commande
   acceptée peut ne rien faire (mauvaise coordonnée, mauvais composant).
+- Pour vérifier le client RCON lui-même contre le vrai serveur (rafale de commandes,
+  accents, reconnexion après redémarrage) : `cargo test --test java_rcon -- --ignored
+  --nocapture`. Ce test redémarre le serveur d'essai.
+- L'agent se lance contre ce serveur avec `cargo run -- --config config.essai.toml <action>`
+  (`atelier`, `coffre "348 ÷ 12"`, `lancer`, `dire <pseudo> "…"`).
 - Le code de l'agent peut aussi viser ce serveur via `config.essai.toml`
   (hôte `localhost`, port 25576, mot de passe `essai`). Ce fichier est local et
   ignoré par git : s'il manque, le créer avec

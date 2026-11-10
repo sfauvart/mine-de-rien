@@ -33,7 +33,7 @@ compte ce papier dans l'inventaire de l'enfant avec `clear <pseudo> <papier> 0` 
 Telegram quand il apparaît. Limites : un coffre verrouillé se casse et lâche son contenu, d'où
 l'atelier fixe et la zone en mode aventure (le marchand a été écarté). On ne voit pas les
 tentatives ratées, seulement le temps de résolution. Détails dans
-`src/mine_de_rien/games/coffre_du_soir.py`.
+`src/games/coffre_du_soir.rs`.
 
 ## 2. Arbre de progrès (souhait : le cahier de textes et l'arbre des progrès sont le même objet)
 

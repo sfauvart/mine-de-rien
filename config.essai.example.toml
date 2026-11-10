@@ -4,7 +4,7 @@
 # Modèle versionné. La copie locale, ignorée par git, porte ton pseudo et ton Telegram :
 #
 #   cp config.essai.example.toml config.essai.toml
-#   uv run mine-de-rien --config config.essai.toml dire "<pseudo>" "bonjour"
+#   cargo run -- --config config.essai.toml dire "<pseudo>" "bonjour"
 
 [enfant]
 pseudo_minecraft = "Steve"      # remplacer par le pseudo utilisé pour se connecter à l'essai

@@ -87,7 +87,7 @@ coffre et aux durées. Jamais le pseudo ni le prénom de l'enfant.
   ```
 
   Vérifier, une fois le serveur démarré (étape 5) :
-  `docker compose exec agent uv run --no-sync mine-de-rien --config /app/config.toml llm "Bonjour ?"`
+  `docker compose exec agent mine-de-rien --config /app/config.toml llm "Bonjour ?"`
   doit répondre. Avec `adaptateur = "anthropic"`, aucune photo n'est lue : une photo ne
   part jamais vers un LLM distant.
 
@@ -202,7 +202,7 @@ Pour choisir l'emplacement exact au lieu de le laisser chercher :
 
    ```bash
    docker compose restart agent
-   docker compose exec agent uv run --no-sync mine-de-rien --config /app/config.toml atelier
+   docker compose exec agent mine-de-rien --config /app/config.toml atelier
    ```
 
    Si un bloc gêne (arbre, construction), Mine de rien refuse sans rien casser et dit où

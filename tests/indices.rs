@@ -125,6 +125,29 @@ fn doubles_et_moities_de_1_a_2000_et_decimaux() {
 }
 
 #[test]
+fn exercices_lus_sur_les_photos_enregistrees() {
+    let dossier = commun::racine().join("tests/donnees/photo");
+    let mut fichiers = 0;
+    for entree in std::fs::read_dir(dossier).unwrap() {
+        let chemin = entree.unwrap().path();
+        if chemin
+            .extension()
+            .is_none_or(|extension| extension != "json")
+        {
+            continue;
+        }
+        let reponses: Vec<Map<String, serde_json::Value>> =
+            serde_json::from_str(&std::fs::read_to_string(&chemin).unwrap()).unwrap();
+        let lecture = mine_de_rien::photo::interpreter(&reponses, &mut Alea::graine(0)).unwrap();
+        for ex in &lecture.exercices {
+            verifier(ex);
+        }
+        fichiers += 1;
+    }
+    assert_eq!(fichiers, 4);
+}
+
+#[test]
 fn cas_ecrits_a_la_main() {
     assert_eq!(
         indices(&double_ou_moitie(true, "17").unwrap()),

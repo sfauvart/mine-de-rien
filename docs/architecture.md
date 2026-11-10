@@ -35,6 +35,27 @@ Pour le réactiver, il faudra télécharger Geyser et Floodgate depuis le site d
 `19132/udp`, épingler une version de Minecraft que Geyser prend en charge, et remettre la
 vérification Bedrock dans la skill `/nouveau-jeu`.
 
+## Passage à Rust (10 novembre 2026)
+
+L'agent, écrit en Python jusqu'à la version 0.1.2, est devenu un binaire Rust unique
+([spec](specs/open/2026-11-agent-en-rust.md)). Rien ne change pour l'enfant ni pour les
+parents : même `config.toml`, même base SQLite, mêmes commandes Telegram, mêmes commandes
+envoyées à Minecraft.
+
+- **Pourquoi.** Un service qui tourne en permanence à la maison n'a pas besoin d'un
+  interpréteur, d'un gestionnaire de paquets et d'un environnement virtuel dans son image.
+  Le mainteneur préfère Rust ; ce n'est pas une affaire de vitesse, l'agent attend le réseau.
+- **Ce qui a été gardé tel quel.** Les six décisions ci-dessus, le découpage en modules, le
+  client RCON écrit à la main, le schéma de la base et le format de ses dates.
+- **La preuve.** Tant que le Python existait, il a écrit dans `tests/donnees/oracle/` ce
+  qu'il produisait pour des entrées fixées : commandes Minecraft, messages, rapports,
+  conversations entières. Les tests Rust exigent la même chose, au caractère près.
+- **Ce que ça change pour qui installe.** L'image ne contient que le binaire (plus de
+  `uv run` dans les commandes `docker compose exec`), le datapack est embarqué dedans, et
+  elle se construit sans émulation pour amd64 et arm64.
+- **Un seul fil.** Runtime `tokio` mono-fil : la base et le verrou du coffre sont partagés
+  entre la boucle, Pixel et Telegram sans verrou de fil, comme avec `asyncio`.
+
 ## Ordre de construction
 
 | Version | Contenu | Dépendance technique |

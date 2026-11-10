@@ -5,16 +5,10 @@ data/
 config.toml
 config.essai.toml
 
-# Inutile à l'image
+# Inutile à l'image : seuls Cargo.toml, Cargo.lock, src/ et datapacks/ servent.
 .git/
 .github/
 .claude/
-.venv/
-**/__pycache__/
-*.pyc
-.pytest_cache/
-.ruff_cache/
-dist/
+target/
 tests/
 docs/
-target/

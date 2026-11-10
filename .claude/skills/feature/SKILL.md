@@ -24,7 +24,7 @@ poser quoi que ce soit :
   construction) et `docs/idees.md` (les jeux et ce qui a été refusé) ;
 - lister `docs/specs/open/` : un chantier déjà ouvert peut recouvrir la demande ;
 - `git log --oneline -20` pour voir ce qui vient d'être livré ;
-- lire le code que la demande touche, assez pour citer des `fichier.py:ligne`.
+- lire le code que la demande touche, assez pour citer des `fichier.rs:ligne`.
 
 ## 2. Poser les questions qui changent le travail
 
@@ -63,7 +63,7 @@ Dans `docs/specs/open/AAAA-MM-<slug>.md`. `open/` contient les specs en cours,
 
 ## Pourquoi
 
-Le problème, avec des preuves : `fichier.py:120-134`, un comportement observé
+Le problème, avec des preuves : `fichier.rs:120-134`, un comportement observé
 en jeu, un attendu du programme de CM2. Pas de généralités. Si le problème ne
 peut pas être montré, il n'est peut-être pas encore compris.
 
@@ -106,7 +106,7 @@ Les dépendances entre phases, en une phrase.
 **Contexte.** Ce qu'il faut savoir pour la reprendre à froid.
 **Fichiers.** Ceux qui bougent.
 **Conception.** Le comment, au niveau où une décision se discute.
-**Vérification automatique.** Les commandes à lancer (`uv run pytest`, scénario
+**Vérification automatique.** Les commandes à lancer (`cargo test`, scénario
 `/essai-en-jeu`) et ce qu'elles doivent montrer.
 **Vérification en jeu.** Le scénario que le parent jouera : où aller, quel geste
 faire, ce qui doit se passer. Omettre si la phase ne touche pas au jeu.
