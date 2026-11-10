@@ -590,11 +590,14 @@ raté et sa graphie.
 de l'image, écarts constatés.)*
 
 **Phase 1.**
-- Voix : *(choix du parent, à l'écoute des trois voix françaises de Piper sur les dictées 5
-  et 6 ; `fr_FR-siwis-medium` par défaut en attendant)*.
+- Voix choisie par le parent le 2026-11-10, à l'écoute des trois voix françaises de Piper
+  sur les dictées 5 et 6 : **`fr_FR-siwis-medium`, à la vitesse 1,4**. Les deux autres
+  (`upmc`, `tom`) « sonnent trop synthétique ». La vitesse 1,4, essayée comme vitesse lente,
+  devient la vitesse normale ; la vitesse lente du premier indice passe à 1,8, que le parent
+  n'a pas encore écoutée.
 - Piper lit une dictée entière en une à deux secondes sur le poste ; une phrase lue et
-  convertie par `mine-de-rien voix` prend 0,1 à 0,2 s. Vitesse lente : `length_scale` 1,4
-  (4,6 s au lieu de 3,3 s pour la première phrase de la dictée 6).
+  convertie par `mine-de-rien voix` prend 0,1 à 0,2 s. À la vitesse 1,4, la première phrase
+  de la dictée 6 dure 4,6 s, contre 3,3 s au débit naturel de la voix.
 - Le fichier produit est reconnu par `ffprobe` (Vorbis, mono, 22 050 Hz, environ 50 kb/s,
   29 Ko pour 3,3 s) et décodé sans erreur par `ffmpeg`. Minecraft ne l'a pas encore lu.
 - Image de l'agent, construite pour les deux architectures sans émulation, comme avant :

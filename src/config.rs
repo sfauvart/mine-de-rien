@@ -140,8 +140,10 @@ impl Default for Voix {
             adaptateur: "piper".to_owned(),
             url: String::new(),
             voix: "fr_FR-siwis-medium".to_owned(),
-            vitesse_normale: 1.0,
-            vitesse_lente: 1.4,
+            // Choix du parent à l'écoute (2026-11-10) : le débit naturel de la voix va trop
+            // vite pour une dictée.
+            vitesse_normale: 1.4,
+            vitesse_lente: 1.8,
         }
     }
 }

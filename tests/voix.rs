@@ -182,7 +182,7 @@ fn section_voix_absente_ou_lue() {
         .unwrap();
     assert_eq!(voix.adaptateur, "piper");
     assert_eq!(voix.voix, "fr_FR-siwis-medium");
-    assert_eq!((voix.vitesse_normale, voix.vitesse_lente), (1.0, 1.4));
+    assert_eq!((voix.vitesse_normale, voix.vitesse_lente), (1.4, 1.8));
 }
 
 #[test]
