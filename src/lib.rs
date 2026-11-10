@@ -9,6 +9,7 @@ pub mod exercises;
 pub mod games;
 pub mod journal;
 pub mod minecraft;
+pub mod orchestrateur;
 pub mod rapport;
 pub mod saisie;
 pub mod storage;

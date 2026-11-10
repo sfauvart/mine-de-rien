@@ -116,7 +116,7 @@ Deux points à tenir pendant le port :
 - [x] **Phase 4 : La base SQLite et le rapport**
 - [x] **Phase 5 : Parler au serveur : RCON et log**
 - [x] **Phase 6 : Atelier, emplacement et mode paisible**
-- [ ] **Phase 7 : Le coffre du soir et la boucle de surveillance**
+- [x] **Phase 7 : Le coffre du soir et la boucle de surveillance**
 - [ ] **Phase 8 : LLM local et lecture de photo**
 - [ ] **Phase 9 : Pixel**
 - [ ] **Phase 10 : Telegram et les commandes des parents**
@@ -639,3 +639,27 @@ de route, taille de l'image.)*
   phase 7.
 - Reste à jouer en jeu : la zone en mode aventure autour de l'atelier (c'est le datapack,
   inchangé, qui la fait).
+
+**Phase 7.**
+- La boucle voit le coffre par un trait `Coffre` : le vrai `CoffreDuSoir`, ou le faux des
+  tests, comme le faisait le typage canard en Python.
+- `ErreurTour` réunit tout ce qui peut interrompre un tour : la boucle les journalise
+  toutes et repart, y compris celles que Python ne rattrapait pas (une `OSError` à l'envoi).
+- Oracle : 316 cas transcrits. Les commandes de pose sur sept énoncés (accents, guillemets,
+  antislash, saut de ligne, énoncé trop long), quatorze méthodes du coffre sur dix mondes
+  avec et sans Pixel, et onze scénarios de surveillance joués tour par tour (enfant absent
+  puis connecté, ouverture avec indices, coffre disparu, atelier absent puis construit, pose
+  refusée, serveur en panne un tour). Mêmes commandes, mêmes messages à l'enfant, mêmes
+  notifications, même base à la fin.
+- Les tests de `test_coffre_du_soir.py`, ceux de `test_paisible.py` et de `test_rapport.py`
+  qui passaient par l'orchestrateur sont portés. Il n'y a pas de `tests/orchestrateur.rs`
+  dans cette phase : `tests/test_orchestrateur.py` ne teste que les commandes des parents,
+  il sera porté en phase 10.
+- Essai sur Paper 26.3 : `coffre "348 ÷ 12"` puis `lancer`, en Rust puis en Python, sur un
+  monde remis à zéro entre les deux. Onze relevés identiques : verrou « 29 », 3 diamants en
+  case 13, « Preuve n°1 » marquée `{mdr_coffre: 1}` en case 11, panneau ciré
+  `["348 ÷ 12 = ?", "", "", ""]`, enclume, difficulté paisible. `SIGTERM` arrête l'agent
+  Rust en 55 ms.
+- `lancer` ne démarre encore ni Pixel (phase 9) ni Telegram (phase 10).
+- Reste à jouer en jeu : renommer la clé sur l'enclume, ouvrir le coffre, la notification
+  d'ouverture, le coffre reposé après disparition.

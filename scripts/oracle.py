@@ -473,7 +473,13 @@ class Enregistreur:
         self.echanges: list[list] = []
 
     async def commande(self, commande: str) -> str:
-        reponse = await self.jeu.commande(commande)
+        from mine_de_rien.adapters.game.rcon import ErreurRcon
+
+        try:
+            reponse = await self.jeu.commande(commande)
+        except ErreurRcon as e:
+            self.echanges.append(["panne", commande, str(e)])
+            raise
         self.echanges.append(["commande", commande, reponse])
         return reponse
 
@@ -654,6 +660,257 @@ def oracle_paisible() -> list[dict]:
     return cas
 
 
+
+PSEUDO_ESSAI = "Zorglub42"
+T0 = "2026-11-07T18:00:00+00:00"
+
+
+class Serveur:
+    """Un serveur simulé, réglable d'un tour à l'autre, pour les scénarios du coffre."""
+
+    def __init__(self, **etat) -> None:
+        self.atelier = [0, -60, 8]
+        self.en_ligne = True
+        self.cle = False
+        self.preuve = False
+        self.present = True
+        self.plein = False
+        self.pose_ok = True
+        self.refus = None
+        self.difficulte = "Easy"
+        self.panne = None
+        for cle, valeur in etat.items():
+            setattr(self, cle, valeur)
+
+    async def commande(self, c: str) -> str:
+        from mine_de_rien.adapters.game.rcon import ErreurRcon
+
+        if self.panne and c.startswith(self.panne):
+            raise ErreurRcon("serveur RCON injoignable sur essai:25575 : simulé")
+        if self.refus and c.startswith(self.refus):
+            return "Unknown or incomplete command, see below for error<--[HERE]"
+        if c == "list":
+            noms = f"{PSEUDO_ESSAI}, Autre" if self.en_ligne else "Autre"
+            return f"There are 2 of a max of 20 players online: {noms}"
+        if c == "difficulty":
+            return f"The difficulty is {self.difficulte}"
+        if c.startswith("difficulty "):
+            demandee = c.split()[1].capitalize()
+            if demandee == self.difficulte:
+                return f"The difficulty did not change; it is already set to {demandee}"
+            self.difficulte = demandee
+            return f"The difficulty has been set to {demandee}"
+        if c.startswith("data get storage"):
+            if self.atelier is None:
+                return "Found no elements matching pos"
+            return f"Storage mine_de_rien:atelier has the following contents: {self.atelier}"
+        if c.startswith(f"clear {PSEUDO_ESSAI} minecraft:trial_key") and c.endswith(" 0"):
+            return (f"Found 1 matching item(s) on player {PSEUDO_ESSAI}" if self.cle
+                    else f"No items were found on player {PSEUDO_ESSAI}")
+        if c.startswith(f"clear {PSEUDO_ESSAI} minecraft:paper") and c.endswith(" 0"):
+            return (f"Found 1 matching item(s) on player {PSEUDO_ESSAI}" if self.preuve
+                    else f"No items were found on player {PSEUDO_ESSAI}")
+        if c.startswith("give "):
+            self.cle = True
+            return f"Gave 1 [Clé du coffre] to {PSEUDO_ESSAI}"
+        if "Items[0]" in c:
+            return "Test passed" if self.plein else "Test failed"
+        if c.startswith(("execute if data block", "execute if items block")):
+            return "Test passed" if self.pose_ok else "Test failed"
+        if c.startswith("execute if block"):
+            return "Test passed" if self.present else "Test failed"
+        return ""
+
+    async def dire(self, joueur, texte, **style) -> None:
+        pass
+
+
+EXERCICES_COFFRE = [
+    {"competence": "maths/division-posee", "enonce": "348 ÷ 12 = ?", "reponse": "29",
+     "donnees": {"expression": "348 ÷ 12"}},
+    {"competence": "anglais/vocabulaire", "enonce": "bon après-midi en anglais ?",
+     "reponse": "good afternoon", "donnees": {}},
+    {"competence": "maths/addition-posee", "enonce": "3,5 + 1,25 = ?", "reponse": "4,75",
+     "donnees": {}},
+    {"competence": "piege", "enonce": 'l\'élève "a" \\ ]}', "reponse": 'o\'clock "x" \\',
+     "donnees": {}},
+    {"competence": "piege", "enonce": "Le fermier a 348 œufs en boîtes de 12. Combien ?",
+     "reponse": "29", "donnees": {}},
+    {"competence": "piege", "enonce": " ".join(["abcdefgh"] * 5), "reponse": "1", "donnees": {}},
+    {"competence": "piege", "enonce": "tab\tet\nsaut §6 de ligne", "reponse": "é", "donnees": {}},
+]
+
+
+def _exercice_stocke(d: dict, ident: int = 12):
+    from datetime import datetime
+
+    from mine_de_rien.exercises.base import Exercice
+    from mine_de_rien.storage.sqlite import ExerciceStocke
+
+    return ExerciceStocke(
+        id=ident, exercice=Exercice(**d), jeu="coffre-du-soir", source="expression",
+        statut="en_file", demande_par="cli", recompense="minecraft:diamond", recompense_nombre=3,
+        cree_le=datetime.fromisoformat(T0), pose_le=None, ouvert_le=None)
+
+
+SCENARIOS_COFFRE = {
+    "vie d'un coffre, enfant absent puis connecté": {
+        "exercices": [0, 1], "paisible": True, "assistant": "Pixel", "monde": {"en_ligne": False},
+        "etapes": [
+            {}, {"avance": 60, "monde": {"en_ligne": True}}, {"avance": 3},
+            {"avance": 240, "monde": {"preuve": True, "plein": True}, "indices": 2},
+            {"avance": 11, "monde": {"preuve": False}}, {"avance": 3},
+            {"avance": 3, "monde": {"plein": False}}, {"avance": 3},
+            {"avance": 600, "monde": {"preuve": True}}, {"avance": 30, "monde": {"preuve": False}},
+            {"avance": 3},
+        ]},
+    "le suivant attend dix secondes": {
+        "exercices": [0, 2], "paisible": False, "assistant": None, "monde": {},
+        "etapes": [{}, {"monde": {"preuve": True}}, {"avance": 5, "monde": {"preuve": False}},
+                   {"avance": 6}]},
+    "coffre disparu, reposé": {
+        "exercices": [0], "paisible": True, "assistant": None, "monde": {"en_ligne": False},
+        "etapes": [{}, {"avance": 3, "monde": {"present": False}},
+                   {"avance": 3, "monde": {"present": True}}]},
+    "sans atelier, puis construit": {
+        "exercices": [0], "paisible": True, "assistant": "Pixel",
+        "monde": {"atelier": None, "difficulte": "Peaceful"},
+        "etapes": [{}, {"avance": 3}, {"avance": 3, "monde": {"atelier": [120, 64, -35]}},
+                   {"avance": 3, "monde": {"atelier": None}}, {"avance": 3}]},
+    "pose refusée par le serveur": {
+        "exercices": [0], "paisible": True, "assistant": None, "monde": {"refus": "item replace"},
+        "etapes": [{}, {"avance": 3, "monde": {"refus": None}}]},
+    "pose non vérifiée": {
+        "exercices": [0], "paisible": False, "assistant": None, "monde": {"pose_ok": False},
+        "etapes": [{}, {"avance": 3, "monde": {"pose_ok": True}}]},
+    "énoncé trop long dans la file": {
+        "exercices": [5, 0], "paisible": False, "assistant": None, "monde": {},
+        "etapes": [{}, {"avance": 3}]},
+    "serveur en panne un tour": {
+        "exercices": [0], "paisible": True, "assistant": None, "monde": {"panne": "list"},
+        "etapes": [{}, {"avance": 3, "monde": {"panne": None}},
+                   {"avance": 3, "monde": {"panne": "difficulty"}},
+                   {"avance": 3, "monde": {"panne": None}}]},
+    "coffre plein, on demande une fois de le vider": {
+        "exercices": [0], "paisible": True, "assistant": None, "monde": {"plein": True},
+        "etapes": [{}, {"avance": 3}, {"avance": 3, "monde": {"en_ligne": False}},
+                   {"avance": 3, "monde": {"en_ligne": True, "plein": False, "cle": True}}]},
+    "rien à faire, difficulté rendue": {
+        "exercices": [], "paisible": True, "assistant": None, "monde": {"difficulte": "Peaceful"},
+        "etapes": [{}, {"avance": 3}]},
+    "clé déjà en poche, niveaux à zéro": {
+        "exercices": [0], "paisible": False, "assistant": None, "niveaux": 0,
+        "monde": {"cle": True}, "etapes": [{}, {"avance": 3}]},
+}
+
+
+def oracle_coffre_du_soir() -> list[dict]:
+    from datetime import datetime, timedelta
+
+    from mine_de_rien.adapters.game.rcon import ErreurRcon
+    from mine_de_rien.exercises.base import Exercice
+    from mine_de_rien.games import coffre_du_soir as cds
+    from mine_de_rien.games.atelier import Atelier
+    from mine_de_rien.games.paisible import ModePaisible
+    from mine_de_rien.orchestrateur import Orchestrateur
+    from mine_de_rien.storage.sqlite import Depot, ErreurStockage
+
+    cas = [{"entree": {"f": "exercices"}, "sortie": EXERCICES_COFFRE, "echanges": []}]
+    for x, y, z in ((0, -60, 8), (-27, 68, -16)):
+        a = Atelier(x, y, z)
+        for i, ex in enumerate(EXERCICES_COFFRE):
+            cas.append({"entree": {"f": "commandes_pose", "atelier": [x, y, z], "exercice": i},
+                        **_tente(lambda a=a, ex=ex: cds.commandes_pose(a, _exercice_stocke(ex)),
+                                 (cds.ErreurCoffre,)), "echanges": []})
+        cas.append({"entree": {"f": "commandes_retrait", "atelier": [x, y, z]},
+                    "sortie": cds.commandes_retrait(a), "echanges": []})
+        for pseudo in ("Steve", "@a"):
+            cas.append({"entree": {"f": "commandes_rangement", "atelier": [x, y, z],
+                                   "pseudo": pseudo},
+                        **_tente(lambda a=a, p=pseudo: cds.commandes_rangement(a, p, 12)),
+                        "echanges": []})
+    for pseudo in ("Steve", "@a", "Zorglub42"):
+        cas.append({"entree": {"f": "commande_cle", "pseudo": pseudo},
+                    **_tente(lambda p=pseudo: cds.commande_cle(p)), "echanges": []})
+    cas.append({"entree": {"f": "predicats"},
+                "sortie": [cds.predicat_cle(), cds.predicat_preuve(12)], "echanges": []})
+
+    methodes = ("joueur_en_ligne", "actualiser_atelier", "poser", "annoncer", "equiper",
+                "rappeler", "demander_de_vider", "preuve_trouvee", "coffre_present",
+                "coffre_vide", "ranger", "retirer", "a_une_cle", "donner_cle")
+    mondes = {"neuf": {}, "hors ligne": {"en_ligne": False}, "clé en poche": {"cle": True},
+              "preuve en poche": {"preuve": True}, "coffre absent": {"present": False},
+              "coffre plein": {"plein": True}, "sans atelier": {"atelier": None},
+              "give refusé": {"refus": "give"}, "pose non vérifiée": {"pose_ok": False},
+              "atelier non chargé": {"refus": "setblock"}}
+    for nom, etat in mondes.items():
+        for assistant in (None, "Pixel"):
+            for methode in methodes:
+                async def appeler(jeu, methode=methode, assistant=assistant):
+                    coffre = cds.CoffreDuSoir(jeu, PSEUDO_ESSAI, 3, assistant)
+                    if methode != "actualiser_atelier":
+                        await coffre.actualiser_atelier()
+                    s = _exercice_stocke(EXERCICES_COFFRE[3])
+                    fonction = getattr(coffre, methode)
+                    avec_coffre = methode in ("poser", "annoncer", "rappeler", "preuve_trouvee",
+                                              "ranger")
+                    resultat = await (fonction(s) if avec_coffre else fonction())
+                    a = coffre.atelier
+                    return {"resultat": resultat, "atelier": [a.x, a.y, a.z] if a else None}
+
+                cas.append(_transcrire(
+                    {"f": "methode", "methode": methode, "monde": nom, "assistant": assistant},
+                    Serveur(**etat), appeler, (cds.ErreurCoffre,)))
+
+    for nom, scenario in SCENARIOS_COFFRE.items():
+        with tempfile.TemporaryDirectory() as dossier:
+            depot = Depot.ouvrir(Path(dossier) / "mdr.sqlite")
+            t0 = datetime.fromisoformat(T0)
+            for i in scenario["exercices"]:
+                depot.ajouter(Exercice(**EXERCICES_COFFRE[i]), source="expression",
+                              demande_par="cli", recompense="minecraft:diamond",
+                              recompense_nombre=3, quand=t0)
+            serveur = Serveur(**scenario["monde"])
+            notifications: list[str] = []
+            horloge = [t0]
+
+            class Notif:
+                async def notifier(self, message, notifications=notifications):
+                    notifications.append(message)
+
+            async def jouer(jeu, scenario=scenario, serveur=serveur, depot=depot,
+                            horloge=horloge, notifications=notifications, t0=t0):
+                coffre = cds.CoffreDuSoir(jeu, PSEUDO_ESSAI, scenario.get("niveaux", 3),
+                                          scenario["assistant"])
+                mode = ModePaisible(jeu, PSEUDO_ESSAI, "easy") if scenario["paisible"] else None
+                orch = Orchestrateur(depot, coffre, Notif(), lambda: horloge[0], paisible=mode)
+                for etape in scenario["etapes"]:
+                    for cle, valeur in etape.get("monde", {}).items():
+                        setattr(serveur, cle, valeur)
+                    horloge[0] += timedelta(seconds=etape.get("avance", 0))
+                    for _ in range(etape.get("indices", 0)):
+                        depot.noter("indice", depot.actif().id, horloge[0])
+                    try:
+                        await orch.tour()
+                    except (ErreurRcon, cds.ErreurCoffre, ErreurStockage) as e:
+                        notifications.append(f"ERREUR {e}")
+                tous = depot.entre(t0 - timedelta(days=1), t0 + timedelta(days=1))
+                return {
+                    "notifications": notifications,
+                    "coffres": [[s.id, s.statut, s.niveaux_donnes, cds.formater_duree(s.duree)]
+                                for s in tous],
+                    "evenements": [[e.exercice_id, e.genre] for e in depot.evenements_entre(
+                        t0 - timedelta(days=1), t0 + timedelta(days=1))],
+                }
+
+            entree = {"f": "scenario", "nom": nom,
+                      **{k: scenario[k] for k in ("exercices", "paisible", "assistant", "etapes")},
+                      "niveaux": scenario.get("niveaux", 3)}
+            cas.append(_transcrire(entree, serveur, jouer, ()))
+            depot.fermer()
+    return cas
+
+
 ORACLES = {
     "config": oracle_config,
     "texte": oracle_texte,
@@ -666,6 +923,7 @@ ORACLES = {
     "atelier": oracle_atelier,
     "emplacement": oracle_emplacement,
     "paisible": oracle_paisible,
+    "coffre_du_soir": oracle_coffre_du_soir,
 }
 
 

@@ -2,16 +2,20 @@
 
 mod commun;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use async_trait::async_trait;
 use mine_de_rien::adapters::game::base::AdaptateurJeu;
 use mine_de_rien::adapters::game::log::FluxChat;
 use mine_de_rien::adapters::game::rcon::ErreurRcon;
-use mine_de_rien::games::coffre_du_soir::ErreurCoffre;
+use mine_de_rien::exercises::base::Exercice;
+use mine_de_rien::games::coffre_du_soir::{CoffreDuSoir, ErreurCoffre, Notificateur};
 use mine_de_rien::games::paisible::{MESSAGE_PAISIBLE, MESSAGE_RETOUR, ModePaisible};
 use mine_de_rien::minecraft::texte::Style;
+use mine_de_rien::orchestrateur::Orchestrateur;
+use mine_de_rien::saisie::Source;
+use mine_de_rien::storage::sqlite::{Demande, Depot};
 
 const PSEUDO: &str = "Zorglub42";
 
@@ -27,6 +31,8 @@ enum Humeur {
 struct FauxServeur {
     difficulte: RefCell<String>,
     humeur: Humeur,
+    atelier: Cell<bool>,
+    coffre_plein: Cell<bool>,
     commandes: RefCell<Vec<String>>,
     messages: RefCell<Vec<String>>,
 }
@@ -36,6 +42,8 @@ impl FauxServeur {
         Rc::new(Self {
             difficulte: RefCell::new(difficulte.to_owned()),
             humeur,
+            atelier: Cell::new(true),
+            coffre_plein: Cell::new(false),
             commandes: RefCell::new(Vec::new()),
             messages: RefCell::new(Vec::new()),
         })
@@ -81,6 +89,32 @@ impl AdaptateurJeu for FauxServeur {
             }
             *self.difficulte.borrow_mut() = demandee.clone();
             return Ok(format!("The difficulty has been set to {demandee}"));
+        }
+        let ok = |texte: &str| Ok(texte.to_owned());
+        if c == "list" {
+            return Ok(format!(
+                "There are 1 of a max of 20 players online: {PSEUDO}"
+            ));
+        }
+        if c.starts_with("data get storage") {
+            return ok(if self.atelier.get() {
+                "Storage mine_de_rien:atelier has the following contents: [0, -60, 8]"
+            } else {
+                "Found no elements matching pos"
+            });
+        }
+        if c.starts_with("clear ") {
+            return Ok(format!("No items were found on player {PSEUDO}"));
+        }
+        if c.contains("Items[0]") {
+            return ok(if self.coffre_plein.get() {
+                "Test passed"
+            } else {
+                "Test failed"
+            });
+        }
+        if c.starts_with("execute if") {
+            return ok("Test passed");
         }
         Ok(String::new())
     }
@@ -189,6 +223,125 @@ fn les_messages_ne_portent_aucun_chiffre() {
 fn un_pseudo_dangereux_est_refuse_a_la_creation() {
     let serveur = FauxServeur::nouveau("Easy", Humeur::Normale);
     assert!(ModePaisible::new(serveur, "@a", "easy").is_err());
+}
+
+struct Notif;
+
+#[async_trait(?Send)]
+impl Notificateur for Notif {
+    async fn notifier(&self, _: &str) {}
+}
+
+fn depot() -> (tempfile::TempDir, Rc<Depot>) {
+    let dossier = tempfile::tempdir().unwrap();
+    let depot = Rc::new(Depot::ouvrir(&dossier.path().join("mdr.sqlite")).unwrap());
+    (dossier, depot)
+}
+
+fn t0() -> chrono::DateTime<chrono::Utc> {
+    commun::instant("2026-11-09T18:00:00+00:00")
+}
+
+fn ajouter(depot: &Depot) -> i64 {
+    let exercice = Exercice {
+        competence: "maths/division-posee".to_owned(),
+        enonce: "348 ÷ 12 = ?".to_owned(),
+        reponse: "29".to_owned(),
+        donnees: Default::default(),
+    };
+    let demande = Demande {
+        source: Source::Expression,
+        demande_par: "1",
+        recompense: "minecraft:diamond",
+        recompense_nombre: 3,
+    };
+    depot.ajouter(&exercice, demande, t0()).unwrap()
+}
+
+async fn tour(depot: &Rc<Depot>, serveur: &Rc<FauxServeur>, paisible: bool) {
+    let mode = paisible.then(|| mode(serveur, "easy"));
+    let coffre = Rc::new(CoffreDuSoir::new(serveur.clone(), PSEUDO, 3, None).unwrap());
+    let orch = Orchestrateur::new(depot.clone(), coffre, Rc::new(Notif), Box::new(t0), mode);
+    orch.tour().await.unwrap();
+}
+
+#[tokio::test]
+async fn le_message_vient_apres_l_annonce_du_coffre() {
+    let (_dossier, depot) = depot();
+    ajouter(&depot);
+    let serveur = FauxServeur::nouveau("Easy", Humeur::Normale);
+    tour(&depot, &serveur, true).await;
+    let messages = serveur.messages.borrow();
+    let annonce = messages
+        .iter()
+        .position(|m| m.contains("nouveau coffre"))
+        .unwrap();
+    assert!(messages.iter().position(|m| m == MESSAGE_PAISIBLE).unwrap() > annonce);
+}
+
+#[tokio::test]
+async fn coffre_actif_paisible() {
+    let (_dossier, depot) = depot();
+    depot.marquer_pose(ajouter(&depot), t0()).unwrap();
+    let serveur = FauxServeur::nouveau("Easy", Humeur::Normale);
+    tour(&depot, &serveur, true).await;
+    assert_eq!(*serveur.difficulte.borrow(), "Peaceful");
+}
+
+#[tokio::test]
+async fn coffre_pose_dans_ce_tour_paisible() {
+    let (_dossier, depot) = depot();
+    ajouter(&depot);
+    let serveur = FauxServeur::nouveau("Easy", Humeur::Normale);
+    tour(&depot, &serveur, true).await;
+    assert!(depot.actif().unwrap().is_some());
+    assert_eq!(*serveur.difficulte.borrow(), "Peaceful");
+}
+
+#[tokio::test]
+async fn file_non_vide_sans_coffre_actif_paisible() {
+    let (_dossier, depot) = depot();
+    ajouter(&depot);
+    let serveur = FauxServeur::nouveau("Easy", Humeur::Normale);
+    serveur.coffre_plein.set(true);
+    tour(&depot, &serveur, true).await;
+    assert!(depot.actif().unwrap().is_none() && depot.suivant().unwrap().is_some());
+    assert_eq!(*serveur.difficulte.borrow(), "Peaceful");
+}
+
+#[tokio::test]
+async fn plus_rien_a_faire_retour_a_la_normale() {
+    let (_dossier, depot) = depot();
+    let serveur = FauxServeur::nouveau("Peaceful", Humeur::Normale);
+    tour(&depot, &serveur, true).await;
+    assert_eq!(*serveur.difficulte.borrow(), "Easy");
+}
+
+#[tokio::test]
+async fn atelier_absent_retour_a_la_normale() {
+    let (_dossier, depot) = depot();
+    ajouter(&depot);
+    let serveur = FauxServeur::nouveau("Peaceful", Humeur::Normale);
+    serveur.atelier.set(false);
+    tour(&depot, &serveur, true).await;
+    assert!(depot.suivant().unwrap().is_some());
+    assert_eq!(*serveur.difficulte.borrow(), "Easy");
+}
+
+#[tokio::test]
+async fn desactive_aucune_commande_difficulty() {
+    let (_dossier, depot) = depot();
+    depot.marquer_pose(ajouter(&depot), t0()).unwrap();
+    let serveur = FauxServeur::nouveau("Easy", Humeur::Normale);
+    tour(&depot, &serveur, false).await;
+    assert_eq!(*serveur.difficulte.borrow(), "Easy");
+    assert!(
+        !serveur
+            .commandes
+            .borrow()
+            .iter()
+            .any(|c| c.starts_with("difficulty"))
+    );
 }
 
 /// Sur cinq serveurs et plusieurs suites de bascules : mêmes commandes, mêmes messages à
