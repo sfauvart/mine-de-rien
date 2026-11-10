@@ -108,7 +108,7 @@ Deux points à tenir pendant le port :
 
 ## Statut
 
-**Branche** : `feat/agent-en-rust`, pas encore créée, `/next` l'ouvre à la première phase.
+**Branche** : `feat/agent-en-rust`.
 
 - [x] **Phase 1 : Le crate, la configuration et le datapack embarqué**
 - [x] **Phase 2 : Texte Minecraft, expressions et division**
@@ -121,6 +121,8 @@ Deux points à tenir pendant le port :
 - [x] **Phase 9 : Pixel**
 - [x] **Phase 10 : Telegram et les commandes des parents**
 - [x] **Phase 11 : La bascule**
+
+Close le 2026-11-10.
 
 Chaque phase s'appuie sur les précédentes, sauf la 8, qui ne dépend que des phases 1 à 3.
 Les phases 1 à 4 ne touchent ni au jeu ni au réseau. La phase 11 est la seule qui retire
@@ -831,3 +833,9 @@ de route, taille de l'image.)*
   reste à faire par le parent, sur le serveur d'essai.
 - Le dossier local `.venv/` de l'ancienne version n'est plus utile sur cette branche ; il
   n'a pas été supprimé (il sert encore sur `main`).
+
+**Partie jouée, 2026-11-10.** Le parent a joué les scénarios sur le serveur d'essai avec
+l'agent Rust : création de l'atelier, coffre, conversation avec Pixel, commandes Telegram
+et envoi d'une photo de fiche. Tout s'est passé comme prévu, sans écart relevé. Les deux
+points que les tests ne couvraient pas, le vrai Telegram et la lecture d'une vraie photo,
+sont donc vérifiés. Le workflow de publication GitHub, lui, n'a toujours pas tourné.
