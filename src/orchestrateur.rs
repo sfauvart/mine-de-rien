@@ -28,15 +28,18 @@ use std::sync::LazyLock;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
 use regex::Regex;
 
 use crate::adapters::channel::base::{Canal, MessageParent};
 use crate::adapters::game::rcon::ErreurRcon;
 use crate::adapters::llm::base::Llm;
+use crate::adapters::voix::base::Voix;
 use crate::alea::Alea;
 use crate::config::Coffre as ConfigCoffre;
-use crate::exercises::base::Exercice;
+use crate::dictees::{self, ErreurDictees, Preparation, ecrire_jour, lire_jour};
+use crate::exercises::base::{Exercice, normaliser};
+use crate::exercises::francais::dictee::imposes_absents;
 use crate::games::atelier::{ErreurAtelier, pos};
 use crate::games::coffre_du_soir::{
     Coffre, CoffreDuSoir, ErreurCoffre, Notificateur, formater_duree,
@@ -48,7 +51,7 @@ use crate::games::pixel::EVENEMENT_INDICE;
 use crate::rapport::{nombre_indices, rapport};
 use crate::saisie::{ErreurSaisie, NOMBRE_MAX, Source, interpreter};
 use crate::storage::sqlite::{Demande, Depot, ErreurStockage, ExerciceStocke, Statut, maintenant};
-use crate::util::strip;
+use crate::util::{mots, strip};
 use crate::{journal, photo};
 
 pub const INTERVALLE: Duration = Duration::from_secs(3);
@@ -364,6 +367,43 @@ pub struct LectureEnAttente {
     pub quand: DateTime<Utc>,
 }
 
+pub const PREPARATION_EN_COURS: &str = "Je prépare la dictée… (jusqu'à une minute)";
+/// Nombre de coffres d'une séance de dictée.
+pub const COFFRES_PAR_SEANCE: usize = 4;
+pub const AIDE_DICTEE: &str = "\n\
+    /dictee vendredi <texte> : la dictée à préparer pour vendredi (ou 13/11), \
+    puis /oui après avoir comparé et écouté\n\
+    /dictee vendredi mots : plus, trois : une liste de mots sans texte\n\
+    Photo de la feuille, « dictée vendredi » en légende\n\
+    /dictee : les dictées en cours\n\
+    /dictee seance 3 : une séance de coffres tout de suite, pour la dictée n°3\n\
+    /dictee mots 3 plus trois : les mots à faire sortir en premier\n\
+    /dictee annuler 3 : retire la dictée n°3";
+pub const DICTEES_ABSENTES: &str = "Les dictées ne sont pas configurées : il faut les sections \
+    [voix] et [pack] de config.toml (docs/installation.md).";
+pub const RAPPEL_DICTEE: &str = "Compare ce texte à la feuille, au mot près, et écoute l'aperçu : \
+    chaque mot peut devenir une réponse. Si tout est juste, /oui ; sinon /non.";
+/// À l'essai du 2026-11-10, le LLM local a recopié « noirades » pour « noiraudes » sur une
+/// feuille imprimée nette : une lettre fausse deviendrait une réponse fausse.
+pub const RAPPEL_PHOTO_DICTEE: &str = "Ce texte vient d'une photo : le modèle se trompe parfois \
+    d'une lettre, surtout sur un mot rare ou un nom propre. Relis chaque mot.";
+static MOTS_SEULS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?is)^mots\s*:\s*(.*)$").unwrap());
+
+/// Ce qu'il faut pour préparer des dictées : une voix, et le fichier du pack de sons.
+pub struct Dictees {
+    pub voix: Rc<dyn Voix>,
+    pub pack: PathBuf,
+}
+
+/// Une dictée lue par la voix, que le parent n'a pas encore confirmée.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DicteeEnAttente {
+    pub preparation: Preparation,
+    pub jour: NaiveDate,
+    pub quand: DateTime<Utc>,
+}
+
 pub const AIDE: &str = "Commandes :\n\
     /atelier : construit l'atelier près de l'enfant connecté, ou l'y déplace\n\
     /coffre 348 ÷ 12 : un calcul recopié du cahier\n\
@@ -409,6 +449,10 @@ pub struct CommandesParents {
     llm: Option<Rc<dyn Llm>>,
     alea: RefCell<Alea>,
     en_attente: RefCell<HashMap<i64, LectureEnAttente>>,
+    dictees: Option<Dictees>,
+    dictees_en_attente: RefCell<HashMap<i64, DicteeEnAttente>>,
+    /// Fichier audio à envoyer au parent après la réponse en cours : nom et contenu.
+    audio: RefCell<HashMap<i64, (String, Vec<u8>)>>,
 }
 
 impl CommandesParents {
@@ -430,6 +474,41 @@ impl CommandesParents {
             llm,
             alea: RefCell::new(alea),
             en_attente: RefCell::new(HashMap::new()),
+            dictees: None,
+            dictees_en_attente: RefCell::new(HashMap::new()),
+            audio: RefCell::new(HashMap::new()),
+        }
+    }
+
+    /// Avec une voix et un pack de sons : les parents peuvent envoyer des dictées.
+    pub fn avec_dictees(mut self, voix: Rc<dyn Voix>, pack: &Path) -> Self {
+        self.dictees = Some(Dictees {
+            voix,
+            pack: pack.to_path_buf(),
+        });
+        self
+    }
+
+    /// La dictée qu'un parent n'a pas encore confirmée, s'il y en a une.
+    pub fn dictee_en_attente(&self, parent: i64) -> Option<DicteeEnAttente> {
+        self.dictees_en_attente.borrow().get(&parent).cloned()
+    }
+
+    /// Le fichier audio à envoyer à ce parent après la réponse qu'il vient de recevoir.
+    pub fn prendre_audio(&self, parent: i64) -> Option<(String, Vec<u8>)> {
+        self.audio.borrow_mut().remove(&parent)
+    }
+
+    /// Le jour d'aujourd'hui, pour dater les dictées.
+    fn aujourdhui(&self) -> NaiveDate {
+        (self.horloge)().date_naive()
+    }
+
+    fn aide(&self) -> String {
+        if self.dictees.is_some() {
+            format!("{AIDE}{AIDE_DICTEE}")
+        } else {
+            AIDE.to_owned()
         }
     }
 
@@ -446,7 +525,15 @@ impl CommandesParents {
         if message.image.is_some() && self.llm.as_ref().is_some_and(|llm| !llm.distant()) {
             return Some(LECTURE_EN_COURS);
         }
-        (commande(&message.texte).0 == "/atelier").then_some(RECHERCHE_EN_COURS)
+        let (commande, argument) = commande(&message.texte);
+        if commande == "/dictee" && self.dictees.is_some() && message.image.is_none() {
+            let mut parties = mots(argument);
+            let premier = parties.next().map(normaliser);
+            let nouvelle = parties.next().is_some()
+                && !matches!(premier.as_deref(), Some("annuler" | "mots" | "seance"));
+            return nouvelle.then_some(PREPARATION_EN_COURS);
+        }
+        (commande == "/atelier").then_some(RECHERCHE_EN_COURS)
     }
 
     pub async fn traiter(&self, message: &MessageParent) -> Result<Option<String>, ErreurCommande> {
@@ -454,6 +541,12 @@ impl CommandesParents {
             return Ok(None);
         }
         if let Some(image) = &message.image {
+            if let Some(jour) = legende_de_dictee(&message.texte) {
+                return Ok(Some(
+                    self.photo_de_dictee(message.expediteur, jour, image)
+                        .await?,
+                ));
+            }
             return Ok(Some(self.photo(message, image).await?));
         }
         let (commande, argument) = commande(&message.texte);
@@ -477,9 +570,19 @@ impl CommandesParents {
             "/file" => self.file()?,
             "/annuler" => self.annuler(argument).await?,
             "/rapport" => rapport(&self.depot, (self.horloge)())?,
+            "/dictee" => self.dictee(message.expediteur, argument).await?,
+            "/oui" if self.dictee_en_attente(message.expediteur).is_some() => {
+                self.confirmer_dictee(message.expediteur)?
+            }
             "/oui" => self.confirmer(message.expediteur)?,
             "/non" => {
-                if self
+                let dictee = self
+                    .dictees_en_attente
+                    .borrow_mut()
+                    .remove(&message.expediteur);
+                if dictee.is_some() {
+                    "Abandonné : la dictée n'a pas été enregistrée.".to_owned()
+                } else if self
                     .en_attente
                     .borrow_mut()
                     .remove(&message.expediteur)
@@ -490,7 +593,7 @@ impl CommandesParents {
                     "Abandonné : rien n'a été mis en file.".to_owned()
                 }
             }
-            _ => AIDE.to_owned(),
+            _ => self.aide(),
         };
         Ok(Some(reponse))
     }
@@ -601,6 +704,10 @@ impl CommandesParents {
         );
         lignes.push(RAPPEL_FIDELITE.to_owned());
         lignes.push("/oui pour les mettre en file, /non pour abandonner.".to_owned());
+        // Une seule chose à confirmer à la fois : la fiche remplace une dictée en attente.
+        self.dictees_en_attente
+            .borrow_mut()
+            .remove(&message.expediteur);
         self.en_attente.borrow_mut().insert(
             message.expediteur,
             LectureEnAttente {
@@ -626,6 +733,301 @@ impl CommandesParents {
             &parent.to_string(),
         )?;
         Ok(lignes.join("\n"))
+    }
+
+    /// `/dictee …` : une nouvelle dictée, ou la gestion de celles en cours.
+    async fn dictee(&self, parent: i64, argument: &str) -> Result<String, ErreurCommande> {
+        if self.dictees.is_none() {
+            return Ok(DICTEES_ABSENTES.to_owned());
+        }
+        let (premier, reste) = argument
+            .split_once(char::is_whitespace)
+            .unwrap_or((argument, ""));
+        let reste = strip(reste);
+        match normaliser(premier).as_str() {
+            "" => self.liste_des_dictees(),
+            "annuler" => self.annuler_dictee(reste),
+            "mots" => self.imposer_des_mots(reste),
+            "seance" => self.seance_de_dictee(parent, reste),
+            _ if reste.is_empty() => Ok(
+                "Il manque le texte : /dictee vendredi <texte de la dictée>, \
+                 ou /dictee vendredi mots : plus, trois."
+                    .to_owned(),
+            ),
+            _ => match MOTS_SEULS.captures(reste).and_then(|m| m.get(1)) {
+                Some(liste) => {
+                    self.nouvelle_dictee(parent, premier, liste.as_str(), true, false)
+                        .await
+                }
+                None => {
+                    self.nouvelle_dictee(parent, premier, reste, false, false)
+                        .await
+                }
+            },
+        }
+    }
+
+    /// Fait lire le texte par la voix et le garde en attente du « /oui » du parent.
+    async fn nouvelle_dictee(
+        &self,
+        parent: i64,
+        jour: &str,
+        texte: &str,
+        liste: bool,
+        depuis_une_photo: bool,
+    ) -> Result<String, ErreurCommande> {
+        let Some(dictees) = &self.dictees else {
+            return Ok(DICTEES_ABSENTES.to_owned());
+        };
+        let jour = match lire_jour(jour, self.aujourdhui()) {
+            Ok(jour) => jour,
+            Err(e) => return Ok(format!("Refusé : {e}")),
+        };
+        let preparation = match dictees::preparer(dictees.voix.as_ref(), texte, liste).await {
+            Ok(preparation) => preparation,
+            Err(e) => return Ok(format!("Dictée impossible : {e}")),
+        };
+        let mut lignes = vec![format!(
+            "Dictée du {} : {} phrase(s), {} mot(s) à demander.",
+            ecrire_jour(jour),
+            preparation.phrases.len(),
+            preparation.mots_a_demander()
+        )];
+        lignes.extend(
+            preparation
+                .phrases
+                .iter()
+                .enumerate()
+                .map(|(i, phrase)| format!("{}. {}", i + 1, phrase.texte)),
+        );
+        if depuis_une_photo {
+            lignes.push(RAPPEL_PHOTO_DICTEE.to_owned());
+        }
+        lignes.push(RAPPEL_DICTEE.to_owned());
+        self.audio.borrow_mut().insert(
+            parent,
+            ("dictee-apercu.ogg".to_owned(), preparation.apercu.clone()),
+        );
+        // Une seule chose à confirmer à la fois : la dictée remplace une fiche en attente.
+        self.en_attente.borrow_mut().remove(&parent);
+        self.dictees_en_attente.borrow_mut().insert(
+            parent,
+            DicteeEnAttente {
+                preparation,
+                jour,
+                quand: (self.horloge)(),
+            },
+        );
+        Ok(lignes.join("\n"))
+    }
+
+    async fn photo_de_dictee(
+        &self,
+        parent: i64,
+        jour: &str,
+        image: &[u8],
+    ) -> Result<String, ErreurCommande> {
+        if self.dictees.is_none() {
+            return Ok(DICTEES_ABSENTES.to_owned());
+        }
+        let Some(llm) = &self.llm else {
+            return Ok(
+                "La lecture de photo n'est pas configurée (section [llm] de config.toml). \
+                 Le texte tapé reste possible : /dictee vendredi <texte>."
+                    .to_owned(),
+            );
+        };
+        if jour.is_empty() {
+            return Ok("Il manque le jour dans la légende : « dictée vendredi ».".to_owned());
+        }
+        // Le jour est vérifié avant la lecture, qui prend du temps.
+        if let Err(e) = lire_jour(jour, self.aujourdhui()) {
+            return Ok(format!("Refusé : {e}"));
+        }
+        let texte = match photo::lire_texte(llm.as_ref(), image).await {
+            Ok(texte) => texte,
+            Err(e) => return Ok(format!("Lecture impossible : {e}")),
+        };
+        self.nouvelle_dictee(parent, jour, &texte, false, true)
+            .await
+    }
+
+    fn confirmer_dictee(&self, parent: i64) -> Result<String, ErreurCommande> {
+        let attente = self.dictees_en_attente.borrow_mut().remove(&parent);
+        let (Some(attente), Some(dictees)) = (
+            attente.filter(|a| (self.horloge)() - a.quand <= DUREE_ATTENTE),
+            &self.dictees,
+        ) else {
+            return Ok(
+                "Rien à confirmer : la dictée a attendu plus de 30 minutes, \
+                       il faut la renvoyer."
+                    .to_owned(),
+            );
+        };
+        let numero = match dictees::enregistrer(
+            &self.depot,
+            &attente.preparation,
+            attente.jour,
+            &parent.to_string(),
+            (self.horloge)(),
+            &dictees.pack,
+            self.aujourdhui(),
+        ) {
+            Ok(numero) => numero,
+            Err(ErreurDictees::Stockage(e)) => return Err(e.into()),
+            Err(e) => return Ok(format!("Dictée impossible à enregistrer : {e}")),
+        };
+        Ok(format!(
+            "Dictée n°{numero} enregistrée pour le {}.\n\
+             L'enfant doit se déconnecter puis se reconnecter pour que son jeu charge les sons.\n\
+             /dictee seance {numero} : une séance de {COFFRES_PAR_SEANCE} coffres tout de suite.",
+            ecrire_jour(attente.jour)
+        ))
+    }
+
+    fn liste_des_dictees(&self) -> Result<String, ErreurCommande> {
+        let en_cours = self.depot.dictees_depuis(self.aujourdhui())?;
+        if en_cours.is_empty() {
+            return Ok("Aucune dictée en cours.".to_owned());
+        }
+        let mut lignes = vec!["Dictées en cours :".to_owned()];
+        for dictee in en_cours {
+            let phrases = self.depot.phrases_de(dictee.id)?.len();
+            let imposes = if dictee.imposes.is_empty() {
+                String::new()
+            } else {
+                format!(", mots imposés : {}", dictee.imposes.join(", "))
+            };
+            lignes.push(format!(
+                "• n°{}, {} : {phrases} phrase(s){imposes}",
+                dictee.id,
+                ecrire_jour(dictee.jour)
+            ));
+        }
+        Ok(lignes.join("\n"))
+    }
+
+    /// La dictée n°`texte`, si elle existe et n'est pas annulée ; sinon le message de refus.
+    fn dictee_en_cours(
+        &self,
+        texte: &str,
+    ) -> Result<Result<crate::storage::sqlite::DicteeStockee, String>, ErreurCommande> {
+        let numero = texte.trim_start_matches("n°").parse::<i64>().ok();
+        let Some(numero) = numero else {
+            return Ok(Err(
+                "Préciser le numéro de la dictée (/dictee pour les voir).".to_owned(),
+            ));
+        };
+        Ok(match self.depot.lire_dictee(numero)? {
+            Some(dictee) if !dictee.annulee => Ok(dictee),
+            _ => Err(format!(
+                "La dictée n°{numero} n'existe pas, ou elle est annulée."
+            )),
+        })
+    }
+
+    fn annuler_dictee(&self, argument: &str) -> Result<String, ErreurCommande> {
+        let dictee = match self.dictee_en_cours(argument)? {
+            Ok(dictee) => dictee,
+            Err(refus) => return Ok(refus),
+        };
+        self.depot.annuler_dictee(dictee.id)?;
+        // Ses coffres qui attendent encore dans la file partent avec elle.
+        let mut retires = 0;
+        for s in self.depot.en_file()? {
+            let de_cette_dictee =
+                s.exercice.donnees.get("dictee").and_then(|d| d.as_i64()) == Some(dictee.id);
+            if de_cette_dictee && self.depot.annuler(s.id)?.is_some() {
+                retires += 1;
+            }
+        }
+        if let Some(dictees) = &self.dictees
+            && let Err(e) =
+                dictees::reconstruire_pack(&self.depot, &dictees.pack, self.aujourdhui())
+        {
+            journal::avertissement(format!("pack de sons non refait : {e}"));
+        }
+        Ok(format!(
+            "Dictée n°{} annulée, {retires} coffre(s) retiré(s) de la file.",
+            dictee.id
+        ))
+    }
+
+    fn imposer_des_mots(&self, argument: &str) -> Result<String, ErreurCommande> {
+        let (numero, liste) = argument
+            .split_once(char::is_whitespace)
+            .unwrap_or((argument, ""));
+        let dictee = match self.dictee_en_cours(numero)? {
+            Ok(dictee) => dictee,
+            Err(refus) => return Ok(refus),
+        };
+        let imposes: Vec<String> = liste
+            .split([',', ';', ' ', '\n'])
+            .map(strip)
+            .filter(|mot| !mot.is_empty())
+            .map(str::to_owned)
+            .collect();
+        let phrases = match dictees::phrases_enregistrees(&self.depot, dictee.id) {
+            Ok((phrases, _)) => phrases,
+            Err(ErreurDictees::Stockage(e)) => return Err(e.into()),
+            Err(e) => return Ok(format!("Refusé : {e}")),
+        };
+        let absents = imposes_absents(&phrases, &imposes);
+        if !absents.is_empty() {
+            return Ok(format!(
+                "Refusé : pas dans le texte, ou impossible à demander : {}.",
+                absents.join(", ")
+            ));
+        }
+        self.depot.imposer_mots(dictee.id, &imposes)?;
+        Ok(if imposes.is_empty() {
+            format!("Dictée n°{} : plus aucun mot imposé.", dictee.id)
+        } else {
+            format!(
+                "Dictée n°{} : ces mots sortiront en premier : {}.",
+                dictee.id,
+                imposes.join(", ")
+            )
+        })
+    }
+
+    fn seance_de_dictee(&self, parent: i64, argument: &str) -> Result<String, ErreurCommande> {
+        let dictee = match self.dictee_en_cours(argument)? {
+            Ok(dictee) => dictee,
+            Err(refus) => return Ok(refus),
+        };
+        let demande = Demande {
+            source: Source::Dictee,
+            demande_par: &parent.to_string(),
+            recompense: &self.config_coffre.recompense,
+            recompense_nombre: self.config_coffre.recompense_nombre,
+        };
+        let coffres = match dictees::seance(
+            &self.depot,
+            &dictee,
+            COFFRES_PAR_SEANCE,
+            &mut self.alea.borrow_mut(),
+            &HashMap::new(),
+            demande,
+            (self.horloge)(),
+        ) {
+            Ok(coffres) => coffres,
+            Err(ErreurDictees::Stockage(e)) => return Err(e.into()),
+            Err(e) => return Ok(format!("Séance impossible : {e}")),
+        };
+        if coffres.is_empty() {
+            return Ok("Plus aucun mot à demander dans cette dictée.".to_owned());
+        }
+        Ok(coffres
+            .iter()
+            .map(|(numero, ex)| {
+                format!(
+                    "Coffre n°{numero} en file : {} (réponse {})",
+                    ex.enonce, ex.reponse
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n"))
     }
 
     fn file(&self) -> Result<String, ErreurCommande> {
@@ -751,5 +1153,18 @@ pub async fn servir(canal: &dyn Canal, commandes: &CommandesParents) {
         if let Some(reponse) = reponse.filter(|r| !r.is_empty()) {
             canal.repondre(message.expediteur, &reponse).await;
         }
+        if let Some((nom, octets)) = commandes.prendre_audio(message.expediteur) {
+            canal.envoyer_audio(message.expediteur, &nom, &octets).await;
+        }
     }
+}
+
+/// Le jour écrit dans la légende d'une photo de dictée (« dictée vendredi » → « vendredi »),
+/// ou `None` si la légende ne commence pas par « dictée » : c'est alors une fiche.
+pub fn legende_de_dictee(legende: &str) -> Option<&str> {
+    let legende = strip(legende);
+    let (premier, reste) = legende
+        .split_once(char::is_whitespace)
+        .unwrap_or((legende, ""));
+    (normaliser(premier) == "dictee").then(|| strip(reste))
 }

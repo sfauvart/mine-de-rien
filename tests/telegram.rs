@@ -291,6 +291,14 @@ fn repondre_a(
             "chat": {"id": corps["chat_id"], "type": "private", "first_name": "P"},
             "text": corps["text"],
         })),
+        "senddocument" if reglages.envoi_refuse => {
+            refus(403, "Forbidden: bot was blocked by the user")
+        }
+        "senddocument" => ok(json!({
+            "message_id": 100, "date": 1_762_624_800,
+            "chat": {"id": 111, "type": "private", "first_name": "P"},
+            "document": {"file_id": "d1", "file_unique_id": "u3", "file_name": "dictee-apercu.ogg"},
+        })),
         "getfile" if reglages.fichier_introuvable => refus(400, "Bad Request: file not found"),
         "getfile" => ok(json!({
             "file_id": corps["file_id"], "file_unique_id": "u2", "file_size": 7,
@@ -335,7 +343,9 @@ impl FauxTelegram {
                     (200, b"\xff\xd8fiche".to_vec())
                 } else {
                     let methode = chemin.rsplit('/').next().unwrap_or_default().to_lowercase();
-                    let corps: Value = serde_json::from_slice(&brut).unwrap_or(Value::Null);
+                    // Un envoi de fichier n'est pas du JSON : son corps est gardé tel quel.
+                    let corps: Value = serde_json::from_slice(&brut)
+                        .unwrap_or_else(|_| json!(String::from_utf8_lossy(&brut)));
                     recus.lock().unwrap().push((methode.clone(), corps.clone()));
                     repondre_a(&methode, &corps, &reglages, &mut deja_servi)
                 };
@@ -733,4 +743,40 @@ async fn de_telegram_a_la_file() {
         )]
     );
     assert_eq!(m.depot.en_file().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn l_apercu_audio_part_en_un_seul_envoi_au_bon_parent() {
+    let serveur = FauxTelegram::nouveau(Reglages::default());
+    let canal = serveur.canal();
+    canal
+        .envoyer_audio(333, "dictee-apercu.ogg", b"OggS pour un inconnu")
+        .await;
+    assert!(serveur.appels("senddocument").is_empty());
+
+    canal
+        .envoyer_audio(222, "dictee-apercu.ogg", b"OggS-le-son-de-la-dictee")
+        .await;
+    let envois = serveur.appels("senddocument");
+    assert_eq!(envois.len(), 1);
+    let corps = envois[0].as_str().unwrap();
+    assert!(corps.contains("name=\"chat_id\""), "{corps}");
+    assert!(corps.contains("\r\n\r\n222\r\n"), "{corps}");
+    assert!(corps.contains("filename=\"dictee-apercu.ogg\""), "{corps}");
+    assert!(corps.contains("OggS-le-son-de-la-dictee"), "{corps}");
+    // Aucun message texte ne l'accompagne : c'est l'orchestrateur qui écrit la réponse.
+    assert!(serveur.envoyes().is_empty());
+}
+
+#[tokio::test]
+async fn un_apercu_refuse_ne_fait_pas_tomber_l_agent() {
+    let serveur = FauxTelegram::nouveau(Reglages {
+        envoi_refuse: true,
+        ..Reglages::default()
+    });
+    serveur
+        .canal()
+        .envoyer_audio(111, "dictee-apercu.ogg", b"OggS")
+        .await;
+    assert_eq!(serveur.appels("senddocument").len(), 1);
 }

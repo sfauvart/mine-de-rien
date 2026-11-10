@@ -26,7 +26,7 @@ use teloxide::Bot;
 use teloxide::net::Download;
 use teloxide::payloads::GetUpdatesSetters;
 use teloxide::requests::Requester;
-use teloxide::types::{ChatId, FileId, Message, Update, UpdateKind};
+use teloxide::types::{ChatId, FileId, InputFile, Message, Update, UpdateKind};
 
 use crate::adapters::channel::base::{Canal, MessageParent};
 use crate::journal;
@@ -263,6 +263,17 @@ impl Canal for Telegram {
                 journal::avertissement(format!("message Telegram non remis : {e}"));
                 return;
             }
+        }
+    }
+
+    async fn envoyer_audio(&self, destinataire: i64, nom: &str, ogg: &[u8]) {
+        if !self.parents.contains(&destinataire) {
+            return;
+        }
+        // En document : Telegram ne joue en message vocal que l'Ogg Opus, pas le Vorbis.
+        let fichier = InputFile::memory(ogg.to_vec()).file_name(nom.to_owned());
+        if let Err(e) = self.bot.send_document(ChatId(destinataire), fichier).await {
+            journal::avertissement(format!("fichier audio Telegram non remis : {e}"));
         }
     }
 

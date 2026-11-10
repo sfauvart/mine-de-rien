@@ -150,19 +150,71 @@ pub fn preparer(octets: &[u8]) -> Result<Vec<Vec<u8>>, ErreurPhoto> {
     };
     let mut sorties = Vec::with_capacity(morceaux.len());
     for morceau in morceaux {
-        let (l, h) = dimensions_reduites(morceau.width(), morceau.height(), COTE_MAX);
-        let reduit = if (l, h) == (morceau.width(), morceau.height()) {
-            morceau
-        } else {
-            morceau.resize_exact(l, h, FilterType::CatmullRom)
-        };
-        let mut tampon = Vec::new();
-        reduit
-            .write_with_encoder(JpegEncoder::new_with_quality(&mut tampon, 85))
-            .map_err(|_| illisible())?;
-        sorties.push(tampon);
+        sorties.push(reduire(morceau).ok_or_else(illisible)?);
     }
     Ok(sorties)
+}
+
+/// Réduit une image à `COTE_MAX` de côté au plus et l'encode en JPEG.
+fn reduire(morceau: DynamicImage) -> Option<Vec<u8>> {
+    let (l, h) = dimensions_reduites(morceau.width(), morceau.height(), COTE_MAX);
+    let reduit = if (l, h) == (morceau.width(), morceau.height()) {
+        morceau
+    } else {
+        morceau.resize_exact(l, h, FilterType::CatmullRom)
+    };
+    let mut tampon = Vec::new();
+    reduit
+        .write_with_encoder(JpegEncoder::new_with_quality(&mut tampon, 85))
+        .ok()?;
+    Some(tampon)
+}
+
+/// Redresse selon l'EXIF, réduit et encode en JPEG, **sans couper** : une feuille de dictée
+/// est souvent une bande plus large que haute, et la couper en deux casserait ses phrases.
+pub fn preparer_entiere(octets: &[u8]) -> Result<Vec<u8>, ErreurPhoto> {
+    let illisible = || ErreurPhoto("Je n'arrive pas à ouvrir cette image.".to_owned());
+    reduire(ouvrir(octets).ok_or_else(illisible)?).ok_or_else(illisible)
+}
+
+pub const SYSTEME_DICTEE: &str = "Tu transcris fidèlement un texte imprimé photographié. Tu ne \
+    corriges rien, tu ne complètes rien, tu ne reformules rien, tu ignores l'écriture \
+    manuscrite. Tu ne recopies que ce qui est imprimé et visible.";
+// Aucun exemple de phrase, pour la raison dite plus haut : le modèle le recopierait.
+pub const CONSIGNE_DICTEE: &str = "Recopie le texte imprimé de cette photo, mot pour mot, avec sa \
+    ponctuation, ses majuscules et ses accents, dans l'ordre de lecture. Ne recopie ni titre, ni \
+    numéro, ni consigne, ni note. S'il n'y a pas de texte imprimé, renvoie un texte vide. \
+    Réponds en JSON : {\"texte\": \"...\"}";
+
+/// Lit le texte imprimé d'une feuille de dictée avec le LLM local. Refuse un LLM distant sans
+/// l'appeler. Le texte rendu n'est qu'une transcription : c'est le parent qui la valide,
+/// contre la feuille, avant qu'un seul mot ne devienne une clé.
+pub async fn lire_texte(llm: &dyn Llm, octets: &[u8]) -> Result<String, ErreurLecture> {
+    if llm.distant() {
+        return Err(ErreurLlm(
+            "La lecture de photo demande un LLM local ([llm] adaptateur = \
+             \"openai-compatible\") : une photo ne part jamais vers un LLM distant."
+                .to_owned(),
+        )
+        .into());
+    }
+    let image = preparer_entiere(octets)?;
+    let brut = llm
+        .completer(SYSTEME_DICTEE, CONSIGNE_DICTEE, Some(&image), true)
+        .await?;
+    let reponse = lire_json(&brut)?;
+    let texte = reponse
+        .get("texte")
+        .and_then(Value::as_str)
+        .map(strip)
+        .unwrap_or_default();
+    if texte.is_empty() {
+        return Err(ErreurPhoto(
+            "Je n'ai lu aucun texte imprimé. La photo est-elle à l'endroit ?".to_owned(),
+        )
+        .into());
+    }
+    Ok(texte.to_owned())
 }
 
 /// Accents retirés pour reconnaître « Moitié », espaces simples, sans toucher aux nombres.
