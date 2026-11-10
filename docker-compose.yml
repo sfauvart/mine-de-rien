@@ -26,6 +26,11 @@ services:
       # pseudo par un service en ligne (PlayerDB ou Mojang), ce qu'on évite.
       ENABLE_WHITELIST: "true"
       ENFORCE_WHITELIST: "true"
+      # Pack de sons des dictées, servi par l'agent : l'adresse de cette machine vue depuis le
+      # poste de l'enfant, ex. http://192.168.1.20:8765/mine-de-rien.zip. Vide : pas de pack.
+      # Facultatif pour le joueur : si l'agent est arrêté, le serveur reste jouable.
+      RESOURCE_PACK: ${PACK_URL:-}
+      RESOURCE_PACK_ENFORCE: "FALSE"
       # Aucun opérateur : un enfant opérateur peut lire la réponse ou se donner la récompense.
     ports:
       - "25565:25565"
@@ -44,6 +49,9 @@ services:
       context: .
       dockerfile: docker/agent.Dockerfile
     env_file: .env
+    # Pack de sons des dictées ([pack] de config.toml), téléchargé par le jeu de l'enfant.
+    ports:
+      - "8765:8765"
     volumes:
       - ./config.toml:/app/config.toml:ro
       - ./data/agent:/data

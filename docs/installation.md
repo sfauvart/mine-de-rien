@@ -104,6 +104,20 @@ coffre et aux durées. Jamais le pseudo ni le prénom de l'enfant.
   `docker compose exec agent mine-de-rien --config /app/config.toml voix "Bonjour, ceci est un essai." --sortie /data/essai.ogg`.
   Pour une autre voix française (`fr_FR-upmc-medium`, `fr_FR-tom-medium`), l'écrire dans
   `[voix] voix` et dans `.env` (`VOIX=fr_FR-upmc-medium`), puis refaire les deux commandes.
+- **`[pack]`** : facultatif, va avec `[voix]`. Minecraft ne joue un son nouveau que s'il
+  vient d'un « pack de ressources » : l'agent le fabrique et le donne au jeu de l'enfant,
+  par le port 8765. Décommenter la section `[pack]` de `config.toml`, et écrire dans `.env`
+  l'adresse de cette machine sur le réseau de la maison (la même que celle que l'enfant
+  tape pour rejoindre le serveur) :
+
+  ```
+  PACK_URL=http://192.168.1.20:8765/mine-de-rien.zip
+  ```
+
+  Puis `docker compose up -d` : le serveur Minecraft redémarre avec cette adresse. À sa
+  connexion suivante, le jeu de l'enfant propose le pack : voir
+  [rejoindre-le-serveur.md](rejoindre-le-serveur.md#le-pack-de-sons-des-dictées). Le pack
+  n'est pas obligatoire : si l'agent est arrêté, le serveur reste jouable, sans les sons.
 
 ## 5. Démarrer le serveur, importer le monde
 

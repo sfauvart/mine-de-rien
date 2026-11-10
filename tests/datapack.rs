@@ -48,6 +48,17 @@ fn le_datapack_du_depot_est_la_source_par_defaut() {
 }
 
 #[test]
+fn le_datapack_embarque_sait_lire_un_son_de_dictee() {
+    let fonction = datapack::EMBARQUE
+        .get_file("data/mine_de_rien/function/dictee/jouer.mcfunction")
+        .and_then(|f| f.contents_utf8())
+        .unwrap();
+    // Une ligne à macro, dans la catégorie « voice », pour le seul joueur qui l'exécute.
+    assert!(fonction.contains("\n$playsound $(son) voice @s ~ ~ ~ 1 1\n"));
+    assert!(fonction.contains("\nstopsound @s voice\n"));
+}
+
+#[test]
 fn le_datapack_embarque_est_celui_du_depot() {
     let tmp = tempfile::tempdir().unwrap();
     let cible = datapack::recopier(&tmp.path().join("sortie"), None).unwrap();
