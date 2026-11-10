@@ -33,6 +33,13 @@ niveaux_offerts = 3                 # renommer sur l'enclume coûte un niveau pa
 nom = "Pixel"
 actif = true
 
+# Serveur en paisible tant qu'il reste un coffre à faire : plus de monstres, pour tout le
+# serveur. Avec actif = true, une difficulté réglée à la main est corrigée en 3 secondes :
+# mettre false pour la garder.
+[paisible]
+actif = true
+difficulte_normale = "easy"     # hors coffre : "easy", "normal" ou "hard"
+
 [canal]
 adaptateur = "telegram"
 jeton = "${TELEGRAM_BOT_TOKEN}"

@@ -9,7 +9,7 @@ import pytest
 
 from mine_de_rien.exercises.base import Exercice
 from mine_de_rien.games.coffre_du_soir import CoffreDuSoir, ErreurCoffre
-from mine_de_rien.games.paisible import ModePaisible
+from mine_de_rien.games.paisible import MESSAGE_PAISIBLE, MESSAGE_RETOUR, ModePaisible
 from mine_de_rien.orchestrateur import Orchestrateur
 from mine_de_rien.storage.sqlite import Depot
 
@@ -23,6 +23,7 @@ class FauxServeur:
         self.atelier = atelier
         self.coffre_plein = coffre_plein
         self.commandes: list[str] = []
+        self.messages: list[str] = []
 
     @property
     def ecritures(self) -> list[str]:
@@ -53,7 +54,7 @@ class FauxServeur:
         return ""
 
     async def dire(self, joueur, texte, **style):
-        pass
+        self.messages.append(texte)
 
 
 class Notif:
@@ -79,7 +80,7 @@ def _ajouter(depot) -> int:
 
 
 def _tour(depot, serveur, paisible=True):
-    mode = ModePaisible(serveur, "easy") if paisible else None
+    mode = ModePaisible(serveur, PSEUDO, "easy") if paisible else None
     orch = Orchestrateur(
         depot, CoffreDuSoir(serveur, PSEUDO), Notif(), lambda: T0, paisible=mode
     )
@@ -88,7 +89,7 @@ def _tour(depot, serveur, paisible=True):
 
 def test_appliquer_renvoie_la_difficulte_quand_elle_change():
     serveur = FauxServeur("Easy")
-    mode = ModePaisible(serveur, "hard")
+    mode = ModePaisible(serveur, PSEUDO, "hard")
     assert asyncio.run(mode.appliquer(True)) == "peaceful"
     assert serveur.difficulte == "Peaceful"
     assert asyncio.run(mode.appliquer(False)) == "hard"
@@ -97,8 +98,9 @@ def test_appliquer_renvoie_la_difficulte_quand_elle_change():
 
 def test_difficulte_deja_correcte_aucune_ecriture():
     serveur = FauxServeur("Peaceful")
-    assert asyncio.run(ModePaisible(serveur).appliquer(True)) is None
+    assert asyncio.run(ModePaisible(serveur, PSEUDO).appliquer(True, en_ligne=True)) is None
     assert serveur.ecritures == []
+    assert serveur.messages == []
 
 
 def test_ecriture_refusee():
@@ -109,7 +111,7 @@ def test_ecriture_refusee():
             return await super().commande(c)
 
     with pytest.raises(ErreurCoffre, match="refusé"):
-        asyncio.run(ModePaisible(Refus("Easy")).appliquer(True))
+        asyncio.run(ModePaisible(Refus("Easy"), PSEUDO).appliquer(True))
 
 
 def test_lecture_illisible():
@@ -118,7 +120,37 @@ def test_lecture_illisible():
             return ""
 
     with pytest.raises(ErreurCoffre, match="illisible"):
-        asyncio.run(ModePaisible(Muet()).appliquer(True))
+        asyncio.run(ModePaisible(Muet(), PSEUDO).appliquer(True))
+
+
+def test_un_message_a_chaque_bascule_enfant_connecte():
+    serveur = FauxServeur("Easy")
+    mode = ModePaisible(serveur, PSEUDO)
+    asyncio.run(mode.appliquer(True, en_ligne=True))
+    asyncio.run(mode.appliquer(True, en_ligne=True))
+    assert serveur.messages == [MESSAGE_PAISIBLE]
+    asyncio.run(mode.appliquer(False, en_ligne=True))
+    assert serveur.messages == [MESSAGE_PAISIBLE, MESSAGE_RETOUR]
+
+
+def test_aucun_message_enfant_deconnecte():
+    serveur = FauxServeur("Easy")
+    mode = ModePaisible(serveur, PSEUDO)
+    assert asyncio.run(mode.appliquer(True, en_ligne=False)) == "peaceful"
+    assert asyncio.run(mode.appliquer(False, en_ligne=False)) == "easy"
+    assert serveur.messages == []
+
+
+def test_les_messages_ne_portent_aucun_chiffre():
+    assert not any(c.isdigit() for c in MESSAGE_PAISIBLE + MESSAGE_RETOUR)
+
+
+def test_le_message_vient_apres_l_annonce_du_coffre(depot):
+    _ajouter(depot)
+    serveur = FauxServeur("Easy")
+    _tour(depot, serveur)
+    annonce = next(i for i, m in enumerate(serveur.messages) if "nouveau coffre" in m)
+    assert serveur.messages.index(MESSAGE_PAISIBLE) > annonce
 
 
 def test_coffre_actif_paisible(depot):

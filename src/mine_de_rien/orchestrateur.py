@@ -6,7 +6,8 @@ Toutes les 3 secondes :
    recherche de la preuve dans son inventaire ; si le coffre a disparu sans être ouvert, il
    est reposé et l'événement noté ;
 3. pas de coffre actif : le suivant de la file est posé, 10 secondes au moins après
-   l'ouverture du précédent, et seulement quand le coffre est vide.
+   l'ouverture du précédent, et seulement quand le coffre est vide ;
+4. la difficulté suit les coffres : paisible tant qu'il en reste un à faire (`games/paisible.py`).
 
 La position de l'atelier est relue dans le monde à chaque tour. S'il n'y en a pas, aucun coffre
 n'est posé, et l'enfant n'est pas envoyé vers un coffre inaccessible : les parents sont prévenus
@@ -104,7 +105,9 @@ class Orchestrateur:
         if self.paisible is None:
             return
         reste_un_coffre = self.depot.actif() is not None or self.depot.suivant() is not None
-        await self.paisible.appliquer(self.coffre.atelier is not None and reste_un_coffre)
+        await self.paisible.appliquer(
+            self.coffre.atelier is not None and reste_un_coffre, self.en_ligne
+        )
 
     async def _surveiller(self, actif, vient_de_se_connecter: bool) -> None:
         if self.en_ligne:

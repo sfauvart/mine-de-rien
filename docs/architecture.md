@@ -39,7 +39,7 @@ vérification Bedrock dans la skill `/nouveau-jeu`.
 
 | Version | Contenu | Dépendance technique |
 |---|---|---|
-| 0.1 | Coffre du soir, Telegram, saisie d'exercices, rapport simple ([spec](specs/done/2026-11-coffre-du-soir.md)) ; saisie par photo d'une fiche ([spec](specs/done/2026-11-photo-du-cahier.md)) ; Pixel dans le chat, retour au coffre et indices ([spec](specs/done/2026-11-aide-dans-le-chat.md)) | RCON, datapack, LLM local à vision, lecture du chat dans le log |
+| 0.1 | Coffre du soir, Telegram, saisie d'exercices, rapport simple ([spec](specs/done/2026-11-coffre-du-soir.md)) ; saisie par photo d'une fiche ([spec](specs/done/2026-11-photo-du-cahier.md)) ; Pixel dans le chat, retour au coffre et indices ([spec](specs/done/2026-11-aide-dans-le-chat.md)) ; mode paisible tant qu'il reste un coffre à faire ([spec](specs/open/2026-11-paisible-pendant-les-coffres.md)) | RCON, datapack, LLM local à vision, lecture du chat dans le log |
 | 0.2 | Arbre de progrès comme format unique de rapport, bordure du monde | datapack |
 | 0.3 | Bartholomé | lecture du chat dans le log (livrée avec Pixel, 0.1) |
 | 0.4 | Chantiers | scan de zone, peut-être plugin Paper |

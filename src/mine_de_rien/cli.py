@@ -115,9 +115,11 @@ async def _lancer(config: Config) -> None:
         print(f"LLM désactivé (photos, Pixel en mots-clés) : {e}", file=sys.stderr)
         llm = None
     notificateur = NotificateurConsole() if canal is None else NotificateurCanal(canal)
-    paisible = (
-        ModePaisible(jeu, config.paisible.difficulte_normale) if config.paisible.actif else None
-    )
+    paisible = None
+    if config.paisible.actif:
+        paisible = ModePaisible(
+            jeu, config.enfant.pseudo_minecraft, config.paisible.difficulte_normale
+        )
     taches = [Orchestrateur(depot, coffre, notificateur, paisible=paisible).tourner()]
     if pixel_actif:
         pixel = Pixel(jeu, depot, config.enfant.pseudo_minecraft, config.assistant.nom, llm)

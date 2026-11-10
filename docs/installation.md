@@ -313,6 +313,31 @@ actif = false
 Pour le renommer : `nom = "Bob"` dans la même section (2 à 16 lettres), puis redémarrer
 l'agent (`docker compose restart agent`).
 
+## 12. Les monstres pendant les coffres
+
+Tant qu'il reste un coffre à faire, posé à l'atelier ou en file, le serveur passe en mode
+paisible : les monstres présents disparaissent, il n'en apparaît plus et la faim ne descend
+plus. Quand il n'y a plus de coffre, le serveur revient à sa difficulté habituelle.
+
+L'enfant, s'il est connecté, lit une ligne dans le chat à chaque changement : « Les monstres
+s'endorment tant qu'un coffre t'attend. », puis « Plus de coffre : les monstres sont de
+retour ! ». Rien n'est envoyé sur Telegram ; `/file` montre ce qui reste à faire.
+
+La difficulté vaut pour **tout le serveur**, donc pour tous les joueurs connectés. Tant qu'un
+coffre n'est pas résolu, le serveur reste paisible, sans limite de durée.
+
+Pour choisir la difficulté hors coffre, ou reprendre la main :
+
+```toml
+[paisible]
+actif = true
+difficulte_normale = "easy"     # "easy", "normal" ou "hard"
+```
+
+Puis `docker compose restart agent`. **Avec `actif = true`, une difficulté réglée à la main
+est corrigée en 3 secondes.** Pour garder par exemple un serveur paisible en permanence, mettre
+`actif = false`, puis taper `docker compose exec minecraft rcon-cli difficulty peaceful`.
+
 ## Mettre à jour
 
 Le monde, la base des coffres, `.env` et `config.toml` sont conservés.

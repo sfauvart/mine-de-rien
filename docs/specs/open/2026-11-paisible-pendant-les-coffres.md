@@ -66,7 +66,7 @@ Rien ne sort de la maison. Le pseudo n'apparaît que dans les commandes RCON loc
 première phase.
 
 - [x] **Phase 1 : la difficulté suit les coffres**
-- [ ] **Phase 2 : l'enfant est prévenu, la doc suit**
+- [x] **Phase 2 : l'enfant est prévenu, la doc suit**
 
 La phase 2 dépend de la phase 1, qui lui fournit le moment exact de la bascule.
 
