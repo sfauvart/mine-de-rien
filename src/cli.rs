@@ -17,6 +17,7 @@ use crate::adapters::llm::creer as creer_llm;
 use crate::adapters::voix::creer as creer_voix;
 use crate::alea::Alea;
 use crate::config::{Config, charger_config};
+use crate::exercises::francais::dictee as texte_dictee;
 use crate::games::atelier::{self, ErreurAtelier};
 use crate::games::coffre_du_soir::{CoffreDuSoir, Notificateur, NotificateurConsole};
 use crate::games::paisible::ModePaisible;
@@ -25,8 +26,10 @@ use crate::orchestrateur::{
     CommandesParents, ErreurFile, INTERVALLE, NotificateurCanal, Orchestrateur, mettre_en_file,
     servir,
 };
+use crate::saisie::Source;
+use crate::storage::sqlite::Demande;
 use crate::storage::sqlite::{Depot, ErreurStockage, maintenant};
-use crate::{VERSION, datapack, pack, photo, service_pack, son};
+use crate::{VERSION, datapack, dictees, pack, photo, service_pack, son};
 
 #[derive(Parser)]
 #[command(
@@ -82,6 +85,14 @@ enum Action {
         /// fichier .ogg à écrire
         #[arg(long)]
         sortie: PathBuf,
+    },
+    /// essaie une dictée sans Telegram : fait lire le texte, construit le pack et met des
+    /// coffres en file
+    DicteeEssai {
+        texte: String,
+        /// nombre de trous, donc de coffres
+        #[arg(short, long, default_value_t = 2)]
+        nombre: usize,
     },
     /// construit un pack de sons d'essai avec des fichiers .ogg, numérotés à partir de 1
     Pack { sons: Vec<PathBuf> },
@@ -248,13 +259,16 @@ async fn lancer(config: &Config) -> Result<(), String> {
     } else {
         None
     };
-    let orchestrateur = Orchestrateur::new(
+    let mut orchestrateur = Orchestrateur::new(
         depot.clone(),
         coffre.clone(),
         notificateur,
         Box::new(maintenant),
         paisible,
     );
+    if config.pack.is_some() {
+        orchestrateur = orchestrateur.avec_pack(&chemin_du_pack(config));
+    }
     let pixel = if pixel_actif {
         let pixel = Pixel::new(
             jeu.clone(),
@@ -388,6 +402,66 @@ async fn lire_a_voix_haute(
     Ok(())
 }
 
+async fn dictee_essai(config: &Config, texte: &str, nombre: usize) -> Result<(), String> {
+    let Some(section) = &config.voix else {
+        return Err("Section [voix] absente de la configuration.".to_owned());
+    };
+    let voix = creer_voix(section).map_err(|e| e.to_string())?;
+    let phrases = texte_dictee::decouper(texte);
+    let positions = texte_dictee::tirer(
+        &phrases,
+        nombre,
+        &mut Alea::nouveau(),
+        &std::collections::HashMap::new(),
+        &[],
+    )
+    .map_err(|e| e.to_string())?;
+    if positions.is_empty() {
+        return Err("Aucun mot à demander dans ce texte.".to_owned());
+    }
+    // Le pack d'essai ne contient que les phrases tirées ; il remplace le pack en place.
+    let mut sons = std::collections::BTreeMap::new();
+    let mut exercices = Vec::new();
+    for position in &positions {
+        let numero = u32::try_from(position.phrase + 1).map_err(|e| e.to_string())?;
+        if !sons.contains_key(&dictees::numero_son(numero, false)) {
+            dictees::ajouter_sons(
+                &mut sons,
+                voix.as_ref(),
+                numero,
+                &phrases[position.phrase].texte,
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+        exercices.push(
+            dictees::exercice_sonore(&phrases, *position, numero).map_err(|e| e.to_string())?,
+        );
+    }
+    let chemin = chemin_du_pack(config);
+    let archive = pack::construire(&sons).map_err(|e| e.to_string())?;
+    pack::ecrire(&chemin, &archive).map_err(|e| e.to_string())?;
+    println!("{} : {} son(s).", chemin.display(), sons.len());
+    let depot = depot(config).map_err(|e| e.to_string())?;
+    for ex in &exercices {
+        let demande = Demande {
+            source: Source::Dictee,
+            demande_par: "cli",
+            recompense: &config.coffre.recompense,
+            recompense_nombre: config.coffre.recompense_nombre,
+        };
+        let numero = depot
+            .ajouter(ex, demande, maintenant())
+            .map_err(|e| e.to_string())?;
+        println!(
+            "Coffre n°{numero} en file : {} (réponse {})",
+            ex.enonce, ex.reponse
+        );
+    }
+    println!("L'enfant doit se reconnecter pour que son jeu charge ces sons.");
+    Ok(())
+}
+
 fn chemin_du_pack(config: &Config) -> PathBuf {
     pack::chemin(std::path::Path::new(&config.stockage.sqlite))
 }
@@ -512,6 +586,9 @@ fn executer(action: Option<Action>, config: &Config) -> ExitCode {
             lent,
             sortie,
         }) => terminer(attendre(lire_a_voix_haute(config, &phrase, lent, &sortie))),
+        Some(Action::DicteeEssai { texte, nombre }) => {
+            terminer(attendre(dictee_essai(config, &texte, nombre)))
+        }
         Some(Action::Pack { sons }) => match construire_pack(config, &sons) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => erreur(e),

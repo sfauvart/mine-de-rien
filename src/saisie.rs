@@ -30,6 +30,8 @@ pub enum Source {
     Expression,
     Competence,
     Photo,
+    /// Un trou d'une dictée préparée.
+    Dictee,
 }
 
 impl Source {
@@ -38,13 +40,19 @@ impl Source {
             Self::Expression => "expression",
             Self::Competence => "competence",
             Self::Photo => "photo",
+            Self::Dictee => "dictee",
         }
     }
 
     pub fn lire(nom: &str) -> Option<Self> {
-        [Self::Expression, Self::Competence, Self::Photo]
-            .into_iter()
-            .find(|s| s.nom() == nom)
+        [
+            Self::Expression,
+            Self::Competence,
+            Self::Photo,
+            Self::Dictee,
+        ]
+        .into_iter()
+        .find(|s| s.nom() == nom)
     }
 }
 
