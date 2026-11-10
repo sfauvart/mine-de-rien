@@ -636,5 +636,13 @@ de l'image, écarts constatés.)*
 - **Non prouvé, faute de joueur** : que le jeu propose le pack, qu'il joue le son, et
   surtout qu'il le retélécharge à la reconnexion sans redémarrage du serveur. C'est la
   partie à jouer, et elle décide du repli.
+- Partie jouée, 2026-11-10, premier essai : aucune proposition de pack, et « Unable to play
+  unknown soundEvent: mine_de_rien:dictee.1 » dans le journal du jeu. Cause : dans
+  `servers.dat` de l'instance XMCL, les deux serveurs portent `acceptTextures = 0`, soit
+  « Packs de ressources du serveur : Désactivés ». Le jeu refuse alors le pack en silence.
+  `docs/rejoindre-le-serveur.md` le dit maintenant. Le serveur, lui, avertit au démarrage :
+  « You specified a resource pack without providing a sha1 hash. Pack will be updated on
+  the client only if you change the name of the pack » : le rechargement à la reconnexion
+  reste donc à prouver, et le repli est plausible.
 - `lancer` démarre le service quand `[pack]` existe ; le port 8765 est publié par le
   compose même sans `[pack]`, personne n'y répond alors.

@@ -124,9 +124,12 @@ Si les dictées sont installées (`[voix]` et `[pack]`, [installation.md](instal
 étape 4), le serveur propose à la connexion un « pack de ressources » : ce sont les phrases
 de dictée lues à voix haute, rien d'autre.
 
-- Au premier écran « Ce serveur recommande l'utilisation d'un pack de ressources »,
-  cliquer **Oui**. Pour ne plus avoir la question : dans la liste des serveurs, sélectionner
-  le serveur, **Modifier**, puis régler « Packs de ressources du serveur » sur **Activés**.
+- Avant de se connecter : dans **Multijoueur**, sélectionner le serveur dans la liste,
+  cliquer **Modifier**, et régler « Packs de ressources du serveur » sur **Activés** (le
+  bouton change de valeur à chaque clic), puis **Terminé**. Sur **Désactivés**, le jeu
+  refuse le pack sans rien afficher, et aucun son de dictée ne s'entend : c'était le réglage
+  des serveurs d'une instance XMCL à l'essai du 2026-11-10. Sur **Demander**, le jeu pose
+  la question à chaque connexion : répondre **Oui**.
 - Le volume de la voix se règle dans **Options**, **Musique et sons**, curseur **Voix**. À
   zéro, les dictées sont muettes.
 - Le pack se télécharge depuis le PC du serveur, port 8765. S'il ne se charge pas, ouvrir
