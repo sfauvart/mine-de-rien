@@ -132,7 +132,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 
 - [x] **Phase 1 : Une voix locale lit une phrase**
 - [x] **Phase 2 : Le jeu joue un son fabriqué par l'agent**
-- [ ] **Phase 3 : Du texte aux trous**
+- [x] **Phase 3 : Du texte aux trous**
 - [ ] **Phase 4 : Le coffre de dictée**
 - [ ] **Phase 5 : La dictée depuis Telegram**
 - [ ] **Phase 6 : Lire ce que l'enfant a tapé**
@@ -653,3 +653,18 @@ de l'image, écarts constatés.)*
   livrées sans leur partie jouée, une par commit.
 - `lancer` démarre le service quand `[pack]` existe ; le port 8765 est publié par le
   compose même sans `[pack]`, personne n'y répond alors.
+
+**Phase 3.**
+- Un trou est une `Position` (phrase, mot), pas un mot : « tour » et « tours », ou deux
+  « la », sont des trous distincts. Les poids de la phase 7 se donnent par position.
+- Les mots imposés se comparent sans tenir compte de la casse (« Personnes » impose
+  « personnes »). Un mot imposé de poids nul ne sort pas : c'est ce qui laissera reposer un
+  mot raté la veille.
+- Le voisin identique au mot (« Nous nous aimons ») n'est pas affiché sur le panneau : il
+  donnerait la réponse.
+- Les apostrophes sont ramenées à celle du clavier dans tout le texte, pas seulement dans
+  la clé : la phrase affichée et la clé restent cohérentes.
+- Une coupe de phrase se trompe sur une abréviation (« M. Dupont ») : le parent le voit
+  dans les phrases numérotées de la confirmation (phase 5).
+- Le port RCON du modèle `config.essai.example.toml` avait été changé par erreur en 25567
+  (le port du jeu de l'essai) dans un commit de la phase 2 : remis à 25576.

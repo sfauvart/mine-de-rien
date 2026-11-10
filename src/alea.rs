@@ -38,6 +38,31 @@ impl Alea {
         }
     }
 
+    /// Un indice tiré selon des poids : deux fois plus de chances pour un poids double. Les
+    /// poids négatifs, nuls ou non finis ne sortent jamais ; `None` s'il n'en reste aucun.
+    pub fn pondere(&mut self, poids: &[f64]) -> Option<usize> {
+        let utile = |p: f64| if p.is_finite() && p > 0.0 { p } else { 0.0 };
+        let total: f64 = poids.iter().map(|&p| utile(p)).sum();
+        if total <= 0.0 || !total.is_finite() {
+            return None;
+        }
+        let mut reste = self.0.random_range(0.0..total);
+        let mut dernier = None;
+        for (i, &p) in poids.iter().enumerate() {
+            let p = utile(p);
+            if p <= 0.0 {
+                continue;
+            }
+            if reste < p {
+                return Some(i);
+            }
+            reste -= p;
+            dernier = Some(i);
+        }
+        // Arrondis : la somme partielle peut manquer le total d'un cheveu.
+        dernier
+    }
+
     /// Mélange sur place (Fisher-Yates).
     pub fn melanger<T>(&mut self, liste: &mut [T]) {
         for i in (1..liste.len()).rev() {
