@@ -1,8 +1,17 @@
 mod commun;
 
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+
+use async_trait::async_trait;
 use chrono::{DateTime, TimeDelta, Utc};
+use mine_de_rien::adapters::game::base::AdaptateurJeu;
+use mine_de_rien::adapters::game::log::FluxChat;
+use mine_de_rien::adapters::game::rcon::ErreurRcon;
 use mine_de_rien::exercises::base::Exercice;
-use mine_de_rien::games::coffre_du_soir::formater_duree;
+use mine_de_rien::games::coffre_du_soir::{CoffreDuSoir, Notificateur, formater_duree};
+use mine_de_rien::minecraft::texte::Style;
+use mine_de_rien::orchestrateur::Orchestrateur;
 use mine_de_rien::rapport::{a_retravailler, nombre_indices, rapport};
 use mine_de_rien::saisie::Source;
 use mine_de_rien::storage::sqlite::{Demande, Depot};
@@ -231,6 +240,105 @@ fn rapport_compte_les_indices_et_retravaille_a_trois() {
             format!("• n°{lent} August en français ? : ouvert en 40 min avec 4 indices"),
         ]
     );
+}
+
+const PSEUDO: &str = "Zorglub42";
+
+/// Le monde côté RCON : l'enfant est connecté et finit par ouvrir le coffre.
+#[derive(Default)]
+struct FauxServeur {
+    ouvert: Cell<bool>,
+}
+
+#[async_trait(?Send)]
+impl AdaptateurJeu for FauxServeur {
+    async fn commande(&self, c: &str) -> Result<String, ErreurRcon> {
+        let ok = |texte: &str| Ok(texte.to_owned());
+        if c == "list" {
+            return Ok(format!(
+                "There are 1 of a max of 20 players online: {PSEUDO}"
+            ));
+        }
+        if c == "data get storage mine_de_rien:atelier pos" {
+            return ok("Storage mine_de_rien:atelier has the following contents: [0, -60, 8]");
+        }
+        if c.starts_with(&format!("clear {PSEUDO}")) && c.ends_with(" 0") {
+            return Ok(if self.ouvert.get() {
+                format!("Found 1 matching item(s) on player {PSEUDO}")
+            } else {
+                format!("No items were found on player {PSEUDO}")
+            });
+        }
+        if c.contains("Items[0]") {
+            return ok("Test failed");
+        }
+        if c.starts_with("execute if") {
+            return ok("Test passed");
+        }
+        ok("")
+    }
+
+    async fn dire(&self, _: &str, _: &str, _: &[(&str, Style<'_>)]) -> Result<(), ErreurRcon> {
+        Ok(())
+    }
+
+    fn chat(&self) -> Result<FluxChat, ErreurRcon> {
+        Err(ErreurRcon("pas de chat ici".to_owned()))
+    }
+}
+
+#[derive(Default)]
+struct Notifs(RefCell<Vec<String>>);
+
+#[async_trait(?Send)]
+impl Notificateur for Notifs {
+    async fn notifier(&self, message: &str) {
+        self.0.borrow_mut().push(message.to_owned());
+    }
+}
+
+#[tokio::test]
+async fn notification_d_ouverture_compte_les_indices() {
+    for (n, texte) in [(0, "sans indice"), (1, "1 indice"), (3, "3 indices")] {
+        let (_dossier, depot) = depot();
+        let depot = Rc::new(depot);
+        let serveur = Rc::new(FauxServeur::default());
+        let coffre = Rc::new(CoffreDuSoir::new(serveur.clone(), PSEUDO, 3, None).unwrap());
+        let envoyes = Rc::new(Notifs::default());
+        let horloge = Rc::new(Cell::new(maintenant()));
+        let lue = Rc::clone(&horloge);
+        let orch = Orchestrateur::new(
+            depot.clone(),
+            coffre,
+            envoyes.clone(),
+            Box::new(move || lue.get()),
+            None,
+        );
+        let exercice = Exercice {
+            competence: "maths/doubles-moities".to_owned(),
+            enonce: "Double de 17 = ?".to_owned(),
+            reponse: "34".to_owned(),
+            donnees: Default::default(),
+        };
+        let demande = Demande {
+            source: Source::Photo,
+            demande_par: "111",
+            recompense: "minecraft:diamond",
+            recompense_nombre: 3,
+        };
+        depot.ajouter(&exercice, demande, maintenant()).unwrap();
+
+        orch.tour().await.unwrap();
+        indices(&depot, 1, n);
+        horloge.set(horloge.get() + TimeDelta::minutes(12));
+        serveur.ouvert.set(true);
+        orch.tour().await.unwrap();
+
+        assert_eq!(
+            *envoyes.0.borrow().last().unwrap(),
+            format!("Coffre n°1 ouvert en 12 min, {texte} (Double de 17 = ? → 34).")
+        );
+    }
 }
 
 /// Sur les bases écrites par Python, à plusieurs dates : le même texte de rapport, les mêmes

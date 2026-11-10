@@ -5,13 +5,20 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 
+use std::rc::Rc;
+
 use chrono::Local;
 
 use crate::adapters::game::base::AdaptateurJeu;
 use crate::adapters::game::java_rcon::{DELAI, JavaRcon};
 use crate::adapters::game::rcon::ErreurRcon;
+use crate::alea::Alea;
 use crate::config::{Config, charger_config};
 use crate::games::atelier::{self, ErreurAtelier};
+use crate::games::coffre_du_soir::{CoffreDuSoir, NotificateurConsole};
+use crate::games::paisible::ModePaisible;
+use crate::orchestrateur::{ErreurFile, INTERVALLE, Orchestrateur, mettre_en_file};
+use crate::storage::sqlite::{Depot, ErreurStockage, maintenant};
 use crate::{VERSION, datapack};
 
 #[derive(Parser)]
@@ -121,6 +128,91 @@ async fn construire_atelier(config: &Config) -> Result<(), ErreurAtelier> {
     Ok(())
 }
 
+fn depot(config: &Config) -> Result<Depot, ErreurStockage> {
+    let chemin = std::path::Path::new(&config.stockage.sqlite);
+    if let Some(dossier) = chemin.parent().filter(|d| !d.as_os_str().is_empty()) {
+        std::fs::create_dir_all(dossier).map_err(|e| {
+            ErreurStockage::Refus(format!(
+                "dossier {} impossible à créer : {e}",
+                dossier.display()
+            ))
+        })?;
+    }
+    Depot::ouvrir(chemin)
+}
+
+fn coffre(config: &Config, texte: &str) -> ExitCode {
+    let depot = match depot(config) {
+        Ok(depot) => depot,
+        Err(e) => return erreur(e),
+    };
+    match mettre_en_file(&depot, &config.coffre, texte, "cli", &mut Alea::nouveau()) {
+        Ok(lignes) => {
+            println!("{}", lignes.join("\n"));
+            ExitCode::SUCCESS
+        }
+        Err(ErreurFile::Saisie(e)) => {
+            eprintln!("Refusé : {e}");
+            ExitCode::FAILURE
+        }
+        Err(e) => erreur(e),
+    }
+}
+
+/// Attend Ctrl+C ou l'arrêt demandé par Docker. Seul processus de son conteneur, l'agent ne
+/// recevrait sinon aucun arrêt propre.
+async fn arret_demande() {
+    let terme = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut signal) => {
+                signal.recv().await;
+            }
+            Err(_) => std::future::pending::<()>().await,
+        }
+    };
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {}
+        () = terme => {}
+    }
+}
+
+async fn lancer(config: &Config) -> Result<(), String> {
+    let pseudo = config.enfant.pseudo_minecraft.as_str();
+    let jeu = Rc::new(jeu(config));
+    let depot = Rc::new(depot(config).map_err(|e| e.to_string())?);
+    let coffre = Rc::new(
+        CoffreDuSoir::new(jeu.clone(), pseudo, config.coffre.niveaux_offerts, None)
+            .map_err(|e| e.to_string())?,
+    );
+    println!(
+        "Surveillance de l'atelier, coffres dans {}. Ctrl+C pour arrêter.",
+        config.stockage.sqlite
+    );
+    println!("Pas de jeton Telegram : les notifications s'affichent ici.");
+    let paisible = if config.paisible.actif {
+        Some(
+            ModePaisible::new(jeu.clone(), pseudo, &config.paisible.difficulte_normale)
+                .map_err(|e| e.to_string())?,
+        )
+    } else {
+        None
+    };
+    let orchestrateur = Orchestrateur::new(
+        depot,
+        coffre,
+        Rc::new(NotificateurConsole),
+        Box::new(maintenant),
+        paisible,
+    );
+    tokio::select! {
+        () = orchestrateur.tourner(INTERVALLE) => {}
+        () = arret_demande() => {}
+    }
+    // La base se ferme avec le dépôt, à la sortie de la fonction.
+    jeu.fermer().await;
+    Ok(())
+}
+
 async fn ecouter(config: &Config) -> Result<(), ErreurRcon> {
     let mut flux = jeu(config).chat()?;
     println!("Chat lu dans {}. Ctrl+C pour arrêter.", config.jeu.log);
@@ -170,6 +262,8 @@ fn executer(action: Option<Action>, config: &Config) -> ExitCode {
         }
         Some(Action::Ecouter) => terminer(attendre(ecouter(config))),
         Some(Action::Atelier) => terminer(attendre(construire_atelier(config))),
+        Some(Action::Coffre { texte }) => coffre(config, &texte),
+        Some(Action::Lancer) => terminer(attendre(lancer(config))),
         Some(_) => erreur("commande pas encore portée en Rust : utiliser la version Python."),
     }
 }

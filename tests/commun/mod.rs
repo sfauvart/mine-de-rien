@@ -136,12 +136,22 @@ impl AdaptateurJeu for Rejeu {
     async fn commande(&self, commande: &str) -> Result<String, ErreurRcon> {
         let attendu = self.suivant(&json!(["commande", commande]));
         assert_eq!(
-            json!(["commande", commande]),
-            json!([attendu[0], attendu[1]]),
-            "{}",
-            self.contexte
+            json!(commande),
+            attendu[1],
+            "{} : {}",
+            self.contexte,
+            attendu[0]
         );
-        Ok(attendu[2].as_str().unwrap_or_default().to_owned())
+        let texte = attendu[2].as_str().unwrap_or_default().to_owned();
+        match attendu[0].as_str() {
+            Some("commande") => Ok(texte),
+            // Le serveur de la transcription était en panne à cet échange.
+            Some("panne") => Err(ErreurRcon(texte)),
+            _ => panic!(
+                "{} : Rust envoie la commande {commande}, Python {attendu}",
+                self.contexte
+            ),
+        }
     }
 
     async fn dire(
