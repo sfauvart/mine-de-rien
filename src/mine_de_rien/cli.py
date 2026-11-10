@@ -19,6 +19,7 @@ from mine_de_rien.adapters.llm.base import ErreurLlm
 from mine_de_rien.config import Config, charger_config
 from mine_de_rien.games import atelier
 from mine_de_rien.games.coffre_du_soir import CoffreDuSoir, NotificateurConsole
+from mine_de_rien.games.paisible import ModePaisible
 from mine_de_rien.games.pixel import Pixel
 from mine_de_rien.orchestrateur import (
     CommandesParents,
@@ -114,7 +115,12 @@ async def _lancer(config: Config) -> None:
         print(f"LLM désactivé (photos, Pixel en mots-clés) : {e}", file=sys.stderr)
         llm = None
     notificateur = NotificateurConsole() if canal is None else NotificateurCanal(canal)
-    taches = [Orchestrateur(depot, coffre, notificateur).tourner()]
+    paisible = None
+    if config.paisible.actif:
+        paisible = ModePaisible(
+            jeu, config.enfant.pseudo_minecraft, config.paisible.difficulte_normale
+        )
+    taches = [Orchestrateur(depot, coffre, notificateur, paisible=paisible).tourner()]
     if pixel_actif:
         pixel = Pixel(jeu, depot, config.enfant.pseudo_minecraft, config.assistant.nom, llm)
         mode = "LLM local" if pixel.llm is not None else "mots-clés"

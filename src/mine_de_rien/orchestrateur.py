@@ -6,7 +6,8 @@ Toutes les 3 secondes :
    recherche de la preuve dans son inventaire ; si le coffre a disparu sans être ouvert, il
    est reposé et l'événement noté ;
 3. pas de coffre actif : le suivant de la file est posé, 10 secondes au moins après
-   l'ouverture du précédent, et seulement quand le coffre est vide.
+   l'ouverture du précédent, et seulement quand le coffre est vide ;
+4. la difficulté suit les coffres : paisible tant qu'il en reste un à faire (`games/paisible.py`).
 
 La position de l'atelier est relue dans le monde à chaque tour. S'il n'y en a pas, aucun coffre
 n'est posé, et l'enfant n'est pas envoyé vers un coffre inaccessible : les parents sont prévenus
@@ -45,6 +46,7 @@ from mine_de_rien.games.coffre_du_soir import (
     formater_duree,
 )
 from mine_de_rien.games.emplacement import construire_pres_de, deplacer_pres_de
+from mine_de_rien.games.paisible import ModePaisible
 from mine_de_rien.games.pixel import EVENEMENT_INDICE
 from mine_de_rien.rapport import nombre_indices, rapport
 from mine_de_rien.saisie import NOMBRE_MAX, ErreurSaisie, interpreter
@@ -63,11 +65,13 @@ class Orchestrateur:
         coffre: CoffreDuSoir,
         notificateur: Notificateur,
         horloge: Callable[[], datetime] = maintenant,
+        paisible: ModePaisible | None = None,
     ) -> None:
         self.depot = depot
         self.coffre = coffre
         self.notificateur = notificateur
         self.horloge = horloge
+        self.paisible = paisible
         self.en_ligne = False
         self._vider_demande = False
         self._atelier_signale: str | None = None
@@ -92,8 +96,18 @@ class Orchestrateur:
             if str(e) != self._atelier_signale:
                 self._atelier_signale = str(e)
                 await self.notificateur.notifier(f"Aucun coffre ne peut être posé : {e}")
+        else:
+            self._atelier_signale = None
+        await self._ajuster_difficulte()
+
+    async def _ajuster_difficulte(self) -> None:
+        """Relu après la pose ou l'ouverture de ce tour. Sans atelier, aucun coffre n'existe."""
+        if self.paisible is None:
             return
-        self._atelier_signale = None
+        reste_un_coffre = self.depot.actif() is not None or self.depot.suivant() is not None
+        await self.paisible.appliquer(
+            self.coffre.atelier is not None and reste_un_coffre, self.en_ligne
+        )
 
     async def _surveiller(self, actif, vient_de_se_connecter: bool) -> None:
         if self.en_ligne:
