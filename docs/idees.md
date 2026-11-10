@@ -62,3 +62,18 @@ Limite : passé 2 000 blocs la valeur marginale s'effondre, donc un trimestre, p
 Validation par scan de la zone et remplissage pour mesurer aire et périmètre réels.
 Plusieurs solutions valides sont un avantage. Limite : validation des formes non
 rectangulaires et retour précis sur un enclos presque fermé.
+
+## 6. Dictée de la semaine (ajoutée le 10 novembre 2026 : la dictée se prépare en l'écoutant)
+
+Venue après les cinq autres, pour un enfant dyslexique dont les dictées sont des dictées à
+trous. Le parent envoie une fois le texte que la maîtresse donne à préparer ; chaque jour,
+quelques coffres du soir attendent l'enfant, dont la clé est un mot du texte. Il entend la
+phrase entière, lue par une voix de synthèse locale, la voit dans le chat avec `_____`, et
+écrit le mot sur l'enclume. Un objet « Écouteur » relit la phrase d'un clic droit.
+
+Ce n'est pas un nouveau jeu mais une clé de plus pour le coffre du soir (idée 1), qui perd
+au passage sa limite « on ne voit pas les tentatives ratées » : l'agent relève ce que
+l'enfant écrit sur la clé, et un mot raté revient deux jours plus tard. Règle propre à cette
+idée : **jamais une graphie fausse sous ses yeux**, ni la sienne, ni celle d'un LLM, d'où
+Bartholomé (idée 3) écarté pour l'orthographe. Détails dans
+`src/games/dictee.rs` et [la spec](specs/open/2026-11-dictee-audio.md).

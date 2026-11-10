@@ -271,6 +271,15 @@ async fn lancer(config: &Config) -> Result<(), String> {
     if config.pack.is_some() {
         orchestrateur = orchestrateur.avec_pack(&chemin_du_pack(config));
     }
+    let fuseau = config.dictee.tz();
+    if config.voix.is_some() && config.pack.is_some() {
+        orchestrateur = orchestrateur.avec_seances(
+            config.dictee.coffres_par_seance,
+            fuseau,
+            config.coffre.clone(),
+            Alea::nouveau(),
+        );
+    }
     let pixel = if pixel_actif {
         let pixel = Pixel::new(
             jeu.clone(),
@@ -300,6 +309,7 @@ async fn lancer(config: &Config) -> Result<(), String> {
         llm,
         Alea::nouveau(),
     );
+    commandes = commandes.avec_seances(fuseau, config.dictee.coffres_par_seance);
     // Les dictées demandent les deux : une voix pour les lire, un pack pour les faire entendre.
     match (&config.voix, &config.pack) {
         (Some(section), Some(_)) => match creer_voix(section) {

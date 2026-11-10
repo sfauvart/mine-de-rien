@@ -68,5 +68,11 @@ cle = "${ANTHROPIC_API_KEY}"
 # [pack]
 # port = 8765
 
+# Séances de dictée : chaque jour, à sa première connexion, quelques coffres de la dictée à
+# préparer. Demande [voix] et [pack]. Valeurs par défaut :
+# [dictee]
+# coffres_par_seance = 4          # de 3 à 5
+# fuseau = "Europe/Paris"         # « chaque jour » se compte à la maison
+
 [stockage]
 sqlite = "/data/mine-de-rien.sqlite"

@@ -684,6 +684,15 @@ impl Depot {
         Ok(sortie)
     }
 
+    /// Tous les coffres tirés d'une dictée, du plus ancien au plus récent, quel que soit leur
+    /// statut : l'histoire de ses mots.
+    pub fn coffres_de_dictee(&self, dictee: i64) -> Result<Vec<ExerciceStocke>, ErreurStockage> {
+        self.plusieurs(
+            "WHERE source = 'dictee' AND json_extract(donnees, '$.dictee') = ? ORDER BY id",
+            [dictee],
+        )
+    }
+
     /// Note un essai de l'enfant sur le coffre `exercice_id`.
     pub fn noter_tentative(
         &self,

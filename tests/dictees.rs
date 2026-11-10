@@ -744,3 +744,62 @@ fn rien_d_une_dictee_dans_le_json_d_un_exercice_ne_donne_le_mot_en_clair_au_jeu(
         (json!(8), json!(9))
     );
 }
+
+#[tokio::test]
+async fn le_rapport_fait_le_point_sur_les_dictees_en_cours() {
+    let m = monde();
+    // Sans dictée, le rapport est celui d'avant.
+    assert!(!m.dit("/rapport").await.contains("Dictées en cours"));
+    dictee_enregistree(&m).await;
+    m.dit("/dictee mots 1 personnes").await;
+    m.dit("/dictee seance 1").await;
+    let coffres = m.depot.en_file().unwrap();
+    let personnes = coffres
+        .iter()
+        .find(|c| c.exercice.reponse == "personnes")
+        .unwrap();
+    let quand = m.temps.get();
+    m.depot.marquer_pose(personnes.id, quand).unwrap();
+    m.depot
+        .noter_tentative(personnes.id, "persone", false, quand)
+        .unwrap();
+    m.depot
+        .noter_tentative(personnes.id, "personnes", true, quand)
+        .unwrap();
+    m.depot
+        .marquer_ouvert(personnes.id, quand + TimeDelta::minutes(2))
+        .unwrap();
+    let rapport = m.dit("/rapport").await;
+    let fin: Vec<&str> = rapport.lines().rev().take(2).collect();
+    assert_eq!(
+        fin,
+        [
+            "• n°1, vendredi 13 novembre : 0 mot(s) acquis sur 34 ; fragiles : personnes (persone)",
+            "Dictées en cours :",
+        ]
+    );
+    // Le mot raté aujourd'hui repose : une nouvelle séance ne le redemande pas.
+    m.dit("/annuler tout").await;
+    for _ in 0..5 {
+        m.dit("/dictee seance 1").await;
+    }
+    let redemandes = m
+        .depot
+        .coffres_de_dictee(1)
+        .unwrap()
+        .iter()
+        .filter(|c| c.exercice.reponse == "personnes")
+        .count();
+    assert_eq!(redemandes, 1);
+}
+
+#[tokio::test]
+async fn la_confirmation_annonce_les_seances_quotidiennes() {
+    let m = monde();
+    m.dit("/dictee vendredi Il pleut sur la ville.").await;
+    let reponse = m.dit("/oui").await;
+    assert!(
+        reponse.contains("4 coffres l'attendront à sa première connexion de chaque jour"),
+        "{reponse}"
+    );
+}
