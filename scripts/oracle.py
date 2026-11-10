@@ -14,6 +14,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
 
@@ -459,6 +460,200 @@ def oracle_rapport() -> list[dict]:
     return cas
 
 
+
+class Enregistreur:
+    """Enveloppe un faux jeu des tests et note chaque échange, dans l'ordre.
+
+    La version Rust rejoue la transcription : elle doit envoyer les mêmes commandes, dans le
+    même ordre, et reçoit les mêmes réponses.
+    """
+
+    def __init__(self, jeu) -> None:
+        self.jeu = jeu
+        self.echanges: list[list] = []
+
+    async def commande(self, commande: str) -> str:
+        reponse = await self.jeu.commande(commande)
+        self.echanges.append(["commande", commande, reponse])
+        return reponse
+
+    async def dire(self, joueur: str, texte: str, **style) -> None:
+        self.echanges.append(["dire", joueur, texte, style])
+        await self.jeu.dire(joueur, texte, **style)
+
+
+def _transcrire(entree: dict, jeu, action, erreurs) -> dict:
+    """Joue `action(enregistreur)` et rend le cas d'oracle : échanges, puis sortie ou erreur."""
+    import asyncio
+
+    enregistreur = Enregistreur(jeu)
+    cas = {"entree": entree}
+    try:
+        cas["sortie"] = asyncio.run(action(enregistreur))
+    except erreurs as e:
+        cas["erreur"] = str(e)
+    cas["echanges"] = enregistreur.echanges
+    return cas
+
+
+def oracle_atelier() -> list[dict]:
+    sys.path.insert(0, str(RACINE))
+    from mine_de_rien.games import atelier
+    from mine_de_rien.games.atelier import Atelier, ErreurAtelier
+    from tests.test_atelier import FauxMonde
+
+    construit = {
+        (0, -60, 8): "minecraft:chest", (1, -60, 8): "minecraft:anvil",
+        (-1, -60, 8): "minecraft:oak_sign", (2, -60, 6): "minecraft:lantern",
+        **{(x, -61, z): "minecraft:smooth_stone" for x in range(-2, 3) for z in range(6, 11)},
+    }
+    mondes = {
+        "libre": lambda: FauxMonde({}),
+        "bloc qui gêne": lambda: FauxMonde({(1, -59, 9): "minecraft:oak_planks"}),
+        "plancher construit": lambda: FauxMonde({(0, -61, 8): "minecraft:oak_planks"}),
+        "coffre d'autrui": lambda: FauxMonde({(0, -60, 8): "minecraft:chest"}),
+        "déjà construit": lambda: FauxMonde(dict(construit), pos_enregistree=(0, -60, 8)),
+        "déjà construit, panneau retiré": lambda: FauxMonde(
+            {k: v for k, v in construit.items() if v != "minecraft:oak_sign"},
+            pos_enregistree=(0, -60, 8)),
+        "atelier ailleurs": lambda: FauxMonde({}, pos_enregistree=(100, 64, 100)),
+        "terre sous le plancher": lambda: FauxMonde({(0, -61, 8): "minecraft:dirt"}),
+    }
+    cas = []
+    for nom, fabrique in mondes.items():
+        for x, y, z in ((0, -60, 8), (-3, -60, -7)):
+            a = Atelier(x, y, z)
+            cas.append(_transcrire(
+                {"f": "construire", "monde": nom, "atelier": [x, y, z]}, fabrique(),
+                lambda jeu, a=a: atelier.construire(jeu, a), (ErreurAtelier,)))
+        a = Atelier(0, -60, 8)
+
+        async def lire(jeu):
+            lu = await atelier.lire_atelier(jeu)
+            return [lu.x, lu.y, lu.z] if lu else None
+
+        async def libre(jeu, a=a):
+            return await atelier.place_libre(jeu, a)
+
+        async def demonter(jeu, a=a):
+            await atelier.demonter(jeu, a)
+
+        cas.append(_transcrire({"f": "lire_atelier", "monde": nom}, fabrique(), lire, ()))
+        cas.append(_transcrire({"f": "place_libre", "monde": nom, "atelier": [0, -60, 8]},
+                               fabrique(), libre, ()))
+        cas.append(_transcrire({"f": "demonter", "monde": nom, "atelier": [0, -60, 8]},
+                               fabrique(), demonter, (ErreurAtelier,)))
+    return cas
+
+
+def oracle_emplacement() -> list[dict]:
+    sys.path.insert(0, str(RACINE))
+    from mine_de_rien.games import emplacement
+    from mine_de_rien.games.atelier import Atelier, ErreurAtelier
+    from tests.test_emplacement import PREMIER, PSEUDO, Terrain, X, Y, Z
+
+    px, pz = PREMIER
+
+    class Mine(Terrain):
+        def sol(self, x, z):
+            return Y + emplacement.ECART_VERTICAL + 1
+
+    class Colline(Terrain):
+        def sol(self, x, z):
+            return Y + emplacement.ECART_VERTICAL
+
+    class Pente(Terrain):
+        """Une marche tous les 12 blocs vers l'est : il faut chercher un peu."""
+
+        def sol(self, x, z):
+            return Y + (x // 3) % 2 if x < X + 4 else Y
+
+    terrains = {
+        "plat": lambda: Terrain(),
+        "bosse": lambda: Terrain(sols={(px, pz): Y + 1}),
+        "eau": lambda: Terrain(blocs={(px, Y - 1, pz): "minecraft:water"}),
+        "construction": lambda: Terrain(blocs={(px, Y + 1, pz): "minecraft:oak_planks"}),
+        "mine": lambda: Mine(),
+        "colline": lambda: Colline(),
+        "pente": lambda: Pente(),
+        "non chargé à l'ouest": lambda: Terrain(charge=lambda x, z: x > px + 2),
+        "sonde refusée": lambda: Terrain(summon="Unable to summon entity"),
+        "enfant absent": lambda: Terrain(joueur=None),
+        "autre dimension": lambda: Terrain(dimension=False),
+        "enfant en négatif": lambda: Terrain(joueur=(-27.5, 68.0, -0.25)),
+        "atelier existant": lambda: Terrain(atelier=[X + 40, Y, Z + 40]),
+    }
+
+    def atelier(a):
+        return [a.x, a.y, a.z] if a else None
+
+    def construction(c):
+        return {"atelier": atelier(c.atelier), "distance": c.distance, "direction": c.direction}
+
+    cas = []
+    for nom, fabrique in terrains.items():
+        async def chercher(jeu):
+            return atelier(await emplacement.chercher(jeu, X, Y, Z))
+
+        async def position(jeu):
+            return list(await emplacement.position_de(jeu, PSEUDO))
+
+        async def construire(jeu):
+            return construction(await emplacement.construire_pres_de(jeu, PSEUDO))
+
+        async def deplacer(jeu):
+            ancien = Atelier(X + 40, Y, Z + 40)
+            return construction(await emplacement.deplacer_pres_de(jeu, PSEUDO, ancien))
+
+        actions = [("chercher", chercher), ("position_de", position)]
+        # La recherche est la même dans les trois fonctions : on ne la transcrit qu'une fois,
+        # sauf là où la suite (construction, déplacement, refus) diffère.
+        if nom in ("plat", "mine", "enfant absent", "autre dimension", "enfant en négatif",
+                   "atelier existant", "sonde refusée"):
+            actions += [("construire_pres_de", construire), ("deplacer_pres_de", deplacer)]
+        for f, action in actions:
+            cas.append(_transcrire({"f": f, "terrain": nom, "pseudo": PSEUDO, "ici": [X, Y, Z]},
+                                   fabrique(), action, (ErreurAtelier,)))
+    for dx, dz in ((10, 3), (-10, 3), (2, 9), (2, -9), (5, 5), (-5, 5), (0, 0), (0, -1)):
+        cas.append({"entree": {"f": "direction", "dx": dx, "dz": dz},
+                    "sortie": emplacement.direction(dx, dz), "echanges": []})
+    return cas
+
+
+def oracle_paisible() -> list[dict]:
+    sys.path.insert(0, str(RACINE))
+    from mine_de_rien.games.coffre_du_soir import ErreurCoffre
+    from mine_de_rien.games.paisible import ModePaisible
+    from tests.test_paisible import PSEUDO, FauxServeur
+
+    class Refus(FauxServeur):
+        async def commande(self, c):
+            if c.startswith("difficulty "):
+                return "Unknown or incomplete command"
+            return await super().commande(c)
+
+    class Muet(FauxServeur):
+        async def commande(self, c):
+            return ""
+
+    serveurs = {"Easy": lambda: FauxServeur("Easy"), "Peaceful": lambda: FauxServeur("Peaceful"),
+                "Hard": lambda: FauxServeur("Hard"), "refus": lambda: Refus("Easy"),
+                "muet": lambda: Muet()}
+    cas = []
+    for nom, fabrique in serveurs.items():
+        for normale in ("easy", "hard"):
+            for suite in ([[True, True]], [[False, True]], [[True, False], [False, False]],
+                          [[True, True], [True, True], [False, True], [False, True]]):
+                async def jouer(jeu, normale=normale, suite=suite):
+                    mode = ModePaisible(jeu, PSEUDO, normale)
+                    return [await mode.appliquer(a_faire, en_ligne) for a_faire, en_ligne in suite]
+
+                cas.append(_transcrire(
+                    {"serveur": nom, "pseudo": PSEUDO, "normale": normale, "suite": suite},
+                    fabrique(), jouer, (ErreurCoffre,)))
+    return cas
+
+
 ORACLES = {
     "config": oracle_config,
     "texte": oracle_texte,
@@ -468,6 +663,9 @@ ORACLES = {
     "saisie": oracle_saisie,
     "stockage": oracle_stockage,
     "rapport": oracle_rapport,
+    "atelier": oracle_atelier,
+    "emplacement": oracle_emplacement,
+    "paisible": oracle_paisible,
 }
 
 

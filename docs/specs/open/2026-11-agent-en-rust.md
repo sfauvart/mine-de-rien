@@ -115,7 +115,7 @@ Deux points à tenir pendant le port :
 - [x] **Phase 3 : Anglais, indices, registre et saisie**
 - [x] **Phase 4 : La base SQLite et le rapport**
 - [x] **Phase 5 : Parler au serveur : RCON et log**
-- [ ] **Phase 6 : Atelier, emplacement et mode paisible**
+- [x] **Phase 6 : Atelier, emplacement et mode paisible**
 - [ ] **Phase 7 : Le coffre du soir et la boucle de surveillance**
 - [ ] **Phase 8 : LLM local et lecture de photo**
 - [ ] **Phase 9 : Pixel**
@@ -619,3 +619,23 @@ de route, taille de l'image.)*
   « components: {...} » pour `data get`) : je n'ai trouvé aucune commande qui en produise
   une. Le recollage par sentinelle reste couvert par le faux serveur.
 - `ecouter` affiche l'heure locale de réception, comme en Python. Reste à jouer en jeu.
+
+**Phase 6.**
+- L'oracle des jeux est une **transcription** : `scripts/oracle.py` fait tourner le Python
+  contre les faux mondes de ses propres tests et note chaque commande envoyée avec sa
+  réponse. Rust rejoue la transcription (`tests/commun/mod.rs`, `Rejeu`) : toute commande
+  qui diffère, manque ou s'ajoute fait échouer le test. 128 cas ici (8 mondes, 13 terrains,
+  5 serveurs).
+- `ErreurAtelier` et `ErreurCoffre` sont des `enum` qui distinguent le refus (message pour
+  le parent) de la panne RCON : en Python c'étaient deux exceptions différentes, traitées
+  différemment par l'appelant.
+- Une position enregistrée illisible (`[` sans `]`) faisait lever une `ValueError` non
+  rattrapée en Python ; en Rust elle vaut « pas d'atelier », comme les autres cas illisibles.
+- Essai sur Paper 26.3 : atelier démonté par RCON, construit par Python, démonté, construit
+  par Rust. Treize relevés du monde (coffre et son orientation, enclume, lanterne, les 25
+  blocs du plancher, marqueur au centre du bloc, position enregistrée, chunks gardés
+  chargés) sont identiques ; relancé, Rust répond « réparé » sans rien changer.
+- Les tests de `tests/test_paisible.py` qui passent par l'orchestrateur sont portés en
+  phase 7.
+- Reste à jouer en jeu : la zone en mode aventure autour de l'atelier (c'est le datapack,
+  inchangé, qui la fait).

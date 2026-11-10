@@ -11,6 +11,7 @@ use crate::adapters::game::base::AdaptateurJeu;
 use crate::adapters::game::java_rcon::{DELAI, JavaRcon};
 use crate::adapters::game::rcon::ErreurRcon;
 use crate::config::{Config, charger_config};
+use crate::games::atelier::{self, ErreurAtelier};
 use crate::{VERSION, datapack};
 
 #[derive(Parser)]
@@ -106,6 +107,20 @@ async fn dire(config: &Config, joueur: &str, message: &str) -> Result<(), Erreur
     resultat
 }
 
+async fn construire_atelier(config: &Config) -> Result<(), ErreurAtelier> {
+    let Some(a) = config.atelier else {
+        return Err(ErreurAtelier::Refus(
+            "Section [atelier] absente de config.toml. Sans coordonnées : /atelier sur Telegram."
+                .to_owned(),
+        ));
+    };
+    let jeu = jeu(config);
+    let resultat = atelier::construire(&jeu, &atelier::Atelier::new(a.x, a.y, a.z)).await;
+    jeu.fermer().await;
+    println!("{}", resultat?);
+    Ok(())
+}
+
 async fn ecouter(config: &Config) -> Result<(), ErreurRcon> {
     let mut flux = jeu(config).chat()?;
     println!("Chat lu dans {}. Ctrl+C pour arrêter.", config.jeu.log);
@@ -154,6 +169,7 @@ fn executer(action: Option<Action>, config: &Config) -> ExitCode {
             terminer(attendre(dire(config, &joueur, &message)))
         }
         Some(Action::Ecouter) => terminer(attendre(ecouter(config))),
+        Some(Action::Atelier) => terminer(attendre(construire_atelier(config))),
         Some(_) => erreur("commande pas encore portée en Rust : utiliser la version Python."),
     }
 }

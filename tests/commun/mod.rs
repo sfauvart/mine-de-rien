@@ -63,3 +63,110 @@ pub fn instant(iso: &str) -> chrono::DateTime<chrono::Utc> {
         .unwrap()
         .with_timezone(&chrono::Utc)
 }
+
+use std::cell::RefCell;
+use std::collections::VecDeque;
+
+use async_trait::async_trait;
+use mine_de_rien::adapters::game::base::AdaptateurJeu;
+use mine_de_rien::adapters::game::log::FluxChat;
+use mine_de_rien::adapters::game::rcon::ErreurRcon;
+use mine_de_rien::minecraft::texte::Style;
+use serde_json::{Value, json};
+
+/// Les clés de style d'un message, écrites comme les arguments nommés de Python.
+pub fn style_json(style: &[(&str, Style<'_>)]) -> Value {
+    let objet: serde_json::Map<String, Value> = style
+        .iter()
+        .map(|(cle, valeur)| {
+            let valeur = match valeur {
+                Style::Texte(texte) => json!(texte),
+                Style::Bool(b) => json!(b),
+            };
+            ((*cle).to_owned(), valeur)
+        })
+        .collect();
+    Value::Object(objet)
+}
+
+/// Rejoue une transcription de la version Python : chaque commande envoyée par Rust doit être
+/// la suivante de la transcription, et reçoit la réponse que Python avait reçue.
+pub struct Rejeu {
+    echanges: RefCell<VecDeque<Value>>,
+    contexte: String,
+}
+
+impl Rejeu {
+    pub fn new(cas: &Value) -> Self {
+        let echanges = cas["echanges"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+            .into();
+        Self {
+            echanges: RefCell::new(echanges),
+            contexte: cas["entree"].to_string(),
+        }
+    }
+
+    fn suivant(&self, envoye: &Value) -> Value {
+        self.echanges.borrow_mut().pop_front().unwrap_or_else(|| {
+            panic!(
+                "{} : Rust envoie {envoye}, Python n'envoyait plus rien",
+                self.contexte
+            )
+        })
+    }
+
+    /// À appeler en fin de cas : Rust a envoyé tout ce que Python envoyait.
+    pub fn verifier_fin(&self) {
+        let reste = self.echanges.borrow();
+        assert!(
+            reste.is_empty(),
+            "{} : Python envoyait encore {} échange(s), dont {}",
+            self.contexte,
+            reste.len(),
+            reste[0]
+        );
+    }
+}
+
+#[async_trait(?Send)]
+impl AdaptateurJeu for Rejeu {
+    async fn commande(&self, commande: &str) -> Result<String, ErreurRcon> {
+        let attendu = self.suivant(&json!(["commande", commande]));
+        assert_eq!(
+            json!(["commande", commande]),
+            json!([attendu[0], attendu[1]]),
+            "{}",
+            self.contexte
+        );
+        Ok(attendu[2].as_str().unwrap_or_default().to_owned())
+    }
+
+    async fn dire(
+        &self,
+        joueur: &str,
+        texte: &str,
+        style: &[(&str, Style<'_>)],
+    ) -> Result<(), ErreurRcon> {
+        let envoye = json!(["dire", joueur, texte, style_json(style)]);
+        let attendu = self.suivant(&envoye);
+        assert_eq!(envoye, attendu, "{}", self.contexte);
+        Ok(())
+    }
+
+    fn chat(&self) -> Result<FluxChat, ErreurRcon> {
+        Err(ErreurRcon("pas de chat dans une transcription".to_owned()))
+    }
+}
+
+/// Compare le résultat d'un cas transcrit, puis vérifie que toute la transcription a servi.
+pub fn conclure<T: serde::Serialize, E: std::fmt::Display>(
+    cas: &Value,
+    rejeu: &Rejeu,
+    resultat: Result<T, E>,
+) {
+    comparer(cas, resultat);
+    rejeu.verifier_fin();
+}
