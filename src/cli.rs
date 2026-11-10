@@ -5,6 +5,11 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 
+use chrono::Local;
+
+use crate::adapters::game::base::AdaptateurJeu;
+use crate::adapters::game::java_rcon::{DELAI, JavaRcon};
+use crate::adapters::game::rcon::ErreurRcon;
 use crate::config::{Config, charger_config};
 use crate::{VERSION, datapack};
 
@@ -89,6 +94,51 @@ pub fn main() -> ExitCode {
     executer(arguments.action, &config)
 }
 
+fn jeu(config: &Config) -> JavaRcon {
+    let j = &config.jeu;
+    JavaRcon::new(&j.hote, j.port, &j.mot_de_passe, &j.log, DELAI)
+}
+
+async fn dire(config: &Config, joueur: &str, message: &str) -> Result<(), ErreurRcon> {
+    let jeu = jeu(config);
+    let resultat = jeu.dire(joueur, message, &[]).await;
+    jeu.fermer().await;
+    resultat
+}
+
+async fn ecouter(config: &Config) -> Result<(), ErreurRcon> {
+    let mut flux = jeu(config).chat()?;
+    println!("Chat lu dans {}. Ctrl+C pour arrêter.", config.jeu.log);
+    loop {
+        tokio::select! {
+            message = flux.suivant() => println!(
+                "{} <{}> {}",
+                message.horodatage.with_timezone(&Local).format("%H:%M:%S"),
+                message.joueur,
+                message.texte
+            ),
+            _ = tokio::signal::ctrl_c() => return Ok(()),
+        }
+    }
+}
+
+/// Lance une action asynchrone sur un runtime mono-fil : c'est le modèle d'asyncio, et rien
+/// dans l'agent ne demande plusieurs fils.
+fn attendre<T>(action: impl Future<Output = T>) -> std::io::Result<T> {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    Ok(tokio::task::LocalSet::new().block_on(&runtime, action))
+}
+
+fn terminer<E: std::fmt::Display>(resultat: std::io::Result<Result<(), E>>) -> ExitCode {
+    match resultat {
+        Ok(Ok(())) => ExitCode::SUCCESS,
+        Ok(Err(e)) => erreur(e),
+        Err(e) => erreur(e),
+    }
+}
+
 fn executer(action: Option<Action>, config: &Config) -> ExitCode {
     match action {
         None => {
@@ -100,6 +150,10 @@ fn executer(action: Option<Action>, config: &Config) -> ExitCode {
             );
             ExitCode::SUCCESS
         }
+        Some(Action::Dire { joueur, message }) => {
+            terminer(attendre(dire(config, &joueur, &message)))
+        }
+        Some(Action::Ecouter) => terminer(attendre(ecouter(config))),
         Some(_) => erreur("commande pas encore portée en Rust : utiliser la version Python."),
     }
 }

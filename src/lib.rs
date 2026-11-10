@@ -1,11 +1,13 @@
 //! Mine de rien : les devoirs se font sans que personne ne s'en aperçoive.
 
+pub mod adapters;
 pub mod alea;
 pub mod cli;
 pub mod config;
 pub mod datapack;
 pub mod exercises;
 pub mod games;
+pub mod journal;
 pub mod minecraft;
 pub mod rapport;
 pub mod saisie;
