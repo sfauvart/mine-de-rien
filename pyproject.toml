@@ -1,6 +1,6 @@
 [project]
 name = "mine-de-rien"
-version = "0.1.1"
+version = "0.1.2"
 description = "Les devoirs se font sans que personne ne s'en aperçoive : un agent qui met les devoirs en jeu dans Minecraft."
 readme = "README.md"
 license = { file = "LICENSE" }
