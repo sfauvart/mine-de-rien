@@ -293,7 +293,7 @@ fn un_mot_rate_repose_puis_revient_un_mot_reussi_deux_fois_sort() {
     }
 
     let b = bilan(&depot, ident, Paris).unwrap();
-    assert_eq!((b.mots, b.acquis), (34, 1));
+    assert_eq!((b.mots, b.acquis), (30, 1));
     let mot_rate = lundi[0].1.reponse.clone();
     assert_eq!(
         b.fragiles,

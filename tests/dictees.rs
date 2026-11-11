@@ -253,7 +253,7 @@ async fn la_voix_lit_chaque_phrase_aux_deux_vitesses() {
     let p = preparer(&voix, DICTEE_6, false).await.unwrap();
     assert_eq!(p.phrases.len(), 3);
     assert_eq!(p.sonores.len(), 3);
-    assert_eq!(p.mots_a_demander(), 34);
+    assert_eq!(p.mots_a_demander(), 30);
     let lus = voix.lus.borrow();
     assert_eq!(lus.len(), 6);
     for (i, phrase) in p.phrases.iter().enumerate() {
@@ -328,7 +328,7 @@ async fn dictee_tapee_puis_oui() {
     let lignes: Vec<&str> = recap.lines().collect();
     assert_eq!(
         lignes[0],
-        "Dictée du vendredi 13 novembre : 3 phrase(s), 34 mot(s) à demander."
+        "Dictée du vendredi 13 novembre : 3 phrase(s), 30 mot(s) à demander."
     );
     assert!(lignes[1].starts_with("1. Dans la ville de Dubaï"));
     assert!(lignes[2].starts_with("2. Burj Khalifa"));
@@ -737,7 +737,7 @@ async fn le_rapport_fait_le_point_sur_les_dictees_en_cours() {
     assert_eq!(
         fin,
         [
-            "• n°1, vendredi 13 novembre : 0 mot(s) acquis sur 34 ; fragiles : personnes (persone)",
+            "• n°1, vendredi 13 novembre : 0 mot(s) acquis sur 30 ; fragiles : personnes (persone)",
             "Dictées en cours :",
         ]
     );

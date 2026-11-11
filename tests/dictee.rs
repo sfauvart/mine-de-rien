@@ -475,6 +475,30 @@ fn liste_sans_virgule_coupee_aux_espaces() {
 }
 
 #[test]
+fn un_mot_repete_n_a_qu_un_trou_a_sa_premiere_place() {
+    let phrases = decouper("Dans la ville s'élève la plus haute tour. La tour brille.");
+    let mots = mots_candidats(&phrases);
+    assert_eq!(
+        mots,
+        [
+            "Dans",
+            "la",
+            "ville",
+            "s'élève",
+            "plus",
+            "haute",
+            "tour",
+            "brille"
+        ]
+    );
+    // « la » : le deuxième mot du texte, jamais celui qui suit « s'élève ».
+    assert!(candidats(&phrases).contains(&Position { phrase: 0, mot: 1 }));
+    // Tout tirer : aucun mot deux fois, et l'ordre de lecture.
+    let tires = tirer(&phrases, 100, &mut Alea::graine(3), &HashMap::new(), &[]).unwrap();
+    assert_eq!(tires, candidats(&phrases));
+}
+
+#[test]
 fn trous_tires_dans_l_ordre_du_texte() {
     let phrases = decouper("Le renard traverse la grande forêt. Il cherche une tanière profonde.");
     for graine in 0..200 {

@@ -184,11 +184,17 @@ pub fn est_candidat(mot: &str) -> bool {
 }
 
 /// Tous les trous possibles du texte, dans l'ordre.
+///
+/// Un mot qui revient dans le texte (« la », deux fois) n'a qu'un trou : sa première
+/// apparition. Le mot d'un coffre est masqué partout où il revient ; s'il était demandé à sa
+/// seconde place, l'enfant verrait un premier trou qu'aucun coffre ne lui demande, et les mots
+/// lui sembleraient arriver dans le désordre.
 pub fn candidats(phrases: &[Phrase]) -> Vec<Position> {
     let mut positions = Vec::new();
+    let mut vus: HashSet<String> = HashSet::new();
     for (p, phrase) in phrases.iter().enumerate() {
         for (m, mot) in phrase.mots.iter().enumerate() {
-            if est_candidat(&mot.texte) {
+            if est_candidat(&mot.texte) && vus.insert(mot.texte.to_lowercase()) {
                 positions.push(Position { phrase: p, mot: m });
             }
         }
