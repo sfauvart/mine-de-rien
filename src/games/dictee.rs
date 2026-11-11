@@ -37,9 +37,18 @@
 //! chat qui dit comment écrire le mot. Ni la casse ni les espaces ne comptent : quand l'agent
 //! lit sur la clé un nom qui vaut la réponse, le verrou prend ce nom-là (`orchestrateur.rs`).
 //!
-//! **Le pack d'abord.** Le jeu ne charge le pack de sons qu'à la connexion. Un coffre de
-//! dictée n'est donc posé que si l'enfant s'est connecté après la fabrication du pack ; sinon
-//! il attend, et parents et enfant sont prévenus une fois (`orchestrateur.rs`).
+//! **Le pack d'abord.** Le jeu ne charge le pack de sons qu'à la connexion, et aucune
+//! commande ne le renvoie à un joueur connecté. Un coffre de dictée n'est donc posé que si
+//! l'enfant s'est connecté après la fabrication du pack. Sinon, si `[pack] adresse_du_jeu`
+//! est réglée, l'agent renvoie son jeu vers le serveur lui-même :
+//!
+//! ```text
+//! transfer 192.168.1.20 25565 <pseudo>
+//! ```
+//!
+//! Le jeu se reconnecte seul (le serveur doit avoir `accepts-transfers=true`). Sans ce
+//! réglage, ou si la commande est refusée, le coffre attend et parents et enfant sont prévenus
+//! une fois (`orchestrateur.rs`).
 //!
 //! **Contournements**, en plus de ceux du coffre du soir.
 //! - *Lire le mot sur la feuille de la maîtresse* : c'est de la préparation de dictée ; le
@@ -79,6 +88,15 @@ pub const REECOUTER: &str =
     "Pour réécouter la phrase : prends l'Écouteur en main et fais un clic droit.";
 pub const RECONNEXION: &str = "Une dictée t'attend, mais ton jeu n'a pas encore ses sons : \
     déconnecte-toi puis reconnecte-toi au serveur.";
+
+pub const RECHARGEMENT: &str = "Une dictée arrive : je recharge ses sons, ton jeu revient \
+    dans quelques secondes.";
+
+/// Renvoie le jeu de l'enfant vers le serveur lui-même : il se reconnecte seul, et charge le
+/// pack de sons du jour. `hote` vient de la configuration, déjà contrôlé (`config.rs`).
+pub fn commande_transfert(hote: &str, port: u16, pseudo: &str) -> String {
+    format!("transfer {hote} {port} {pseudo}")
+}
 
 pub fn est_dictee(ex: &Exercice) -> bool {
     ex.competence == COMPETENCE

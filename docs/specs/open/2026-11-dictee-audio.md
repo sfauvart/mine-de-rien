@@ -139,7 +139,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 - [x] **Phase 7 : La séance de chaque jour**
 - [x] **Phase 8 : Une clé qui pardonne la casse et les espaces**
 - [x] **Phase 9 : La dictée entière affichée, les trous qui se remplissent**
-- [ ] **Phase 10 : Les sons se chargent sans geste de l'enfant**
+- [x] **Phase 10 : Les sons se chargent sans geste de l'enfant**
 
 Les phases 8 à 10 viennent de la partie jouée le 2026-11-11 (voir « Retours de jeu ») ;
 elles sont indépendantes entre elles.
@@ -644,10 +644,10 @@ coffre ouvert, le mot apparaît en vert et le trou suivant passe en jaune.
 **Contexte.** Joué le 2026-11-11 : se déconnecter puis se reconnecter après une nouvelle
 dictée « est un peu pénible ». Minecraft ne recharge un pack de serveur qu'à la connexion,
 et aucune commande ne le renvoie à un joueur connecté.
-**Fichiers.** `src/config.rs` (`[jeu] adresse_publique`), `src/orchestrateur.rs`,
+**Fichiers.** `src/config.rs` (`[pack] adresse_du_jeu`), `src/orchestrateur.rs`,
 `src/games/coffre_du_soir.rs`, composes (`ACCEPTS_TRANSFERS`).
 **Conception.** La commande `transfer` renvoie le joueur vers une adresse ; vers le même
-serveur, c'est une reconnexion que le jeu fait seul, pack compris. Si `adresse_publique`
+serveur, c'est une reconnexion que le jeu fait seul, pack compris. Si `adresse_du_jeu`
 est réglée (l'adresse que l'enfant tape pour rejoindre le serveur), l'agent transfère
 l'enfant au lieu de lui demander de se reconnecter. Sans ce réglage, ou si la commande est
 refusée, le message d'avant reste.
@@ -879,3 +879,24 @@ de l'image, écarts constatés.)*
   posé : un coffre posé avant cette phase reçoit le sien.
 - Oracle : le rejeu des tests tolère la commande d'effacement du tableau, envoyée avant un
   déplacement d'atelier, comme il tolère la lecture du nom de la clé.
+
+**Phase 10.**
+- Aucune commande de Minecraft ne renvoie un pack de serveur à un joueur connecté ; seul un
+  plugin le pourrait, et le projet n'en veut pas. `transfer <hôte> <port> <pseudo>` vers le
+  serveur lui-même fait faire la reconnexion au jeu.
+- Le réglage est `[pack] adresse_du_jeu` (et non `[jeu]`, dont la forme est figée par
+  l'oracle) : l'adresse que l'enfant tape, que l'agent ne peut pas deviner. Elle est
+  contrôlée (nom ou IPv4, port) avant d'entrer dans une commande.
+- Essai sur Paper 26.3, sans joueur : `ACCEPTS_TRANSFERS: "TRUE"` du compose donne bien
+  `accepts-transfers=true` dans `server.properties` ; `transfer localhost 25567 <pseudo>`
+  répond « No player was found », sans erreur de syntaxe.
+- **Non prouvé, faute de joueur, et c'est le point à jouer** : que le jeu transféré
+  retélécharge le pack comme il le fait à une reconnexion à la main. Le jeu garde ses packs
+  de serveur pendant un transfert ; si le nouveau pack n'était pas pris, la dictée serait
+  muette et il faudrait revenir à la reconnexion à la main (retirer `adresse_du_jeu`).
+- Après le transfert, l'agent date la connexion de l'enfant de cet instant : le jeu peut
+  revenir plus vite qu'un tour de surveillance, et l'agent ne le verrait pas partir.
+- Dans l'usage courant, rien de tout cela ne se voit : la dictée est envoyée le soir, la
+  séance arrive à la première connexion du lendemain, pack déjà à jour.
+- `accepts-transfers=true` laisse aussi entrer un joueur renvoyé par un autre serveur ; sur
+  un serveur de maison sans liste d'invités ouverte, cela ne change rien.

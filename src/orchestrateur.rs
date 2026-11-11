@@ -389,6 +389,12 @@ impl Orchestrateur {
         if dictee::est_dictee(&suivant.exercice) && !self.sons_charges() {
             if self.reconnexion_demandee.get() != Some(suivant.id) {
                 self.reconnexion_demandee.set(Some(suivant.id));
+                if self.coffre.recharger_les_sons().await? {
+                    // Son jeu se reconnecte seul, donc après l'écriture du pack. La connexion
+                    // peut aller plus vite qu'un tour : on la date d'ici.
+                    self.connecte_depuis.set(Some((self.horloge)()));
+                    return Ok(());
+                }
                 self.coffre.demander_de_se_reconnecter().await?;
                 self.notificateur
                     .notifier(&format!(
@@ -1068,7 +1074,8 @@ impl CommandesParents {
             "Dictée n°{numero} enregistrée pour le {}.\n\
              À partir de demain et jusqu'à la veille, {n} coffres l'attendront à sa première \
              connexion de chaque jour.\n\
-             L'enfant doit se déconnecter puis se reconnecter pour que son jeu charge les sons.\n\
+             S'il joue en ce moment, son jeu doit se reconnecter pour charger les sons : \
+             l'agent le fait pour lui si [pack] adresse_du_jeu est réglée, sinon c'est à lui.\n\
              /dictee seance {numero} : une séance de {n} coffres tout de suite.",
             ecrire_jour(attente.jour),
             n = self.coffres_par_seance

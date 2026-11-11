@@ -216,15 +216,20 @@ async fn lancer(config: &Config) -> Result<(), String> {
     let depot = Rc::new(depot(config).map_err(|e| e.to_string())?);
     let pixel_actif = config.assistant.actif && !config.jeu.log.is_empty();
     let assistant = pixel_actif.then_some(config.assistant.nom.as_str());
-    let coffre = Rc::new(
-        CoffreDuSoir::new(
-            jeu.clone(),
-            pseudo,
-            config.coffre.niveaux_offerts,
-            assistant,
-        )
-        .map_err(|e| e.to_string())?,
-    );
+    let mut coffre = CoffreDuSoir::new(
+        jeu.clone(),
+        pseudo,
+        config.coffre.niveaux_offerts,
+        assistant,
+    )
+    .map_err(|e| e.to_string())?;
+    if let Some(pack) = &config.pack
+        && let Some((hote, port)) = pack.transfert()?
+    {
+        coffre = coffre.avec_adresse_du_jeu(&hote, port);
+        println!("Sons des dictées : le jeu de l'enfant sera renvoyé vers {hote}:{port}.");
+    }
+    let coffre = Rc::new(coffre);
     println!(
         "Surveillance de l'atelier, coffres dans {}. Ctrl+C pour arrêter.",
         config.stockage.sqlite
@@ -496,7 +501,10 @@ async fn dictee_essai(config: &Config, texte: &str, nombre: usize) -> Result<(),
             ex.enonce, ex.reponse
         );
     }
-    println!("L'enfant doit se reconnecter pour que son jeu charge ces sons.");
+    println!(
+        "S'il joue en ce moment, le jeu de l'enfant doit se reconnecter pour charger ces sons \
+         (« lancer » le fait pour lui si [pack] adresse_du_jeu est réglée)."
+    );
     Ok(())
 }
 

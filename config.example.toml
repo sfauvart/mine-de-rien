@@ -67,6 +67,9 @@ cle = "${ANTHROPIC_API_KEY}"
 # L'adresse que le jeu demande se règle dans .env (PACK_URL), pas ici.
 # [pack]
 # port = 8765
+# L'adresse que l'enfant tape pour rejoindre le serveur. Réglée, son jeu se reconnecte seul
+# quand il lui manque les sons d'une nouvelle dictée ; sinon il le fait à la main.
+# adresse_du_jeu = "192.168.1.20:25565"
 
 # Séances de dictée : chaque jour, à sa première connexion, quelques coffres de la dictée à
 # préparer. Demande [voix] et [pack]. Valeurs par défaut :

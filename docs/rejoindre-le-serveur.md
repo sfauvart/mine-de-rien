@@ -136,8 +136,11 @@ de dictée lues à voix haute, rien d'autre.
   ce port comme le 25565 (voir « Pare-feu » plus bas) et vérifier `PACK_URL` dans `.env` :
   depuis le poste de l'enfant, un navigateur ouvert sur cette adresse doit télécharger un
   fichier `mine-de-rien.zip`.
-- Une nouvelle dictée arrive dans le pack à la **connexion suivante** : l'enfant doit se
-  déconnecter et se reconnecter pour l'entendre.
+- Une nouvelle dictée arrive dans le pack à la **connexion suivante**. Si l'enfant joue
+  quand elle arrive, l'agent renvoie son jeu vers le serveur : un écran de chargement
+  passe, sans rien toucher. Il faut pour cela `adresse_du_jeu` dans `config.toml`
+  ([installation.md](installation.md)) ; sans ce réglage, l'enfant se déconnecte et se
+  reconnecte lui-même.
 
 ## Si la connexion échoue
 
