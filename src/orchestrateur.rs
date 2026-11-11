@@ -174,6 +174,21 @@ impl Orchestrateur {
         Ok(())
     }
 
+    /// Refait le tableau de la dictée à partir du coffre `reference`, relu dans la base. Un
+    /// tableau impossible à dessiner n'arrête pas le coffre : la phrase est dans le chat.
+    async fn dessiner_tableau(&self, reference: i64) -> Result<(), ErreurTour> {
+        let Some(reference) = self.depot.lire(reference)? else {
+            return Ok(());
+        };
+        match dictees::tableau(&self.depot, &reference) {
+            Ok(Some(morceaux)) => self.coffre.afficher_tableau(&morceaux).await?,
+            Ok(None) => {}
+            Err(ErreurDictees::Stockage(e)) => return Err(e.into()),
+            Err(e) => journal::avertissement(format!("tableau de dictée impossible : {e}")),
+        }
+        Ok(())
+    }
+
     /// Relève ce que l'enfant a écrit sur la clé. Le premier nom lu devant un coffre est le
     /// point de départ (c'est la réponse du coffre précédent, pas un essai) ; ensuite, chaque
     /// nom nouveau est une tentative, juste ou non. Rien n'en est redit dans le jeu ni écrit
@@ -306,6 +321,10 @@ impl Orchestrateur {
                 let quand = (self.horloge)();
                 self.depot.marquer_ouvert(actif.id, quand)?;
                 self.coffre.ranger(actif).await?;
+                if dictee::est_dictee(&actif.exercice) {
+                    // Le mot trouvé s'écrit en vert à sa place.
+                    self.dessiner_tableau(actif.id).await?;
+                }
                 let duree = self.depot.lire(actif.id)?.and_then(|ouvert| ouvert.duree());
                 let aide = nombre_indices(self.depot.compter(EVENEMENT_INDICE, actif.id)?);
                 let essais = essais_rates(&self.depot.tentatives(actif.id)?)
@@ -337,6 +356,9 @@ impl Orchestrateur {
             return Ok(());
         }
         if vient_de_se_connecter {
+            if dictee::est_dictee(&actif.exercice) {
+                self.dessiner_tableau(actif.id).await?;
+            }
             self.coffre.rappeler(actif).await?;
         }
         Ok(())
@@ -378,8 +400,18 @@ impl Orchestrateur {
             }
             return Ok(());
         }
+        // Lu avant la pose : le coffre d'avant était-il une dictée, avec son tableau ?
+        let apres_une_dictee = self
+            .depot
+            .dernier_ouvert()?
+            .is_some_and(|dernier| dictee::est_dictee(&dernier.exercice));
         self.coffre.poser(&suivant).await?;
         self.depot.marquer_pose(suivant.id, (self.horloge)())?;
+        if dictee::est_dictee(&suivant.exercice) {
+            self.dessiner_tableau(suivant.id).await?;
+        } else if apres_une_dictee {
+            self.coffre.effacer_tableau().await?;
+        }
         if self.en_ligne.get() {
             // La clé d'abord : le mode d'emploi de l'annonce en parle.
             self.coffre.equiper().await?;
@@ -765,6 +797,8 @@ impl CommandesParents {
                 if let Some(refus) = self.refus_de_deplacer(coffre).await? {
                     return Ok(refus);
                 }
+                // Le tableau d'une séance finie ne suit pas l'atelier.
+                coffre.effacer_tableau().await?;
                 deplacer_pres_de(jeu, &coffre.pseudo, &ancien).await
             }
         };

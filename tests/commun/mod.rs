@@ -149,6 +149,11 @@ impl AdaptateurJeu for Rejeu {
         if commande.starts_with("data get entity ") && commande.contains("mdr_cle") {
             return Ok("Found no elements matching Inventory".to_owned());
         }
+        // Le tableau de dictée (phase 9) est effacé avant un déplacement de l'atelier : même
+        // tolérance, il n'y en a jamais dans une transcription.
+        if commande == mine_de_rien::games::tableau::commande_effacement() {
+            return Ok("No entity was found".to_owned());
+        }
         let attendu = self.suivant(&json!(["commande", commande]));
         assert_eq!(
             json!(commande),

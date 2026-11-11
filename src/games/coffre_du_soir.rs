@@ -86,6 +86,7 @@ use crate::adapters::game::base::AdaptateurJeu;
 use crate::adapters::game::rcon::ErreurRcon;
 use crate::games::atelier::{Atelier, PAS_CONSTRUIT, lire_atelier, pos};
 use crate::games::dictee;
+use crate::games::tableau::{self, Morceau};
 use crate::minecraft::texte::{self, LONGUEUR_MAX, PseudoInvalide, Style};
 use crate::storage::sqlite::ExerciceStocke;
 use crate::util::{json_python, repr, strip};
@@ -234,7 +235,13 @@ pub fn commande_verrou(a: &Atelier, nom: &str) -> String {
 
 /// Commandes qui posent le coffre `s` dans l'atelier `a`. Aucune réponse calculée ici.
 pub fn commandes_pose(a: &Atelier, s: &ExerciceStocke) -> Result<Vec<String>, ErreurCoffre> {
-    let Some(lignes) = texte::lignes_panneau(&s.exercice.enonce) else {
+    // Une dictée se lit sur le tableau (`tableau.rs`), pas sur quatre lignes de panneau.
+    let enonce = if dictee::est_dictee(&s.exercice) {
+        dictee::PANNEAU
+    } else {
+        s.exercice.enonce.as_str()
+    };
+    let Some(lignes) = texte::lignes_panneau(enonce) else {
         return Err(ErreurCoffre::Coffre(format!(
             "énoncé trop long pour le panneau : {}",
             repr(&s.exercice.enonce)
@@ -323,6 +330,9 @@ pub trait Coffre {
     /// L'enfant a écrit `nom`, qui vaut la réponse à la casse et aux espaces près : le verrou
     /// prend ce nom-là, et l'enfant est prévenu qu'il peut ouvrir.
     async fn accepter_la_cle(&self, nom: &str) -> Result<(), ErreurCoffre>;
+    /// Le texte entier de la dictée, derrière le coffre ; refait s'il y est déjà.
+    async fn afficher_tableau(&self, morceaux: &[Morceau]) -> Result<(), ErreurCoffre>;
+    async fn effacer_tableau(&self) -> Result<(), ErreurCoffre>;
     async fn coffre_present(&self) -> Result<bool, ErreurCoffre>;
     async fn coffre_vide(&self) -> Result<bool, ErreurCoffre>;
     async fn ranger(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre>;
@@ -428,6 +438,7 @@ impl CoffreDuSoir {
             .await?;
         if dictee {
             self.executer(&dictee::commandes_effacement()).await?;
+            self.effacer_tableau().await?;
         }
         Ok(())
     }
@@ -645,6 +656,15 @@ impl Coffre for CoffreDuSoir {
             ))
             .await?;
         Ok(())
+    }
+
+    async fn afficher_tableau(&self, morceaux: &[Morceau]) -> Result<(), ErreurCoffre> {
+        let a = self.verifier_atelier()?;
+        self.executer(&tableau::commandes(&a, morceaux)).await
+    }
+
+    async fn effacer_tableau(&self) -> Result<(), ErreurCoffre> {
+        self.executer(&[tableau::commande_effacement()]).await
     }
 
     async fn coffre_present(&self) -> Result<bool, ErreurCoffre> {

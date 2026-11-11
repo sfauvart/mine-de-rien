@@ -6,3 +6,4 @@ pub mod dictee;
 pub mod emplacement;
 pub mod paisible;
 pub mod pixel;
+pub mod tableau;

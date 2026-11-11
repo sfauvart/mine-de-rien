@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use chrono::{DateTime, Datelike, NaiveDate, TimeDelta, Utc, Weekday};
-use serde_json::json;
+use serde_json::{Value, json};
 
 use crate::adapters::voix::base::{ErreurVoix, Voix};
 use crate::alea::Alea;
@@ -17,9 +17,12 @@ use crate::exercises::base::{Exercice, normaliser};
 use crate::exercises::francais::dictee::{
     ErreurDictee, Phrase, Position, candidats, decouper, decouper_liste, exercice, phrase_de, tirer,
 };
+use crate::games::tableau::{Morceau, Trou, morceaux};
 use crate::pack::{self, ErreurPack};
 use crate::son::{ErreurSon, Pcm, encoder_ogg, lire_wav, wav_vers_ogg};
-use crate::storage::sqlite::{Demande, Depot, DicteeStockee, ErreurStockage, PhraseSonore};
+use crate::storage::sqlite::{
+    Demande, Depot, DicteeStockee, ErreurStockage, ExerciceStocke, PhraseSonore, Statut,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErreurDictees {
@@ -299,4 +302,48 @@ pub fn lire_jour(texte: &str, aujourdhui: NaiveDate) -> Result<NaiveDate, Erreur
             ecrire_jour(cette_annee)
         ))),
     }
+}
+
+/// Le tableau de la dictée du coffre `reference` : le texte entier, où le coffre posé est le
+/// trou à remplir, les coffres en file des trous en attente, et les coffres ouverts de la
+/// même séance (créés au même instant) des mots trouvés. `None` si ce coffre n'est pas celui
+/// d'une dictée enregistrée.
+pub fn tableau(
+    depot: &Depot,
+    reference: &ExerciceStocke,
+) -> Result<Option<Vec<Morceau>>, ErreurDictees> {
+    let Some(dictee) = reference
+        .exercice
+        .donnees
+        .get("dictee")
+        .and_then(Value::as_i64)
+    else {
+        return Ok(None);
+    };
+    let (phrases, _) = phrases_enregistrees(depot, dictee)?;
+    let mut trous = HashMap::new();
+    for coffre in depot.coffres_de_dictee(dictee)? {
+        let etat = match coffre.statut {
+            Statut::Pose => Trou::Actif,
+            Statut::EnFile => Trou::Attente,
+            Statut::Ouvert if coffre.cree_le == reference.cree_le => Trou::Trouve,
+            _ => continue,
+        };
+        let indice = |cle: &str| {
+            coffre
+                .exercice
+                .donnees
+                .get(cle)
+                .and_then(Value::as_u64)
+                .and_then(|n| usize::try_from(n).ok())
+        };
+        if let (Some(phrase), Some(mot)) = (indice("phrase"), indice("mot")) {
+            let position = Position { phrase, mot };
+            // Un trou encore à trouver l'emporte sur le même mot déjà trouvé.
+            if etat != Trou::Trouve || !trous.contains_key(&position) {
+                trous.insert(position, etat);
+            }
+        }
+    }
+    Ok(Some(morceaux(&phrases, &trous)))
 }

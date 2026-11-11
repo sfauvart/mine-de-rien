@@ -335,7 +335,15 @@ async fn rangement_et_retrait_rendent_l_ecouteur_muet() {
     jeu.vider();
     coffre.retirer(true).await.unwrap();
     let commandes = jeu.commandes();
-    assert_eq!(commandes[commandes.len() - 2..], commandes_effacement());
+    // L'Écouteur redevient muet, puis le tableau de la dictée disparaît.
+    assert_eq!(
+        commandes[commandes.len() - 3..commandes.len() - 1],
+        commandes_effacement()
+    );
+    assert_eq!(
+        commandes[commandes.len() - 1],
+        mine_de_rien::games::tableau::commande_effacement()
+    );
 }
 
 #[tokio::test]

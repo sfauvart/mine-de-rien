@@ -15,6 +15,7 @@ use mine_de_rien::games::coffre_du_soir::{
     commandes_rangement, commandes_retrait, formater_duree, predicat_cle, predicat_preuve,
 };
 use mine_de_rien::games::paisible::ModePaisible;
+use mine_de_rien::games::tableau::{Genre, Morceau};
 use mine_de_rien::minecraft::texte::{Style, lignes_panneau};
 use mine_de_rien::orchestrateur::Orchestrateur;
 use mine_de_rien::saisie::Source;
@@ -299,6 +300,25 @@ impl Coffre for FauxCoffre {
 
     async fn accepter_la_cle(&self, nom: &str) -> Result<(), ErreurCoffre> {
         self.note(format!("clé juste {nom}"));
+        Ok(())
+    }
+
+    async fn afficher_tableau(&self, morceaux: &[Morceau]) -> Result<(), ErreurCoffre> {
+        let texte: String = morceaux
+            .iter()
+            .map(|m| match m.genre {
+                Genre::Texte => m.texte.clone(),
+                Genre::TrouActif => "[?]".to_owned(),
+                Genre::TrouAttente => "[…]".to_owned(),
+                Genre::Trouve => format!("[{}]", m.texte),
+            })
+            .collect();
+        self.note(format!("tableau {texte}"));
+        Ok(())
+    }
+
+    async fn effacer_tableau(&self) -> Result<(), ErreurCoffre> {
+        self.note("tableau effacé".to_owned());
         Ok(())
     }
 
@@ -1260,4 +1280,83 @@ async fn sans_reglage_ou_sans_dictee_aucune_seance() {
     m.orch.tour().await.unwrap();
     assert_eq!(coffres_de_dictee(&m), 0);
     assert!(m.notifs.messages().is_empty());
+}
+
+#[tokio::test]
+async fn le_tableau_de_la_dictee_suit_les_coffres() {
+    use mine_de_rien::exercises::francais::dictee::decouper;
+    use mine_de_rien::storage::sqlite::PhraseSonore;
+
+    let m = monde_de_dictee(None);
+    m.depot.annuler(1).unwrap(); // le coffre de dictée sans dictée enregistrée
+    let texte = "La plus haute tour.";
+    let phrases: Vec<PhraseSonore> = decouper(texte)
+        .into_iter()
+        .map(|p| PhraseSonore {
+            texte: p.texte,
+            son: b"OggS".to_vec(),
+            son_lent: b"OggS".to_vec(),
+        })
+        .collect();
+    let jour = chrono::NaiveDate::from_ymd_opt(2026, 11, 13).unwrap();
+    let ident = m
+        .depot
+        .ajouter_dictee(jour, texte, &phrases, "111", t0())
+        .unwrap();
+    let dictee = m.depot.lire_dictee(ident).unwrap().unwrap();
+    let demande = Demande {
+        source: Source::Dictee,
+        ..DEMANDE
+    };
+    // Les quatre mots du texte.
+    let coffres = mine_de_rien::dictees::seance(
+        &m.depot,
+        &dictee,
+        4,
+        &mut mine_de_rien::alea::Alea::graine(1),
+        &std::collections::HashMap::new(),
+        demande,
+        t0(),
+    )
+    .unwrap();
+    assert_eq!(coffres.len(), 4);
+    // Puis un coffre de calcul.
+    let calcul = Exercice {
+        competence: "maths/division-posee".to_owned(),
+        enonce: "12 ÷ 12 = ?".to_owned(),
+        reponse: "1".to_owned(),
+        donnees: Default::default(),
+    };
+    m.depot.ajouter(&calcul, DEMANDE, t0()).unwrap();
+
+    let tableaux = |m: &Monde| -> Vec<String> {
+        m.coffre
+            .actions()
+            .into_iter()
+            .filter(|a| a.starts_with("tableau"))
+            .collect()
+    };
+    m.coffre.en_ligne.set(true);
+    m.orch.tour().await.unwrap();
+    // Posé : un trou jaune, les trois autres gris.
+    let vus = tableaux(&m);
+    assert_eq!(vus.len(), 1);
+    assert_eq!(vus[0].matches("[?]").count(), 1, "{}", vus[0]);
+    assert_eq!(vus[0].matches("[…]").count(), 3, "{}", vus[0]);
+
+    for _ in 0..4 {
+        m.coffre.preuve.set(true);
+        m.orch.tour().await.unwrap(); // ouvert : le mot s'écrit
+        m.coffre.preuve.set(false);
+        m.coffre.vide.set(true);
+        avancer(&m.horloge, TimeDelta::seconds(15));
+        m.orch.tour().await.unwrap(); // le suivant est posé
+    }
+    let vus = tableaux(&m);
+    // Quatre poses et quatre ouvertures, puis le coffre de calcul efface le tableau.
+    assert_eq!(vus.len(), 9, "{vus:?}");
+    assert_eq!(vus[7], "tableau [La] [plus] [haute] [tour].");
+    assert_eq!(vus[8], "tableau effacé");
+    // Le coffre de calcul suivant ne l'efface pas une seconde fois.
+    assert_eq!(m.coffre.compte("tableau effacé"), 1);
 }
