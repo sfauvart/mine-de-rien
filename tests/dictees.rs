@@ -1,4 +1,4 @@
-//! La dictée depuis Telegram : préparation par la voix, confirmation, enregistrement, pack,
+//! La dictée depuis Telegram : préparation par la voix, confirmation, enregistrement,
 //! séance. Avec une fausse voix, un faux LLM et une vraie base jetable.
 
 mod commun;
@@ -6,7 +6,6 @@ mod commun;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::io::Cursor;
-use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use async_trait::async_trait;
@@ -17,9 +16,7 @@ use mine_de_rien::adapters::llm::base::{ErreurLlm, Llm};
 use mine_de_rien::adapters::voix::base::{ErreurVoix, Voix};
 use mine_de_rien::alea::Alea;
 use mine_de_rien::config::Coffre as ConfigCoffre;
-use mine_de_rien::dictees::{
-    PHRASES_MAX, ecrire_jour, lire_jour, numero_son, preparer, reconstruire_pack,
-};
+use mine_de_rien::dictees::{PHRASES_MAX, ecrire_jour, lire_jour, numero_son, preparer};
 use mine_de_rien::orchestrateur::{
     AIDE, AIDE_DICTEE, CommandesParents, DICTEES_ABSENTES, LECTURE_EN_COURS, PREPARATION_EN_COURS,
     RAPPEL_DICTEE, RAPPEL_PHOTO_DICTEE, legende_de_dictee, servir,
@@ -114,7 +111,7 @@ impl Llm for FauxLlm {
 type Temps = Rc<Cell<DateTime<Utc>>>;
 
 struct Monde {
-    dossier: tempfile::TempDir,
+    _dossier: tempfile::TempDir,
     depot: Rc<Depot>,
     voix: Rc<FausseVoix>,
     temps: Temps,
@@ -122,10 +119,6 @@ struct Monde {
 }
 
 impl Monde {
-    fn pack(&self) -> PathBuf {
-        self.dossier.path().join("mine-de-rien.zip")
-    }
-
     async fn dit(&self, texte: &str) -> String {
         self.commandes
             .traiter(&MessageParent::texte(PARENT, texte))
@@ -145,24 +138,6 @@ impl Monde {
             .unwrap()
             .unwrap()
     }
-
-    /// Les numéros des sons du pack écrit sur le disque.
-    fn sons_du_pack(&self) -> BTreeSet<u32> {
-        sons_de(&self.pack())
-    }
-}
-
-fn sons_de(pack: &Path) -> BTreeSet<u32> {
-    let mut zip = zip::ZipArchive::new(Cursor::new(std::fs::read(pack).unwrap())).unwrap();
-    (0..zip.len())
-        .filter_map(|i| {
-            let nom = zip.by_index(i).unwrap().name().to_owned();
-            nom.strip_prefix("assets/mine_de_rien/sounds/dictee/")?
-                .strip_suffix(".ogg")?
-                .parse()
-                .ok()
-        })
-        .collect()
 }
 
 fn jpeg() -> Vec<u8> {
@@ -189,10 +164,10 @@ fn monde_avec(llm: Option<Rc<FauxLlm>>, dictees: bool) -> Monde {
         Alea::graine(0),
     );
     if dictees {
-        commandes = commandes.avec_dictees(voix.clone(), &dossier.path().join("mine-de-rien.zip"));
+        commandes = commandes.avec_dictees(voix.clone());
     }
     Monde {
-        dossier,
+        _dossier: dossier,
         depot,
         voix,
         temps,
@@ -328,7 +303,7 @@ async fn preparation_refusee() {
 }
 
 #[tokio::test]
-async fn sans_voix_ni_pack_pas_de_dictee_et_l_aide_ne_change_pas() {
+async fn sans_voix_pas_de_dictee_et_l_aide_ne_change_pas() {
     let m = monde_avec(None, false);
     assert_eq!(m.dit("/dictee vendredi Il pleut.").await, DICTEES_ABSENTES);
     assert_eq!(m.dit("/dictee").await, DICTEES_ABSENTES);
@@ -364,7 +339,6 @@ async fn dictee_tapee_puis_oui() {
     assert_eq!(lignes[4], RAPPEL_DICTEE);
     // Rien n'est enregistré avant le « /oui » ; l'aperçu attend d'être envoyé.
     assert!(m.depot.dictees_depuis(jour(2026, 1, 1)).unwrap().is_empty());
-    assert!(!m.pack().exists());
     let (nom, apercu) = m.commandes.prendre_audio(PARENT).unwrap();
     assert_eq!(nom, "dictee-apercu.ogg");
     assert!(apercu.starts_with(b"OggS"));
@@ -385,18 +359,13 @@ async fn dictee_tapee_puis_oui() {
         phrases.iter().map(|p| p.rang).collect::<Vec<_>>(),
         [0, 1, 2]
     );
-    // Deux sons par phrase dans le pack, numérotés d'après le numéro de la phrase.
-    let attendus: BTreeSet<u32> = phrases
-        .iter()
-        .flat_map(|p| {
-            [
-                numero_son(p.id as u32, false),
-                numero_son(p.id as u32, true),
-            ]
-        })
+    // Rien n'est écrit à côté de la base : plus de pack de sons.
+    let fichiers: Vec<String> = std::fs::read_dir(m._dossier.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|nom| !nom.starts_with("mdr.sqlite"))
         .collect();
-    assert_eq!(m.sons_du_pack(), attendus);
-    assert_eq!(attendus.len(), 6);
+    assert!(fichiers.is_empty(), "{fichiers:?}");
     // Un second « /oui » n'a plus rien à confirmer.
     assert!(m.dit("/oui").await.starts_with("Rien à confirmer"));
 }
@@ -410,7 +379,6 @@ async fn non_n_ecrit_rien_et_la_dictee_expire() {
         "Abandonné : la dictée n'a pas été enregistrée."
     );
     assert!(m.depot.dictees_depuis(jour(2026, 1, 1)).unwrap().is_empty());
-    assert!(!m.pack().exists());
     assert_eq!(m.dit("/non").await, "Aucune lecture de photo en attente.");
 
     m.dit("/dictee vendredi Il pleut sur la ville.").await;
@@ -616,7 +584,6 @@ async fn seance_a_la_demande() {
         let phrase = phrases[&(d["phrase"].as_u64().unwrap() as usize)] as u32;
         assert_eq!(d["son"], numero_son(phrase, false));
         assert_eq!(d["son_lent"], numero_son(phrase, true));
-        assert!(m.sons_du_pack().contains(&numero_son(phrase, false)));
     }
     // Les trois mots imposés d'abord.
     let premiers: BTreeSet<&str> = coffres[..3]
@@ -628,21 +595,19 @@ async fn seance_a_la_demande() {
 }
 
 #[tokio::test]
-async fn annuler_une_dictee_retire_ses_coffres_et_ses_sons() {
+async fn annuler_une_dictee_retire_ses_coffres() {
     let m = monde();
     dictee_enregistree(&m).await;
     m.dit("/dictee seance 1").await;
     m.dit("/coffre 348 ÷ 12").await;
-    assert_eq!(m.sons_du_pack().len(), 6);
     assert_eq!(
         m.dit("/dictee annuler 1").await,
         "Dictée n°1 annulée, 4 coffre(s) retiré(s) de la file."
     );
-    // Le coffre de maths reste, les sons partent.
+    // Le coffre de maths reste.
     let restants = m.depot.en_file().unwrap();
     assert_eq!(restants.len(), 1);
     assert_eq!(restants[0].exercice.reponse, "29");
-    assert!(m.sons_du_pack().is_empty());
     assert_eq!(m.dit("/dictee").await, "Aucune dictée en cours.");
     assert!(
         m.dit("/dictee annuler 1")
@@ -653,19 +618,9 @@ async fn annuler_une_dictee_retire_ses_coffres_et_ses_sons() {
 }
 
 #[tokio::test]
-async fn le_pack_garde_une_dictee_trente_jours_apres_son_jour() {
+async fn une_dictee_n_est_plus_en_cours_apres_son_jour() {
     let m = monde();
     dictee_enregistree(&m).await;
-    let pack = m.pack();
-    assert_eq!(
-        reconstruire_pack(&m.depot, &pack, jour(2026, 12, 13)).unwrap(),
-        6
-    );
-    assert_eq!(
-        reconstruire_pack(&m.depot, &pack, jour(2026, 12, 14)).unwrap(),
-        0
-    );
-    assert!(sons_de(&pack).is_empty());
     // Elle n'est plus « en cours » dès le lendemain de son jour.
     assert_eq!(m.depot.dictees_depuis(jour(2026, 11, 13)).unwrap().len(), 1);
     assert!(

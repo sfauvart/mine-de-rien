@@ -20,8 +20,7 @@
 //! de la maison, pas en UTC.
 //!
 //! **Révision.** Tant qu'une dictée est en cours, un des coffres de la séance peut reprendre
-//! un mot encore raté d'une dictée passée de moins de 30 jours : ses sons sont toujours dans
-//! le pack.
+//! un mot encore raté d'une dictée passée de moins de 30 jours : la voix relit sa phrase.
 
 use std::collections::{BTreeMap, HashMap};
 

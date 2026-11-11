@@ -8,8 +8,8 @@
    Microsoft obligatoire). Bedrock n'est pas pris en charge, voir plus bas.
 2. **Pont sans plugin pour commencer.** Commandes via RCON, chat et connexions lus dans
    `logs/latest.log`. Un plugin Paper viendra seulement si un jeu exige des événements fins
-   (ouverture de coffre, pose de bloc). Un premier plugin est prévu pour faire entendre la
-   voix en direct ([spec](specs/open/2026-11-voix-en-direct.md)).
+   (ouverture de coffre, pose de bloc). Il est venu pour le son, pas pour les événements :
+   voir « Un plugin pour la voix » plus bas.
 3. **Le LLM n'est jamais la source de vérité.** Générateurs déterministes par compétence,
    réponse calculée. Le LLM habille l'énoncé et lit les photos du cahier. Un modèle local de
    7 à 8 milliards de paramètres suffit alors.
@@ -58,6 +58,31 @@ envoyées à Minecraft.
   elle se construit sans émulation pour amd64 et arm64.
 - **Un seul fil.** Runtime `tokio` mono-fil : la base et le verrou du coffre sont partagés
   entre la boucle, Pixel et Telegram sans verrou de fil, comme avec `asyncio`.
+
+## Un plugin pour la voix (11 novembre 2026)
+
+La dictée audio faisait voyager ses sons dans un pack de ressources, que Minecraft ne
+recharge qu'à la connexion : l'enfant devait se reconnecter, ou voir son jeu renvoyé vers
+le serveur, à chaque nouvelle dictée. Rien ne pouvait être dit à la volée. Depuis la spec
+[voix en direct](specs/open/2026-11-voix-en-direct.md) :
+
+- le son passe par le chat vocal de **Simple Voice Chat**, auto-hébergé : un plugin sur le
+  serveur Paper, un mod Fabric dans le jeu de l'enfant. L'enfant entend dans la seconde,
+  sans écran de chargement ;
+- le dépôt gagne un second programme, **en Java** : `plugin/`, le plugin Paper
+  `mine-de-rien-voix`. Il joue à un seul joueur le son que l'agent lui désigne. Il ne
+  décide rien, n'embarque aucune bibliothèque, n'ouvre aucun port et n'écoute aucun micro.
+  L'agent reste un seul crate Rust, un seul binaire ;
+- de l'agent au plugin : un fichier de son brut dans un dossier partagé avec le serveur,
+  puis une commande RCON réservée à la console (`src/diffusion.rs`). Pas de réseau entre
+  les deux ;
+- le pack de sons, son service HTTP et le renvoi automatique du jeu
+  ont disparu. Le datapack ne joue plus aucun son.
+
+Ce que cela coûte : le jeu de l'enfant n'est plus « vanilla » pour les dictées, et le mod,
+le plugin et Minecraft doivent changer de version ensemble
+([rejoindre-le-serveur.md](rejoindre-le-serveur.md#quand-minecraft-change-de-version)).
+Sans le mod, les coffres de calcul marchent toujours.
 
 ## Ordre de construction
 

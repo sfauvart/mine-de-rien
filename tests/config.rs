@@ -94,3 +94,24 @@ fn oracle_python() {
         }
     }
 }
+
+#[test]
+fn une_configuration_qui_porte_encore_pack_se_charge() {
+    // La section a disparu avec le pack de sons : elle est ignorée, quel que soit son contenu.
+    let ancienne = format!(
+        "{MINIMALE}[pack]\nport = 9000\necoute = \"0.0.0.0\"\nadresse = \"192.168.1.20:25565\"\n"
+    );
+    let config = lire_config(&ancienne, &sans_variable).unwrap();
+    assert!(config.pack.is_some());
+    assert_eq!(config.enfant.pseudo_minecraft, "Steve");
+    // Elle ne se réécrit pas : une configuration relue puis écrite ne la porte plus.
+    let ecrite = toml::to_string(&config).unwrap();
+    assert!(!ecrite.contains("pack"), "{ecrite}");
+    // Sans elle, rien à signaler.
+    assert!(
+        lire_config(MINIMALE, &sans_variable)
+            .unwrap()
+            .pack
+            .is_none()
+    );
+}

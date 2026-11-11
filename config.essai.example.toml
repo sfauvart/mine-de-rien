@@ -32,7 +32,7 @@ adaptateur = "telegram"
 jeton = ""        # "${TELEGRAM_BOT_TOKEN}" pour essayer Telegram (variable d'environnement)
 parents = []      # identifiants numériques, donnés par /start au bot : [123456789]
 
-# Voix du compose d'essai (--profile voix), pour « cargo run -- voix … ».
+# Voix du compose d'essai (--profile voix) : elle lit les dictées et « parler ».
 [voix]
 adaptateur = "piper"
 url = "http://localhost:5055"
@@ -40,14 +40,6 @@ voix = "fr_FR-siwis-medium"
 # Le dossier que le serveur d'essai lit (/sons) : l'agent y dépose ce que le chat vocal fait
 # entendre. « cargo run -- --config config.essai.toml parler "Bonjour, je suis Pixel." »
 dossier_du_jeu = "data/essai-sons"
-
-# Pack de sons servi sur le poste : « cargo run -- --config config.essai.toml servir-pack ».
-# Le serveur d'essai annonce http://localhost:8765/mine-de-rien.zip au jeu.
-[pack]
-port = 8765
-# L'adresse tapée dans le jeu pour rejoindre le serveur d'essai : le jeu s'y reconnecte seul
-# quand il lui manque les sons d'une nouvelle dictée.
-adresse_du_jeu = "localhost:25566"
 
 [stockage]
 sqlite = "data/mine-de-rien-essai.sqlite"

@@ -39,7 +39,7 @@ Sans JDK sur le poste, depuis la racine du dépôt :
 
 ```bash
 docker run --rm -v "$PWD/plugin":/plugin -v mine-de-rien-m2:/root/.m2 -w /plugin \
-  maven:3.9-eclipse-temurin-25 mvn -B package
+  maven:3.9.16-eclipse-temurin-25 mvn -B package
 ```
 
 Le fichier produit est `plugin/target/mine-de-rien-voix.jar`. La construction télécharge

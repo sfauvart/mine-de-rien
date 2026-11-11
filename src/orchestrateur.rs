@@ -27,7 +27,6 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -604,7 +603,7 @@ pub const AIDE_DICTEE: &str = "\n\
     /dictee mots 3 plus trois : les mots à faire sortir en premier\n\
     /dictee annuler 3 : retire la dictée n°3";
 pub const DICTEES_ABSENTES: &str = "Les dictées ne sont pas configurées : il faut les sections \
-    [voix] et [pack] de config.toml (docs/installation.md).";
+    [voix] de config.toml, avec dossier_du_jeu (docs/installation.md).";
 pub const RAPPEL_DICTEE: &str = "Compare ce texte à la feuille, au mot près, et écoute l'aperçu : \
     chaque mot peut devenir une réponse. Si tout est juste, /oui ; sinon /non.";
 /// À l'essai du 2026-11-10, le LLM local a recopié « noirades » pour « noiraudes » sur une
@@ -614,10 +613,9 @@ pub const RAPPEL_PHOTO_DICTEE: &str = "Ce texte vient d'une photo : le modèle s
 static MOTS_SEULS: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?is)^mots\s*:\s*(.*)$").unwrap());
 
-/// Ce qu'il faut pour préparer des dictées : une voix, et le fichier du pack de sons.
+/// Ce qu'il faut pour préparer des dictées : une voix.
 pub struct Dictees {
     pub voix: Rc<dyn Voix>,
-    pub pack: PathBuf,
 }
 
 /// Une dictée lue par la voix, que le parent n'a pas encore confirmée.
@@ -716,12 +714,9 @@ impl CommandesParents {
         self
     }
 
-    /// Avec une voix et un pack de sons : les parents peuvent envoyer des dictées.
-    pub fn avec_dictees(mut self, voix: Rc<dyn Voix>, pack: &Path) -> Self {
-        self.dictees = Some(Dictees {
-            voix,
-            pack: pack.to_path_buf(),
-        });
+    /// Avec une voix : les parents peuvent envoyer des dictées.
+    pub fn avec_dictees(mut self, voix: Rc<dyn Voix>) -> Self {
+        self.dictees = Some(Dictees { voix });
         self
     }
 
@@ -1124,7 +1119,7 @@ impl CommandesParents {
 
     fn confirmer_dictee(&self, parent: i64) -> Result<String, ErreurCommande> {
         let attente = self.dictees_en_attente.borrow_mut().remove(&parent);
-        let (Some(attente), Some(dictees)) = (
+        let (Some(attente), Some(_)) = (
             attente.filter(|a| (self.horloge)() - a.quand <= DUREE_ATTENTE),
             &self.dictees,
         ) else {
@@ -1140,8 +1135,6 @@ impl CommandesParents {
             attente.jour,
             &parent.to_string(),
             (self.horloge)(),
-            &dictees.pack,
-            self.aujourdhui(),
         ) {
             Ok(numero) => numero,
             Err(ErreurDictees::Stockage(e)) => return Err(e.into()),
@@ -1212,12 +1205,6 @@ impl CommandesParents {
             if de_cette_dictee && self.depot.annuler(s.id)?.is_some() {
                 retires += 1;
             }
-        }
-        if let Some(dictees) = &self.dictees
-            && let Err(e) =
-                dictees::reconstruire_pack(&self.depot, &dictees.pack, self.aujourdhui())
-        {
-            journal::avertissement(format!("pack de sons non refait : {e}"));
         }
         Ok(format!(
             "Dictée n°{} annulée, {retires} coffre(s) retiré(s) de la file.",

@@ -56,6 +56,7 @@ cle = "${ANTHROPIC_API_KEY}"
 
 # Voix de synthèse locale, pour lire les dictées (docs/installation.md). Sans cette section,
 # pas de dictée ; le reste marche comme avant. Lancer le conteneur : --profile voix.
+# L'enfant l'entend par le chat vocal du jeu (docs/rejoindre-le-serveur.md).
 # [voix]
 # adaptateur = "piper"
 # url = "http://voix:5000"
@@ -66,16 +67,8 @@ cle = "${ANTHROPIC_API_KEY}"
 # y dépose les sons que l'enfant entend par le chat vocal. Sans lui, les dictées attendent.
 # dossier_du_jeu = "/sons"
 
-# Service qui donne au jeu de l'enfant le pack de sons des dictées (docs/installation.md).
-# L'adresse que le jeu demande se règle dans .env (PACK_URL), pas ici.
-# [pack]
-# port = 8765
-# L'adresse que l'enfant tape pour rejoindre le serveur. Réglée, son jeu se reconnecte seul
-# quand il lui manque les sons d'une nouvelle dictée ; sinon il le fait à la main.
-# adresse_du_jeu = "192.168.1.20:25565"
-
 # Séances de dictée : chaque jour, à sa première connexion, quelques coffres de la dictée à
-# préparer. Demande [voix] et [pack]. Valeurs par défaut :
+# préparer. Demande [voix]. Valeurs par défaut :
 # [dictee]
 # coffres_par_seance = 4          # de 3 à 5
 # fuseau = "Europe/Paris"         # « chaque jour » se compte à la maison

@@ -30,7 +30,7 @@ use crate::orchestrateur::{
 use crate::saisie::Source;
 use crate::storage::sqlite::Demande;
 use crate::storage::sqlite::{Depot, ErreurStockage, maintenant};
-use crate::{VERSION, datapack, dictees, livraison, pack, photo, service_pack, son};
+use crate::{VERSION, datapack, dictees, livraison, photo, son};
 
 #[derive(Parser)]
 #[command(
@@ -97,18 +97,13 @@ enum Action {
         #[arg(long)]
         lent: bool,
     },
-    /// essaie une dictée sans Telegram : fait lire le texte, construit le pack et met des
-    /// coffres en file
+    /// essaie une dictée sans Telegram : fait lire le texte et met des coffres en file
     DicteeEssai {
         texte: String,
         /// nombre de trous, donc de coffres
         #[arg(short, long, default_value_t = 2)]
         nombre: usize,
     },
-    /// construit un pack de sons d'essai avec des fichiers .ogg, numérotés à partir de 1
-    Pack { sons: Vec<PathBuf> },
-    /// sert le pack de sons au jeu, sans le reste de l'agent
-    ServirPack,
     /// recopie le datapack dans un dossier lu par le serveur, sans config
     Datapack {
         /// reçoit le sous-dossier mine_de_rien
@@ -251,7 +246,15 @@ async fn arret_demande() {
     }
 }
 
+/// Dit au démarrage, une fois : la section `[pack]` n'existe plus.
+const PACK_IGNORE: &str = "La section [pack] de la configuration n'est plus lue : les dictées \
+    s'entendent par le chat vocal, il n'y a plus de pack de sons. Elle peut être retirée \
+    (docs/installation.md).";
+
 async fn lancer(config: &Config) -> Result<(), String> {
+    if config.pack.is_some() {
+        eprintln!("{PACK_IGNORE}");
+    }
     let pseudo = config.enfant.pseudo_minecraft.as_str();
     let jeu = Rc::new(jeu(config));
     let depot = Rc::new(depot(config).map_err(|e| e.to_string())?);
@@ -313,7 +316,7 @@ async fn lancer(config: &Config) -> Result<(), String> {
         paisible,
     );
     let fuseau = config.dictee.tz();
-    if config.voix.is_some() && config.pack.is_some() {
+    if config.voix.is_some() {
         orchestrateur = orchestrateur.avec_seances(
             config.dictee.coffres_par_seance,
             fuseau,
@@ -354,25 +357,16 @@ async fn lancer(config: &Config) -> Result<(), String> {
         Alea::nouveau(),
     );
     commandes = commandes.avec_seances(fuseau, config.dictee.coffres_par_seance);
-    // Les dictées demandent les deux : une voix pour les lire, un pack pour les faire entendre.
-    match (&config.voix, &config.pack) {
-        (Some(section), Some(_)) => match creer_voix(section) {
+    // Les dictées demandent une voix : pour l'aperçu des parents, et pour les lire à l'enfant.
+    if let Some(section) = &config.voix {
+        match creer_voix(section) {
             Ok(voix) => {
-                commandes = commandes.avec_dictees(voix, &chemin_du_pack(config));
+                commandes = commandes.avec_dictees(voix);
                 println!("Dictées : voix « {} ».", section.voix);
             }
             Err(e) => eprintln!("Dictées désactivées : {e}"),
-        },
-        (None, None) => {}
-        _ => eprintln!("Dictées désactivées : il faut les deux sections [voix] et [pack]."),
-    }
-    let service_du_pack = ouvrir_service_pack(config).await?;
-    let pack = async {
-        match service_du_pack {
-            Some((ecoute, chemin)) => service_pack::servir(ecoute, &chemin).await,
-            None => std::future::pending().await,
         }
-    };
+    }
     let ecoute = async {
         match &pixel {
             Some(pixel) => pixel.ecouter().await,
@@ -389,7 +383,6 @@ async fn lancer(config: &Config) -> Result<(), String> {
         () = orchestrateur.tourner(INTERVALLE) => Ok(()),
         fin = ecoute => fin.map_err(|e| e.to_string()),
         () = service => Ok(()),
-        () = pack => Ok(()),
         () = arret_demande() => Ok(()),
     };
     // La base se ferme avec le dépôt, à la sortie de la fonction.
@@ -568,7 +561,7 @@ async fn parler(config: &Config, texte: &str, lent: bool) -> Result<(), String> 
 }
 
 /// Le chemin d'une dictée envoyée par Telegram, sans Telegram : la voix lit le texte, la
-/// dictée est enregistrée pour dans une semaine, le pack est refait, une séance part en file.
+/// dictée est enregistrée pour dans une semaine, une séance part en file.
 async fn dictee_essai(config: &Config, texte: &str, nombre: usize) -> Result<(), String> {
     let Some(section) = &config.voix else {
         return Err("Section [voix] absente de la configuration.".to_owned());
@@ -580,22 +573,18 @@ async fn dictee_essai(config: &Config, texte: &str, nombre: usize) -> Result<(),
     let depot = depot(config).map_err(|e| e.to_string())?;
     let quand = maintenant();
     let aujourdhui = quand.date_naive();
-    let chemin = chemin_du_pack(config);
     let numero = dictees::enregistrer(
         &depot,
         &preparation,
         aujourdhui + chrono::TimeDelta::days(7),
         "cli",
         quand,
-        &chemin,
-        aujourdhui,
     )
     .map_err(|e| e.to_string())?;
     println!(
-        "Dictée n°{numero} enregistrée : {} phrase(s), {} mot(s) à demander. Pack : {}.",
+        "Dictée n°{numero} enregistrée : {} phrase(s), {} mot(s) à demander.",
         preparation.phrases.len(),
-        preparation.mots_a_demander(),
-        chemin.display()
+        preparation.mots_a_demander()
     );
     let dictee = depot
         .lire_dictee(numero)
@@ -624,64 +613,6 @@ async fn dictee_essai(config: &Config, texte: &str, nombre: usize) -> Result<(),
         );
     }
     println!("« lancer » les pose : la phrase s'entend par le chat vocal, sans reconnexion.");
-    Ok(())
-}
-
-fn chemin_du_pack(config: &Config) -> PathBuf {
-    pack::chemin(std::path::Path::new(&config.stockage.sqlite))
-}
-
-fn construire_pack(config: &Config, fichiers: &[PathBuf]) -> Result<(), String> {
-    let mut sons = std::collections::BTreeMap::new();
-    for (numero, fichier) in (1u32..).zip(fichiers) {
-        let octets = std::fs::read(fichier).map_err(|e| format!("{} : {e}", fichier.display()))?;
-        sons.insert(numero, octets);
-    }
-    let chemin = chemin_du_pack(config);
-    let archive = pack::construire(&sons).map_err(|e| e.to_string())?;
-    pack::ecrire(&chemin, &archive).map_err(|e| e.to_string())?;
-    println!(
-        "{} : {} son(s), {} Ko.",
-        chemin.display(),
-        sons.len(),
-        archive.len().div_ceil(1024)
-    );
-    for (numero, fichier) in (1u32..).zip(fichiers) {
-        println!("  {} ← {}", pack::evenement(numero), fichier.display());
-    }
-    Ok(())
-}
-
-/// Ouvre le service du pack si `[pack]` est configuré ; un pack vide est écrit s'il manque.
-async fn ouvrir_service_pack(
-    config: &Config,
-) -> Result<Option<(tokio::net::TcpListener, PathBuf)>, String> {
-    let Some(section) = &config.pack else {
-        return Ok(None);
-    };
-    let chemin = chemin_du_pack(config);
-    pack::assurer(&chemin).map_err(|e| format!("pack de sons : {e}"))?;
-    let ecoute = service_pack::ecouter(&section.ecoute, section.port)
-        .await
-        .map_err(|e| format!("service du pack sur le port {} : {e}", section.port))?;
-    println!(
-        "Pack de sons servi sur le port {} : http://<adresse de cette machine>:{}{}",
-        section.port,
-        section.port,
-        service_pack::adresse()
-    );
-    Ok(Some((ecoute, chemin)))
-}
-
-async fn servir_pack(config: &Config) -> Result<(), String> {
-    let Some((ecoute, chemin)) = ouvrir_service_pack(config).await? else {
-        return Err("Section [pack] absente de la configuration.".to_owned());
-    };
-    println!("Ctrl+C pour arrêter.");
-    tokio::select! {
-        () = service_pack::servir(ecoute, &chemin) => {}
-        () = arret_demande() => {}
-    }
     Ok(())
 }
 
@@ -758,11 +689,6 @@ fn executer(action: Option<Action>, config: &Config) -> ExitCode {
         Some(Action::DicteeEssai { texte, nombre }) => {
             terminer(attendre(dictee_essai(config, &texte, nombre)))
         }
-        Some(Action::Pack { sons }) => match construire_pack(config, &sons) {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(e) => erreur(e),
-        },
-        Some(Action::ServirPack) => terminer(attendre(servir_pack(config))),
         Some(Action::Datapack { .. }) => erreur("le datapack se recopie sans configuration"),
         Some(Action::Livrer { .. }) => erreur("la livraison se fait sans configuration"),
     }
