@@ -113,10 +113,11 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 - **Vers l'extérieur, à l'installation seulement** : le serveur télécharge le plugin Simple
   Voice Chat sur Modrinth au démarrage, comme il télécharge déjà Paper ; le parent
   télécharge le mod et Fabric pour le jeu de l'enfant. Rien pendant le jeu.
-- **À vérifier en phase 1** : que ni le plugin ni le mod n'appellent l'extérieur une fois
-  installés. Les sources du plugin ne montrent ni télémétrie ni vérification de mise à
-  jour ; le mod Fabric n'a pas été vérifié. Si l'un des deux appelle dehors, le dire ici et
-  le couper par sa configuration, ou s'arrêter.
+- **Vérifié en phase 1, dans les fichiers** (plugin `voicechat-bukkit-2.6.27.jar`, mod
+  `voicechat-fabric-2.6.27+26.3.jar`) : ni l'un ni l'autre ne contient d'adresse internet,
+  de client HTTP ni de bStats. Le serveur d'essai, démarré avec les deux plugins, ne garde
+  aucune connexion sortante ouverte. Le journal du jeu, lui, reste à relire à la partie
+  jouée de la phase 1.
 - **Sur le réseau de la maison** : un port UDP de plus (24454), entre le jeu de l'enfant et
   le serveur. Le service HTTP du pack (port 8765) disparaît.
 - **Le micro de l'enfant** : le mod sait l'envoyer au serveur. Mine de rien ne l'écoute pas
@@ -133,9 +134,9 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 
 ## Statut
 
-**Branche** : `feat/voix-en-direct`, pas encore créée, `/next` l'ouvre à la première phase.
+**Branche** : `feat/voix-en-direct`.
 
-- [ ] **Phase 1 : Le serveur dit une phrase au seul enfant**
+- [x] **Phase 1 : Le serveur dit une phrase au seul enfant**
 - [ ] **Phase 2 : La dictée passe par la voix en direct**
 - [ ] **Phase 3 : Le plugin est livré avec l'image**
 - [ ] **Phase 4 : Le pack de sons disparaît**
@@ -149,9 +150,11 @@ branche y est dans un état que le compose de production ne sait pas servir.
 
 ## Conception
 
-Toutes les commandes Minecraft et tous les appels d'API cités ci-dessous sont **à vérifier
+Les commandes Minecraft et les appels d'API cités dans les phases 2 à 5 sont **à vérifier
 sur la version du serveur** (Paper 26.3, Simple Voice Chat 2.6.27) tant que `/essai-en-jeu`
-ne les a pas exécutés.
+ne les a pas exécutés. Ceux de la phase 1 l'ont été le 2026-11-11 (Paper 26.3 build 248) :
+le plugin se charge, s'inscrit auprès du chat vocal, et `mdrvoix` répond par RCON. Ce qui
+demande un joueur (le son lui-même, `relié`) attend la partie jouée.
 
 ### Phase 1 : Le serveur dit une phrase au seul enfant
 
@@ -163,6 +166,7 @@ Java dans le dépôt.
 test), `docker/essai.compose.yml` (Simple Voice Chat, port UDP, dossier partagé, plugin
 maison), `src/son.rs` (rééchantillonnage), un nouveau module pour la diffusion,
 `src/config.rs`, `src/cli.rs` (sous-commande d'essai), `config.essai.example.toml`,
+`docker/essai-plugins/` (réglages du chat vocal),
 `docs/rejoindre-le-serveur.md` (installer le mod), skill `/essai-en-jeu`.
 
 **Conception.**
@@ -178,8 +182,13 @@ maison), `src/son.rs` (rééchantillonnage), un nouveau module pour la diffusion
   mdrvoix etat <pseudo>                 répond « relié », « sans chat vocal » ou « absent »
   ```
 
+  `jouer` et `couper` répondent `ok` ou `refusé : <raison>`. La commande porte une
+  permission donnée aux seuls opérateurs (la console en est un) : un joueur ordinaire ne la
+  voit pas, et le plugin la refuse à un joueur opérateur.
 - `<fichier>` est un nom seul, `[a-z0-9-]+\.pcm`, cherché dans le dossier partagé et nulle
   part ailleurs. Tout autre nom est refusé avant d'ouvrir quoi que ce soit.
+- Le plugin lit le son en mémoire au moment de la commande : pour un message, l'agent
+  efface le fichier dès que le serveur a répondu.
 - Le son est joué par un canal statique dont l'enfant est la seule cible
   (`createStaticAudioChannel`, `addTarget`, `createAudioPlayer` avec l'encodeur Opus de
   l'API, trames de 960 échantillons). Le canal porte une catégorie de volume « Mine de
@@ -190,11 +199,13 @@ maison), `src/son.rs` (rééchantillonnage), un nouveau module pour la diffusion
 - Un trait de diffusion, à côté de `Coffre`, avec un faux pour les tests : `dire(son)`,
   `couper()`, `relie() -> bool`. La vraie implémentation écrit le fichier dans le dossier
   partagé (nouvelle clé `[voix] dossier_du_jeu`) puis envoie la commande par RCON.
-- Sous-commande d'essai : `mine-de-rien dire "<texte>"` fait lire le texte par Piper et le
-  fait entendre au pseudo configuré.
-- Réglages du chat vocal dans le compose d'essai : groupes désactivés, port 24454/udp
-  publié. L'adresse annoncée au jeu (`voice_host`) est laissée vide si cela suffit sur le
-  réseau local ; sinon elle devient un réglage documenté.
+- Sous-commande d'essai : `mine-de-rien parler "<texte>"` fait lire le texte par Piper et
+  le fait entendre au pseudo configuré. (`dire`, prévu d'abord, existe déjà : il écrit dans
+  le chat.)
+- Réglages du chat vocal dans le compose d'essai : groupes désactivés, port **24464**/udp
+  publié (24454, le port d'usage, est laissé au vrai serveur). L'adresse annoncée au jeu
+  (`voice_host`) est laissée vide si cela suffit sur le réseau local ; sinon elle devient
+  un réglage documenté.
 
 **Vérification automatique.**
 
@@ -211,7 +222,7 @@ maison), `src/son.rs` (rééchantillonnage), un nouveau module pour la diffusion
 
 **Vérification en jeu.** Le parent installe Fabric et le mod dans son instance XMCL en
 suivant `docs/rejoindre-le-serveur.md`, se connecte au serveur d'essai, passe l'assistant
-du micro. Dans un terminal : `cargo run -- --config config.essai.toml dire "Bonjour, je
+du micro. Dans un terminal : `cargo run -- --config config.essai.toml parler "Bonjour, je
 suis Pixel."`. La phrase doit s'entendre en moins d'une seconde, sans écran de chargement,
 nette et à bon volume. La relancer pendant qu'elle joue : la seconde attend la fin de la
 première. À noter dans « Retours de jeu » : le délai ressenti, la qualité, ce que

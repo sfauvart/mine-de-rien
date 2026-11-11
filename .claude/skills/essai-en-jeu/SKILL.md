@@ -14,7 +14,7 @@ l'hypothèse en fait, sur un serveur qu'on peut casser.
 
 **Le serveur d'essai, jamais le monde réel.** Toujours
 `docker/essai.compose.yml` (projet compose `mine-de-rien-essai`, dossier
-`data/essai/`, ports 25566 et 25576). Si une commande vise
+`data/essai/`, ports 25566 et 25576, 24464/udp pour le chat vocal). Si une commande vise
 `docker-compose.yml`, `data/minecraft/` ou le port 25575, s'arrêter : c'est le
 monde de l'enfant.
 
@@ -31,6 +31,17 @@ grep -E '^(EULA|MC_VERSION)=' .env
 - **`MC_VERSION=LATEST`** → l'essai valide la dernière version, qui n'est pas
   forcément celle du serveur réel demain. Le signaler dans le rapport, et
   proposer d'épingler une version.
+
+- **Le plugin maison** (`plugin/`, il joue la voix par le chat vocal) se construit avant le
+  lancement, et à chaque fois que son code change ; le serveur le recopie à son démarrage :
+
+  ```bash
+  docker run --rm -v "$PWD/plugin":/plugin -v mine-de-rien-m2:/root/.m2 -w /plugin \
+    maven:3.9-eclipse-temurin-25 mvn -B package
+  ```
+
+  Le fichier attendu est `plugin/target/mine-de-rien-voix.jar` ; sans lui, pas de voix sur
+  le serveur d'essai.
 
 ## 2. Lancer et attendre
 
@@ -84,7 +95,11 @@ essai "execute if block 0 -60 0 chest"             # vérifier : renvoie « Test
   accents, reconnexion après redémarrage) : `cargo test --test java_rcon -- --ignored
   --nocapture`. Ce test redémarre le serveur d'essai.
 - L'agent se lance contre ce serveur avec `cargo run -- --config config.essai.toml <action>`
-  (`atelier`, `coffre "348 ÷ 12"`, `lancer`, `dire <pseudo> "…"`).
+  (`atelier`, `coffre "348 ÷ 12"`, `lancer`, `dire <pseudo> "…"` pour écrire dans le chat,
+  `parler "…"` pour faire entendre un texte par le chat vocal).
+- Le plugin maison se commande par RCON : `essai "mdrvoix etat <pseudo>"` répond « relié »,
+  « sans chat vocal » ou « absent ». Sans joueur, seuls « absent » et les refus (fichier
+  hors gabarit, joueur absent) se vérifient.
 - Le code de l'agent peut aussi viser ce serveur via `config.essai.toml`
   (hôte `localhost`, port 25576, mot de passe `essai`). Ce fichier est local et
   ignoré par git : s'il manque, le créer avec
@@ -95,7 +110,7 @@ essai "execute if block 0 -60 0 chest"             # vérifier : renvoie « Test
 
 Aucun joueur n'est connecté au serveur d'essai. Tout ce qui demande un joueur
 (inventaire, renommage sur enclume, ouverture d'un coffre verrouillé, chat de
-l'enfant, rendu d'un panneau à l'écran) ne se vérifie pas ici. Le lister
+l'enfant, rendu d'un panneau à l'écran, tout son entendu par le chat vocal) ne se vérifie pas ici. Le lister
 explicitement : ce sont les lignes du scénario « Vérification en jeu » que le
 parent jouera.
 

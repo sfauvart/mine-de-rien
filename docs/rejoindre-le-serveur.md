@@ -46,8 +46,9 @@ La même variable s'applique au serveur d'essai, `docker/essai.compose.yml`.
   docker compose logs minecraft | grep "Starting minecraft server version"
   ```
 
-- **Vanilla côté client.** Le serveur tourne sous Paper, mais Paper est un logiciel
-  serveur. Le client n'a besoin d'aucun loader : ni Fabric, ni Forge, ni NeoForge.
+- **Vanilla côté client**, sauf pour entendre la voix. Le serveur tourne sous Paper, mais
+  Paper est un logiciel serveur : pour jouer, le client n'a besoin d'aucun loader. La voix
+  en direct, elle, demande Fabric et un mod : voir « Le chat vocal » plus bas.
 - **Java adapté.** Les versions récentes de Minecraft exigent un Java récent. Laisser le
   lanceur proposer le Java qui convient plutôt que d'utiliser celui du système.
 
@@ -141,6 +142,89 @@ de dictée lues à voix haute, rien d'autre.
   passe, sans rien toucher. Il faut pour cela `adresse_du_jeu` dans `config.toml`
   ([installation.md](installation.md)) ; sans ce réglage, l'enfant se déconnecte et se
   reconnecte lui-même.
+
+## Le chat vocal
+
+*Pour l'instant sur le serveur d'essai seulement (`docker/essai.compose.yml`) : le vrai
+serveur fait encore entendre les dictées par le pack de sons ci-dessus.*
+
+La voix de Mine de rien arrive dans le jeu par un chat vocal, le mod **Simple Voice Chat** :
+le serveur dit une phrase, le joueur l'entend dans la seconde, sans écran de chargement.
+Seul le joueur désigné l'entend. Il faut le mod dans le jeu, dans la même version que le
+plugin du serveur : **2.6.27**.
+
+### Installer Fabric et le mod dans XMCL
+
+Fabric est le « loader » qui permet à Minecraft de charger des mods. On l'ajoute à une
+instance ; le plus simple est d'en créer une à part, pour garder l'instance d'origine.
+
+1. Dans XMCL, **créer une instance** sur la version du serveur (26.3), et cette fois
+   choisir le loader **Fabric** dans la liste des loaders, en version **0.19.3 ou plus
+   récente**. XMCL le télécharge.
+2. Ouvrir cette instance, puis sa page **Mods**. Dans la recherche, taper
+   `Simple Voice Chat` (auteur : henkelmax), source **Modrinth**.
+3. Choisir la version **`fabric-2.6.27+26.3`** dans la liste des versions, pas simplement
+   la plus récente, et l'installer. Aucun autre mod n'est nécessaire : ce que XMCL
+   propose en « optionnel » (Mod Menu, Cloth Config) peut être ignoré.
+4. Lancer l'instance avec le compte habituel.
+
+Sans la recherche de XMCL : télécharger `voicechat-fabric-2.6.27+26.3.jar` sur
+<https://modrinth.com/plugin/simple-voice-chat/versions> (filtrer sur Fabric et 26.3) et
+le déposer dans le dossier `mods` de l'instance (bouton « Ouvrir le dossier » de la page
+de l'instance).
+
+Ces téléchargements (Fabric, le mod) sont les seuls appels vers l'extérieur ; ils se font
+une fois, à l'installation. Le mod installé ne contient aucune adresse internet (vérifié
+dans son fichier, version 2.6.27).
+
+### Au premier lancement : passer l'étape du micro
+
+À la première connexion à un serveur équipé, le mod ouvre un assistant qui propose de
+régler un micro. **Mine de rien n'écoute pas le micro et n'enregistre rien** ; l'enfant
+n'en a pas besoin pour entendre.
+
+- Passer l'assistant (bouton « Passer » ou « Skip »), ou le suivre sans choisir de micro.
+  (Étape décrite d'après la documentation du mod, pas encore jouée : à corriger ici si
+  l'assistant se présente autrement.)
+- Ensuite, la touche **V** ouvre la fenêtre du chat vocal. La touche **M** coupe le micro :
+  le laisser coupé. Si un autre joueur de la maison a aussi le mod et un micro actif, il
+  peut entendre ceux qui parlent près de lui dans le jeu.
+- Dans cette fenêtre, le bouton des **volumes** montre un curseur **Mine de rien** : c'est
+  le volume de la voix des dictées et des messages.
+- Une petite icône en bas à gauche de l'écran signale l'état du micro. Elle se masque dans
+  les réglages du mod (touche V, puis la roue dentée).
+
+### Réseau
+
+Le chat vocal passe par un port **UDP** entre le jeu et le serveur : **24464** pour le
+serveur d'essai. Si le jeu tourne sur un autre ordinateur que le serveur, ouvrir ce port
+comme le 25565 (voir « Pare-feu » plus bas), en UDP :
+
+```bash
+sudo ufw allow 24464/udp
+```
+
+Ce port ne se redirige jamais sur la box, comme les autres.
+
+### Vérifier
+
+Le serveur dit si le jeu d'un joueur est relié :
+
+```bash
+docker compose -f docker/essai.compose.yml exec minecraft rcon-cli "mdrvoix etat <pseudo>"
+```
+
+| Réponse | Sens |
+|---|---|
+| `relié` | le joueur entendra la voix |
+| `sans chat vocal` | le joueur est en jeu, mais sans le mod, dans une autre version du mod, ou le port UDP est fermé |
+| `absent` | le joueur n'est pas connecté |
+
+Puis lui faire dire une phrase (il faut la voix du compose d'essai, `--profile voix`) :
+
+```bash
+cargo run -- --config config.essai.toml parler "Bonjour, je suis Pixel."
+```
 
 ## Si la connexion échoue
 

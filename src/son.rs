@@ -1,4 +1,5 @@
-//! Du WAV de la voix à l'Ogg Vorbis mono, seul format de son que lit Minecraft.
+//! Du WAV de la voix à l'Ogg Vorbis mono, seul format de son que lit Minecraft, et au PCM
+//! brut à 48 000 Hz qu'attend le chat vocal.
 //!
 //! La conversion se fait dans le binaire : l'image de l'agent ne contient que lui, donc ni
 //! `ffmpeg` ni interpréteur de commandes. L'encodeur est celui de référence (libvorbis, en C,
@@ -6,6 +7,10 @@
 //!
 //! Le WAV est lu à la main : PCM 16 bits, un ou deux canaux. Deux canaux sont mélangés en un
 //! seul. Le numéro de flux Ogg est fixe : deux conversions du même WAV donnent le même fichier.
+//!
+//! Le rééchantillonnage est écrit ici, sans crate ni outil externe : une interpolation par
+//! sinus cardinal fenêtré, qui ne laisse pas passer d'aigus fantômes comme le ferait une
+//! interpolation linéaire.
 
 use std::num::{NonZeroU8, NonZeroU32};
 
@@ -23,9 +28,86 @@ pub struct Pcm {
     pub echantillons: Vec<f32>,
 }
 
+/// La fréquence du chat vocal (Simple Voice Chat), la seule qu'il sache jouer.
+pub const FREQUENCE_DU_CHAT_VOCAL: u32 = 48_000;
+
+/// Demi-largeur du filtre de rééchantillonnage, en échantillons de la fréquence la plus basse.
+const DEMI_LARGEUR: f64 = 16.0;
+
 impl Pcm {
     pub fn duree_secondes(&self) -> f64 {
         self.echantillons.len() as f64 / f64::from(self.frequence)
+    }
+
+    /// Le même son à une autre fréquence d'échantillonnage : même durée, à un échantillon
+    /// près. Chaque échantillon de sortie est une moyenne de ses voisins d'entrée, pondérée
+    /// par un sinus cardinal sous une fenêtre de Hann ; vers une fréquence plus basse, le
+    /// filtre s'élargit pour couper ce qu'elle ne peut pas porter. La sortie reste entre -1
+    /// et 1.
+    pub fn reechantillonner(&self, frequence: u32) -> Pcm {
+        if frequence == self.frequence || frequence == 0 || self.frequence == 0 {
+            return self.clone();
+        }
+        let entree = &self.echantillons;
+        let (de, vers) = (f64::from(self.frequence), f64::from(frequence));
+        let longueur = (entree.len() as f64 * vers / de).round() as usize;
+        // Part de la bande d'entrée que la sortie peut porter.
+        let coupure = (vers / de).min(1.0);
+        let largeur = DEMI_LARGEUR / coupure;
+        let portee = largeur.ceil() as i64;
+        let echantillons = (0..longueur)
+            .map(|n| {
+                let instant = n as f64 * de / vers;
+                let centre = instant.floor() as i64;
+                // `poids` compte aussi les voisins hors du son, qui valent zéro : le volume
+                // ne gonfle pas au début ni à la fin.
+                let (mut somme, mut poids) = (0.0_f64, 0.0_f64);
+                for k in (centre - portee + 1)..=(centre + portee) {
+                    let ecart = instant - k as f64;
+                    if ecart.abs() >= largeur {
+                        continue;
+                    }
+                    let fenetre = 0.5 * (1.0 + (std::f64::consts::PI * ecart / largeur).cos());
+                    let coefficient = sinus_cardinal(coupure * ecart) * fenetre;
+                    poids += coefficient;
+                    if let Some(valeur) = usize::try_from(k).ok().and_then(|k| entree.get(k)) {
+                        somme += f64::from(*valeur) * coefficient;
+                    }
+                }
+                if poids.abs() < f64::EPSILON {
+                    0.0
+                } else {
+                    (somme / poids).clamp(-1.0, 1.0) as f32
+                }
+            })
+            .collect();
+        Pcm {
+            frequence,
+            echantillons,
+        }
+    }
+
+    /// Les échantillons en PCM brut, 16 bits petit-boutiste, sans en-tête : le format des
+    /// sons déposés pour le chat vocal.
+    pub fn en_pcm16(&self) -> Vec<u8> {
+        self.echantillons
+            .iter()
+            .flat_map(|e| {
+                let valeur = (f64::from(*e) * 32_767.0)
+                    .round()
+                    .clamp(-32_768.0, 32_767.0);
+                (valeur as i16).to_le_bytes()
+            })
+            .collect()
+    }
+}
+
+fn sinus_cardinal(x: f64) -> f64 {
+    if x.abs() < 1e-9 {
+        1.0
+    } else {
+        let angle = std::f64::consts::PI * x;
+        angle.sin() / angle
     }
 }
 

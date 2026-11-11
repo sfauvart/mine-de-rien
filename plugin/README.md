@@ -1,0 +1,39 @@
+# mine-de-rien-voix
+
+Le plugin Paper de Mine de rien. Il joue à **un seul joueur**, par le chat vocal
+([Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat)), un son que l'agent a
+déposé dans un dossier partagé avec le serveur. Il ne décide rien, n'ouvre aucun port,
+n'appelle personne et n'écoute aucun micro.
+
+## Commande
+
+Réservée à la console du serveur et à RCON : un joueur, même opérateur, est refusé.
+
+```text
+mdrvoix jouer <pseudo> <fichier>      met le son dans la file du joueur
+mdrvoix couper <pseudo>               vide la file et arrête le son en cours
+mdrvoix etat <pseudo>                 répond « relié », « sans chat vocal » ou « absent »
+```
+
+`jouer` et `couper` répondent `ok`, ou `refusé : <raison>`.
+
+- `<fichier>` est un nom seul, `[a-z0-9-]+\.pcm`, cherché dans le dossier partagé et nulle
+  part ailleurs. Format : PCM brut, mono, 16 bits petit-boutiste, 48 000 Hz.
+- Le son est lu en mémoire au moment de la commande : l'agent peut effacer le fichier dès
+  que le serveur a répondu `ok`.
+- Un son à la fois par joueur : un nouveau son attend la fin du précédent.
+- Le dossier partagé est `plugins/mine-de-rien-voix/sons`, ou celui de la variable
+  d'environnement `MDR_VOIX_DOSSIER`.
+
+## Construire
+
+Sans JDK sur le poste, depuis la racine du dépôt :
+
+```bash
+docker run --rm -v "$PWD/plugin":/plugin -v mine-de-rien-m2:/root/.m2 -w /plugin \
+  maven:3.9-eclipse-temurin-25 mvn -B package
+```
+
+Le fichier produit est `plugin/target/mine-de-rien-voix.jar`. La construction télécharge
+l'API de Paper, celle du chat vocal et JUnit ; rien de tout cela n'entre dans le `.jar`, et
+le plugin ne télécharge rien une fois sur le serveur.

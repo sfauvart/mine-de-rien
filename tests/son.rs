@@ -163,3 +163,105 @@ fn son_sans_echantillon_ne_s_encode_pas_en_panique() {
     };
     assert!(encoder_ogg(&sans_frequence).is_err());
 }
+
+/// Une note pure, d'amplitude donnée.
+fn note(frequence: u32, hertz: f32, amplitude: f32, echantillons: usize) -> Pcm {
+    Pcm {
+        frequence,
+        echantillons: (0..echantillons)
+            .map(|i| {
+                (i as f32 / frequence as f32 * hertz * std::f32::consts::TAU).sin() * amplitude
+            })
+            .collect(),
+    }
+}
+
+#[test]
+fn reechantillonner_garde_la_duree_a_un_echantillon_pres() {
+    for (de, vers) in [
+        (22_050, 48_000),
+        (16_000, 48_000),
+        (44_100, 48_000),
+        (48_000, 22_050),
+    ] {
+        for longueur in [1usize, 2, 147, 1_000, 22_050, 30_001] {
+            let source = note(de, 440.0, 0.5, longueur);
+            let sortie = source.reechantillonner(vers);
+            assert_eq!(sortie.frequence, vers);
+            let attendu = longueur as f64 * f64::from(vers) / f64::from(de);
+            assert!(
+                (sortie.echantillons.len() as f64 - attendu).abs() <= 1.0,
+                "{de} → {vers}, {longueur} échantillons : {}",
+                sortie.echantillons.len()
+            );
+            assert!((sortie.duree_secondes() - source.duree_secondes()).abs() <= 1.0 / 22_050.0);
+        }
+    }
+}
+
+#[test]
+fn reechantillonner_ne_sature_pas() {
+    // Le pire cas : un signal carré à pleine échelle, dont l'interpolation dépasse.
+    let carre = Pcm {
+        frequence: 22_050,
+        echantillons: (0..4_000)
+            .map(|i| if (i / 25) % 2 == 0 { 1.0 } else { -1.0 })
+            .collect(),
+    };
+    let sortie = carre.reechantillonner(48_000);
+    assert!(sortie.echantillons.iter().all(|e| (-1.0..=1.0).contains(e)));
+    // Et les octets déposés ne débordent pas d'un entier de 16 bits : pas de repli de signe.
+    let octets = sortie.en_pcm16();
+    assert_eq!(octets.len(), 2 * sortie.echantillons.len());
+    for (e, o) in sortie.echantillons.iter().zip(octets.chunks_exact(2)) {
+        let valeur = i16::from_le_bytes([o[0], o[1]]);
+        assert!((f32::from(valeur) / 32_767.0 - e).abs() < 1e-4);
+    }
+}
+
+#[test]
+fn reechantillonner_garde_la_note_et_son_volume() {
+    // Une note de 440 Hz d'amplitude 0,5 reste une note de 440 Hz d'amplitude 0,5.
+    let sortie = note(22_050, 440.0, 0.5, 22_050).reechantillonner(48_000);
+    let attendu = note(48_000, 440.0, 0.5, 48_000);
+    // Hors des bords, où le filtre n'a pas tous ses voisins.
+    for i in 200..47_800 {
+        assert!(
+            (sortie.echantillons[i] - attendu.echantillons[i]).abs() < 0.005,
+            "échantillon {i} : {} au lieu de {}",
+            sortie.echantillons[i],
+            attendu.echantillons[i]
+        );
+    }
+    // Un aigu proche de la limite de la voix (10 kHz) passe sans s'éteindre.
+    let aigu = note(22_050, 10_000.0, 0.5, 22_050).reechantillonner(48_000);
+    let crete = aigu.echantillons[1_000..47_000]
+        .iter()
+        .fold(0.0_f32, |m, e| m.max(e.abs()));
+    assert!((0.45..=0.52).contains(&crete), "crête à {crete}");
+}
+
+#[test]
+fn reechantillonner_a_la_meme_frequence_ne_change_rien() {
+    let source = note(48_000, 440.0, 0.5, 960);
+    assert_eq!(source.reechantillonner(48_000), source);
+    let vide = Pcm {
+        frequence: 22_050,
+        echantillons: Vec::new(),
+    };
+    assert!(vide.reechantillonner(48_000).echantillons.is_empty());
+}
+
+#[test]
+fn pcm16_est_petit_boutiste_et_borne() {
+    let pcm = Pcm {
+        frequence: 48_000,
+        echantillons: vec![0.0, 1.0, -1.0, 0.5, 3.0, -3.0],
+    };
+    let valeurs: Vec<i16> = pcm
+        .en_pcm16()
+        .chunks_exact(2)
+        .map(|o| i16::from_le_bytes([o[0], o[1]]))
+        .collect();
+    assert_eq!(valeurs, [0, 32_767, -32_767, 16_384, 32_767, -32_768]);
+}

@@ -132,6 +132,10 @@ pub struct Voix {
     pub vitesse_normale: f64,
     /// Vitesse du premier indice de Pixel : la phrase relue lentement.
     pub vitesse_lente: f64,
+    /// Le dossier partagé avec le serveur Minecraft : l'agent y dépose les sons que le plugin
+    /// `mine-de-rien-voix` joue à l'enfant par le chat vocal. Vide : rien n'est dit en jeu.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub dossier_du_jeu: String,
 }
 
 impl Default for Voix {
@@ -144,6 +148,7 @@ impl Default for Voix {
             // vite pour une dictée.
             vitesse_normale: 1.4,
             vitesse_lente: 1.8,
+            dossier_du_jeu: String::new(),
         }
     }
 }

@@ -6,6 +6,7 @@ pub mod cli;
 pub mod config;
 pub mod datapack;
 pub mod dictees;
+pub mod diffusion;
 pub mod exercises;
 pub mod games;
 pub mod journal;

@@ -200,3 +200,48 @@ pub fn conclure<T: serde::Serialize, E: std::fmt::Display>(
     comparer(cas, resultat);
     rejeu.verifier_fin();
 }
+
+/// Une diffusion qui ne joue rien : elle note ce qu'on lui a fait dire.
+pub struct FausseDiffusion {
+    pub dits: std::cell::RefCell<Vec<mine_de_rien::son::Pcm>>,
+    pub coupures: std::cell::Cell<usize>,
+    /// Ce que répond `relie` : le jeu de l'enfant a le chat vocal, ou non.
+    pub reliee: std::cell::Cell<bool>,
+}
+
+impl FausseDiffusion {
+    pub fn new() -> Self {
+        Self {
+            dits: std::cell::RefCell::new(Vec::new()),
+            coupures: std::cell::Cell::new(0),
+            reliee: std::cell::Cell::new(true),
+        }
+    }
+}
+
+impl Default for FausseDiffusion {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait::async_trait(?Send)]
+impl mine_de_rien::diffusion::Diffusion for FausseDiffusion {
+    async fn dire(
+        &self,
+        son: &mine_de_rien::son::Pcm,
+    ) -> Result<(), mine_de_rien::diffusion::ErreurDiffusion> {
+        self.dits.borrow_mut().push(son.clone());
+        Ok(())
+    }
+
+    async fn couper(&self) -> Result<(), mine_de_rien::diffusion::ErreurDiffusion> {
+        self.dits.borrow_mut().clear();
+        self.coupures.set(self.coupures.get() + 1);
+        Ok(())
+    }
+
+    async fn relie(&self) -> Result<bool, mine_de_rien::diffusion::ErreurDiffusion> {
+        Ok(self.reliee.get())
+    }
+}

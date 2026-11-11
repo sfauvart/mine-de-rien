@@ -1,0 +1,19 @@
+name: mine-de-rien-voix
+version: '${project.version}'
+main: minederien.voix.MineDeRienVoix
+api-version: '1.21'
+description: Joue à un seul joueur, par le chat vocal, un son que l'agent Mine de rien désigne.
+depend: [voicechat]
+
+commands:
+  mdrvoix:
+    description: Réservée à la console et à RCON.
+    usage: /mdrvoix jouer|couper|etat <pseudo> [fichier]
+    permission: minederien.voix
+
+permissions:
+  minederien.voix:
+    # La console et RCON ont toutes les permissions d'opérateur ; un joueur ordinaire ne voit
+    # même pas la commande. Un joueur opérateur la voit, et le plugin la lui refuse.
+    description: Voir la commande mdrvoix.
+    default: op
