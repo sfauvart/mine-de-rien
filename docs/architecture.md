@@ -13,7 +13,7 @@
    réponse calculée. Le LLM habille l'énoncé et lit les photos du cahier. Un modèle local de
    7 à 8 milliards de paramètres suffit alors.
 4. **Quatre adaptateurs.** Jeu, canal, LLM, et depuis la dictée audio
-   ([spec](specs/open/2026-11-dictee-audio.md)) la voix. Chaque adaptateur externe a une
+   ([spec](specs/done/2026-11-dictee-audio.md)) la voix. Chaque adaptateur externe a une
    alternative auto-hébergée : Telegram → Matrix ou page web locale ; Anthropic → API
    compatible OpenAI (llama.cpp, Ollama, LM Studio). La voix n'a que des fournisseurs
    locaux : Piper, dans son propre conteneur (licence GPL, jamais lié au binaire).
