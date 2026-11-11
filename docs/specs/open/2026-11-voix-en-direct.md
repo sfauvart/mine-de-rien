@@ -457,5 +457,12 @@ sont-ils lus correctement. Noter l'avis de l'enfant dans « Retours de jeu ».
   d'essai et a lancé `parler` : « ça fonctionne, j'ai bien la voix qui arrive dans le jeu ».
   Délai, qualité, assistant du micro et icône du mod : pas de remarque à ce stade. Le
   journal du jeu n'a pas été relu pour les connexions sortantes.
+- **Phase 2, 2026-11-11.** Le parent a joué plusieurs dictées sur son instance locale, avec
+  le mod : « ça fonctionne, j'ai bien eu les sons dans le jeu ». Deux ajustements demandés,
+  livrés dans un commit à part :
+  - une liste de mots envoyée sans virgule (`mots : tour seules personnes`) était lue d'un
+    bloc ; elle se coupe désormais aux espaces, chaque mot est lu seul ;
+  - les mots à écrire arrivaient dans l'ordre du tirage ; les coffres d'une séance suivent
+    maintenant l'ordre du texte, « trop compliqué pour l'enfant » sinon.
 
 *(à compléter au fil des phases.)*
