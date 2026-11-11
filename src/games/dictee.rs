@@ -6,6 +6,9 @@
 //! l'enclume. Le coffre lui-même (verrou, preuve, détection, récompense, rangement) est celui
 //! de `coffre_du_soir.rs`, inchangé. Ce module porte ce qu'il y a autour.
 //!
+//! **Le texte entier** de la dictée est affiché derrière le coffre (`tableau.rs`), avec le
+//! trou du coffre posé en jaune ; le panneau y renvoie.
+//!
 //! **Commandes**, vérifiées sur Minecraft Java 26.3 (Paper). `N` est le numéro du son dans le
 //! pack de ressources (`pack.rs`) :
 //!
@@ -70,6 +73,8 @@ pub const MODE_EMPLOI: &str = "Pour l'ouvrir : pose ta clé à gauche sur l'encl
     nom par le mot qui manque, \
     clique sur la clé renommée à droite pour la prendre, puis ouvre le coffre en la tenant en \
     main.";
+/// Sur le panneau : le texte de la dictée est sur le tableau, derrière le coffre.
+pub const PANNEAU: &str = "Dictée : lis le texte derrière le coffre";
 pub const REECOUTER: &str =
     "Pour réécouter la phrase : prends l'Écouteur en main et fais un clic droit.";
 pub const RECONNEXION: &str = "Une dictée t'attend, mais ton jeu n'a pas encore ses sons : \

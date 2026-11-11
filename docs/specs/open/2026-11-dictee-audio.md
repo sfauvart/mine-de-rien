@@ -138,7 +138,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 - [x] **Phase 6 : Lire ce que l'enfant a tapé**
 - [x] **Phase 7 : La séance de chaque jour**
 - [x] **Phase 8 : Une clé qui pardonne la casse et les espaces**
-- [ ] **Phase 9 : La dictée entière affichée, les trous qui se remplissent**
+- [x] **Phase 9 : La dictée entière affichée, les trous qui se remplissent**
 - [ ] **Phase 10 : Les sons se chargent sans geste de l'enfant**
 
 Les phases 8 à 10 viennent de la partie jouée le 2026-11-11 (voir « Retours de jeu ») ;
@@ -859,3 +859,23 @@ de l'image, écarts constatés.)*
 - Vaut pour tous les coffres : « 29 » suivi d'une espace ouvre aussi un coffre de calcul.
 - Limite : si le coffre disparaît et est reposé après une clé acceptée, le verrou revient
   au mot exact ; il suffit de renommer la clé.
+
+**Phase 9.**
+- Le tableau est une entité `text_display` marquée `mdr_tableau`, à un bloc et demi derrière
+  le coffre, bas du texte à 1,2 bloc du sol, large de 5,5 blocs, toujours éclairée. Essai
+  sur Paper 26.3, sans joueur : l'entité est créée et son texte, recopié du stockage, se
+  relit avec ses couleurs, apostrophes et guillemets compris. **Son aspect (taille, place,
+  lisibilité) ne se juge qu'en jeu.**
+- Une commande RCON de plus de 1 446 octets bloque le serveur d'essai : le texte est donc
+  assemblé dans le stockage par morceaux de 200 caractères, puis recopié d'un coup.
+- Les mots verts sont ceux des coffres ouverts de la même séance (créés au même instant).
+  Après le dernier coffre, le texte reste entier ; il disparaît quand un coffre d'une autre
+  matière est posé, sur `/annuler` du coffre de dictée, et avant un déplacement d'atelier.
+- Un mot encore à trouver est masqué à toutes ses occurrences, sans tenir compte de la
+  casse : sinon « plus », deux fois dans le texte, se lirait à côté de son trou.
+- Le panneau d'un coffre de dictée dit « Dictée : lis le texte derrière le coffre ». La
+  notification aux parents garde l'ancien énoncé court.
+- Le tableau est aussi refait quand l'enfant se connecte devant un coffre de dictée déjà
+  posé : un coffre posé avant cette phase reçoit le sien.
+- Oracle : le rejeu des tests tolère la commande d'effacement du tableau, envoyée avant un
+  déplacement d'atelier, comme il tolère la lecture du nom de la clé.
