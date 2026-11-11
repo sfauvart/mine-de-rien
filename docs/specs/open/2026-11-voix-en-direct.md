@@ -467,5 +467,8 @@ sont-ils lus correctement. Noter l'avis de l'enfant dans « Retours de jeu ».
 - **Phase 2, 2026-11-11, suite.** Dans le chat, la phrase d'un coffre ne cachait que son
   propre mot : l'enfant y lisait les mots des coffres suivants de la séance. Le chat écrit
   maintenant `…` à leur place, comme le tableau les grise déjà.
+  Et les mots semblaient encore dans le désordre : « la » revient deux fois dans la phrase,
+  le coffre demandait le second, alors que le premier, masqué lui aussi, était le premier
+  trou que l'enfant lisait. Un mot répété n'a plus qu'un trou, à sa première place.
 
 *(à compléter au fil des phases.)*
