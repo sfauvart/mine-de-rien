@@ -35,6 +35,12 @@
 //! champ du nom reste grisé tant que rien n'est posé à gauche, et il n'y a pas de bouton pour
 //! valider, on clique sur le résultat pour le prendre.
 //!
+//! **Casse et espaces.** Le verrou compare lettre à lettre, l'enfant non : « Plus », « plus »
+//! et « plus » suivi d'une espace valent la même réponse. À chaque tour, l'agent lit le nom de
+//! la clé ; s'il vaut la réponse (`meme_cle`), le verrou prend ce nom tel qu'il est écrit, et
+//! l'enfant lit « C'est la bonne réponse ! » avec un tintement. Il attend donc ce message, au
+//! plus 3 secondes, avant d'ouvrir. Une réponse écrite exactement ouvre sans attendre.
+//!
 //! **Détection**, toutes les 3 secondes quand l'enfant est connecté :
 //!
 //! ```text
@@ -214,6 +220,18 @@ pub fn formater_duree(duree: Option<TimeDelta>) -> String {
     format!("{} jours", heures / 24)
 }
 
+/// Ce que l'enfant lit quand l'agent a reconnu la réponse sur sa clé.
+pub const CLE_JUSTE: &str = "C'est la bonne réponse ! Ouvre le coffre en tenant ta clé en main.";
+
+/// Le verrou du coffre : il ne s'ouvre qu'avec un objet qui porte exactement ce nom.
+pub fn commande_verrou(a: &Atelier, nom: &str) -> String {
+    format!(
+        "data modify block {} lock set value {{components:{{\"minecraft:custom_name\":{}}}}}",
+        pos(a.coffre()),
+        snbt(nom)
+    )
+}
+
 /// Commandes qui posent le coffre `s` dans l'atelier `a`. Aucune réponse calculée ici.
 pub fn commandes_pose(a: &Atelier, s: &ExerciceStocke) -> Result<Vec<String>, ErreurCoffre> {
     let Some(lignes) = texte::lignes_panneau(&s.exercice.enonce) else {
@@ -231,7 +249,6 @@ pub fn commandes_pose(a: &Atelier, s: &ExerciceStocke) -> Result<Vec<String>, Er
         &format!("Preuve n°{}", s.id),
         LONGUEUR_MAX,
     ));
-    let cle = snbt(&s.exercice.reponse);
     let preuve = format!(
         "minecraft:paper[minecraft:custom_name={nom_preuve},minecraft:custom_data={{mdr_coffre:{}}}]",
         s.id
@@ -244,9 +261,7 @@ pub fn commandes_pose(a: &Atelier, s: &ExerciceStocke) -> Result<Vec<String>, Er
         format!(
             "execute unless block {c} minecraft:chest run setblock {c} minecraft:chest[facing=south]"
         ),
-        format!(
-            "data modify block {c} lock set value {{components:{{\"minecraft:custom_name\":{cle}}}}}"
-        ),
+        commande_verrou(a, &s.exercice.reponse),
         format!(
             "item replace block {c} container.13 with {} {}",
             s.recompense, s.recompense_nombre
@@ -305,6 +320,9 @@ pub trait Coffre {
     /// Le nom que porte la clé de l'enfant : ce qu'il a écrit sur l'enclume. `None` s'il n'y
     /// a rien à lire.
     async fn nom_de_la_cle(&self) -> Result<Option<String>, ErreurCoffre>;
+    /// L'enfant a écrit `nom`, qui vaut la réponse à la casse et aux espaces près : le verrou
+    /// prend ce nom-là, et l'enfant est prévenu qu'il peut ouvrir.
+    async fn accepter_la_cle(&self, nom: &str) -> Result<(), ErreurCoffre>;
     async fn coffre_present(&self) -> Result<bool, ErreurCoffre>;
     async fn coffre_vide(&self) -> Result<bool, ErreurCoffre>;
     async fn ranger(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre>;
@@ -322,6 +340,7 @@ pub struct CoffreDuSoir {
 
 const GRIS: [(&str, Style<'static>); 1] = [("color", Style::Texte("gray"))];
 const OR: [(&str, Style<'static>); 1] = [("color", Style::Texte("gold"))];
+const VERT: [(&str, Style<'static>); 1] = [("color", Style::Texte("green"))];
 const BLANC: [(&str, Style<'static>); 1] = [("color", Style::Texte("white"))];
 
 impl CoffreDuSoir {
@@ -613,6 +632,19 @@ impl Coffre for CoffreDuSoir {
     async fn nom_de_la_cle(&self) -> Result<Option<String>, ErreurCoffre> {
         let commande = commande_nom_cle(&self.pseudo).map_err(ErreurRcon::from)?;
         Ok(lire_nom_cle(&self.jeu.commande(&commande).await?))
+    }
+
+    async fn accepter_la_cle(&self, nom: &str) -> Result<(), ErreurCoffre> {
+        let a = self.verifier_atelier()?;
+        self.executer(&[commande_verrou(&a, nom)]).await?;
+        self.jeu.dire(&self.pseudo, CLE_JUSTE, &VERT).await?;
+        self.jeu
+            .commande(&format!(
+                "execute at {0} run playsound minecraft:entity.experience_orb.pickup master {0} ~ ~ ~ 1 1",
+                self.pseudo
+            ))
+            .await?;
+        Ok(())
     }
 
     async fn coffre_present(&self) -> Result<bool, ErreurCoffre> {

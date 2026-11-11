@@ -31,7 +31,8 @@
 //!
 //! **La clé.** Sa description disait « en minuscules » : faux pour « Dans » ou « Dubaï ».
 //! Devant un coffre de dictée, une clé à l'ancienne description est remplacée, et c'est le
-//! chat qui dit comment écrire le mot.
+//! chat qui dit comment écrire le mot. Ni la casse ni les espaces ne comptent : quand l'agent
+//! lit sur la clé un nom qui vaut la réponse, le verrou prend ce nom-là (`orchestrateur.rs`).
 //!
 //! **Le pack d'abord.** Le jeu ne charge le pack de sons qu'à la connexion. Un coffre de
 //! dictée n'est donc posé que si l'enfant s'est connecté après la fabrication du pack ; sinon
@@ -66,7 +67,7 @@ pub const MODE_EMPLOI_ECOUTEUR: [&str; 2] =
 pub const ANNONCE: &str = "Un nouveau coffre de dictée est apparu à l'atelier !";
 pub const RAPPEL: &str = "Un coffre de dictée t'attend à l'atelier.";
 pub const MODE_EMPLOI: &str = "Pour l'ouvrir : pose ta clé à gauche sur l'enclume, remplace son \
-    nom par le mot qui manque, écrit comme dans la phrase, avec sa majuscule s'il en a une, \
+    nom par le mot qui manque, \
     clique sur la clé renommée à droite pour la prendre, puis ouvre le coffre en la tenant en \
     main.";
 pub const REECOUTER: &str =

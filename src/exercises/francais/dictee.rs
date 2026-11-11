@@ -11,6 +11,7 @@
 //!
 //! **Écriture unique.** La clé est le mot exactement comme dans le texte, majuscule comprise :
 //! « Dans » en début de phrase, « Dubaï », « tours ». Aucune règle ne devine les noms propres.
+//! L'enfant, lui, n'a pas à respecter la casse ni les espaces (`base::meme_cle`).
 //! La seule retouche est l'apostrophe : la typographique (« ’ ») devient celle du clavier
 //! (« ' »), dans la clé comme dans la phrase affichée.
 //!

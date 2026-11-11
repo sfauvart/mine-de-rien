@@ -137,6 +137,12 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 - [x] **Phase 5 : La dictée depuis Telegram**
 - [x] **Phase 6 : Lire ce que l'enfant a tapé**
 - [x] **Phase 7 : La séance de chaque jour**
+- [x] **Phase 8 : Une clé qui pardonne la casse et les espaces**
+- [ ] **Phase 9 : La dictée entière affichée, les trous qui se remplissent**
+- [ ] **Phase 10 : Les sons se chargent sans geste de l'enfant**
+
+Les phases 8 à 10 viennent de la partie jouée le 2026-11-11 (voir « Retours de jeu ») ;
+elles sont indépendantes entre elles.
 
 Les phases 1, 3 et 6 sont indépendantes. La phase 2 dépend de la 1, la phase 4 des phases 2
 et 3, la phase 5 de la 4, la phase 7 des phases 5 et 6. Les phases 1 et 2 portent le risque
@@ -597,6 +603,59 @@ quatre coffres arrivent sans rien taper sur Telegram. Rater exprès un mot, ouvr
 quatre, se déconnecter et se reconnecter : aucune nouvelle séance. `/rapport` montre le mot
 raté et sa graphie.
 
+### Phase 8 : Une clé qui pardonne la casse et les espaces
+
+**Contexte.** Joué le 2026-11-11 : « Plus » pour « plus », ou une espace avant, après ou
+dans le mot, laissent le coffre fermé. Le verrou de Minecraft compare le nom lettre à
+lettre, et la phase 6 comptait ces essais comme des fautes. Pour un enfant dyslexique, ce
+n'est pas l'orthographe qu'on sanctionne là.
+**Fichiers.** `src/exercises/base.rs` (`meme_cle`), `src/orchestrateur.rs`,
+`src/games/coffre_du_soir.rs`.
+**Conception.** L'agent lit déjà le nom de la clé à chaque tour. Quand ce nom vaut la
+réponse sans tenir compte de la casse ni des espaces (les accents comptent), l'essai est
+noté juste, le verrou du coffre prend le nom tel que l'enfant l'a écrit, et le chat dit
+« C'est la bonne réponse ! » avec un tintement. Vaut pour tous les coffres, pas seulement
+la dictée. Renverse la décision « avec sa majuscule s'il en a une ».
+**Vérification automatique.** `cargo test` : `meme_cle`, l'essai « Plus » noté juste, le
+verrou réécrit.
+**Vérification en jeu.** Devant un coffre de dictée, écrire le mot avec une majuscule de
+trop et une espace à la fin, prendre la clé : dans les 3 secondes le chat dit « C'est la
+bonne réponse ! », et le coffre s'ouvre.
+
+### Phase 9 : La dictée entière affichée, les trous qui se remplissent
+
+**Contexte.** Joué le 2026-11-11 : le panneau ne montre que les deux mots voisins du trou.
+« Même pour moi ça n'est pas facile » : il faut le texte entier sous les yeux, comme sur la
+feuille de l'école.
+**Fichiers.** `src/games/tableau.rs` (nouveau), `src/games/coffre_du_soir.rs`,
+`src/orchestrateur.rs`.
+**Conception.** Un grand texte flottant (`text_display`) derrière le coffre porte la dictée
+entière. Le trou du coffre posé est en jaune, ceux des coffres qui attendent sont des
+`_____` gris, les mots trouvés pendant la séance sont écrits en vert. Un mot encore à
+trouver est masqué partout où il apparaît dans le texte. Le tableau est refait à chaque
+pose et à chaque ouverture. Le panneau ne garde que « Dictée, lis le texte au-dessus ».
+**Vérification automatique.** `cargo test` ; sur le serveur d'essai, l'entité existe et son
+texte se relit.
+**Vérification en jeu.** À l'atelier, le texte entier se lit au-dessus du coffre ; à chaque
+coffre ouvert, le mot apparaît en vert et le trou suivant passe en jaune.
+
+### Phase 10 : Les sons se chargent sans geste de l'enfant
+
+**Contexte.** Joué le 2026-11-11 : se déconnecter puis se reconnecter après une nouvelle
+dictée « est un peu pénible ». Minecraft ne recharge un pack de serveur qu'à la connexion,
+et aucune commande ne le renvoie à un joueur connecté.
+**Fichiers.** `src/config.rs` (`[jeu] adresse_publique`), `src/orchestrateur.rs`,
+`src/games/coffre_du_soir.rs`, composes (`ACCEPTS_TRANSFERS`).
+**Conception.** La commande `transfer` renvoie le joueur vers une adresse ; vers le même
+serveur, c'est une reconnexion que le jeu fait seul, pack compris. Si `adresse_publique`
+est réglée (l'adresse que l'enfant tape pour rejoindre le serveur), l'agent transfère
+l'enfant au lieu de lui demander de se reconnecter. Sans ce réglage, ou si la commande est
+refusée, le message d'avant reste.
+**Vérification automatique.** `cargo test` ; sur le serveur d'essai, `transfer` est
+acceptée et `accepts-transfers=true` figure dans `server.properties`.
+**Vérification en jeu.** Connecté, envoyer une nouvelle dictée puis `/dictee seance N` :
+l'écran de chargement passe seul, puis la phrase s'entend.
+
 ## Retours de jeu
 
 *(à remplir au fil des phases : voix choisie, encodeur retenu, rechargement du pack, taille
@@ -783,3 +842,20 @@ de l'image, écarts constatés.)*
 - l'attente de la reconnexion quand le pack vient d'être refait ;
 - l'aperçu audio dans le vrai Telegram, et la photo d'une vraie feuille de la maîtresse ;
 - la séance créée à la connexion, le lendemain d'une confirmation.
+
+**Partie jouée le 2026-11-11, phases 3 à 7.** « Ça fonctionne, mais ça ne me plaît pas » :
+- se déconnecter et se reconnecter pour avoir les sons est pénible → phase 10 ;
+- le panneau ne montre qu'un petit morceau de la phrase, illisible même pour le parent : il
+  faut la dictée entière, dont les trous se remplissent au fil des réponses → phase 9 ;
+- le nom de la clé est sensible à la casse, et une espace au début, à la fin ou au milieu
+  fait échouer → phase 8.
+
+**Phase 8.**
+- La décision « avec sa majuscule s'il en a une » est renversée à la demande du parent :
+  « Plus » vaut « plus ». Les accents comptent toujours (« a » n'est pas « à »).
+- Le verrou ne sait comparer qu'un nom exact : c'est lui qui change, pas la clé. L'enfant
+  attend donc le message « C'est la bonne réponse ! », au plus 3 secondes (un tour de
+  surveillance). Une réponse écrite exactement ouvre toujours sans attendre.
+- Vaut pour tous les coffres : « 29 » suivi d'une espace ouvre aussi un coffre de calcul.
+- Limite : si le coffre disparaît et est reposé après une clé acceptée, le verrou revient
+  au mot exact ; il suffit de renommer la clé.

@@ -403,8 +403,9 @@ le fuseau horaire se règlent dans la section `[dictee]` de `config.toml`.
 | `/dictee annuler 3` | retire la dictée n°3, ses coffres en attente et ses sons |
 
 Ce que vit l'enfant : le coffre s'annonce, la phrase est lue, le chat l'affiche avec
-`_____` à la place du mot. Il écrit le mot sur l'enclume, **comme dans la phrase, avec sa
-majuscule s'il en a une**. Un clic droit avec l'objet « Écouteur » relit la phrase. « Pixel,
+`_____` à la place du mot. Il écrit le mot sur l'enclume : ni les majuscules ni les espaces ne
+comptent, les accents si. Quand le mot est juste, le chat le dit (« C'est la bonne
+réponse ! ») et le coffre s'ouvre. Un clic droit avec l'objet « Écouteur » relit la phrase. « Pixel,
 aide-moi » la relit lentement, puis donne le nombre de lettres, puis la première lettre.
 
 - **Après une nouvelle dictée, l'enfant doit se déconnecter puis se reconnecter** : son jeu
