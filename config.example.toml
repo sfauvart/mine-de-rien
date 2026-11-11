@@ -66,6 +66,9 @@ cle = "${ANTHROPIC_API_KEY}"
 # Le dossier partagé avec le serveur Minecraft (data/sons dans docker-compose.yml) : l'agent
 # y dépose les sons que l'enfant entend par le chat vocal. Sans lui, les dictées attendent.
 # dossier_du_jeu = "/sons"
+# Les annonces de coffre et les réponses de Pixel, écrites dans le chat, sont aussi dites à
+# voix haute. Mettre false pour ne garder à voix haute que les phrases de dictée.
+# dire_le_chat = true
 
 # Séances de dictée : chaque jour, à sa première connexion, quelques coffres de la dictée à
 # préparer. Demande [voix]. Valeurs par défaut :

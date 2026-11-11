@@ -44,6 +44,12 @@
 //! **Phrase d'une dictée.** Voir `dictee.rs` : elle s'entend par le chat vocal. Une voix en
 //! panne ne casse pas le coffre : la phrase à trou reste écrite dans le chat.
 //!
+//! **Ce qui est aussi dit à voix haute** (`diffusion::Parole`), en plus d'être écrit :
+//! l'annonce d'un coffre, son rappel à la connexion (avec l'énoncé d'un calcul, « 348 ÷ 12 »
+//! lu « 348 divisé par 12 »), et « C'est la bonne réponse ! ». Jamais le mode d'emploi, répété
+//! à chaque coffre, ni la phrase à trou d'une dictée, ni un texte qui donnerait la réponse.
+//! Pour une dictée, l'annonce est dite avant la phrase.
+//!
 //! **Détection**, toutes les 3 secondes quand l'enfant est connecté :
 //!
 //! ```text
@@ -88,6 +94,7 @@ use tokio::sync::Mutex;
 use crate::adapters::game::base::AdaptateurJeu;
 use crate::adapters::game::rcon::ErreurRcon;
 use crate::dictees::Lecteur;
+use crate::diffusion::Parole;
 use crate::exercises::base::Exercice;
 use crate::games::atelier::{Atelier, PAS_CONSTRUIT, lire_atelier, pos};
 use crate::games::dictee;
@@ -358,6 +365,8 @@ pub struct CoffreDuSoir {
     pub assistant: Option<String>,
     /// Ce qui fait entendre la phrase d'une dictée ; sans lui, les dictées sont muettes.
     lecteur: Option<Rc<Lecteur>>,
+    /// Ce qui dit à voix haute les messages écrits à l'enfant ; sans lui, ils restent écrits.
+    parole: Option<Rc<Parole>>,
 }
 
 const GRIS: [(&str, Style<'static>); 1] = [("color", Style::Texte("gray"))];
@@ -380,7 +389,36 @@ impl CoffreDuSoir {
             niveaux_offerts,
             assistant: assistant.map(str::to_owned),
             lecteur: None,
+            parole: None,
         })
+    }
+
+    /// Avec de quoi dire à voix haute les annonces écrites dans le chat.
+    pub fn avec_parole(mut self, parole: Rc<Parole>) -> Self {
+        self.parole = Some(parole);
+        self
+    }
+
+    /// Écrit un message à l'enfant et le retient pour le dire : la voix suit, sans retarder
+    /// les lignes suivantes.
+    async fn dire_et_retenir(
+        &self,
+        message: &str,
+        style: &[(&str, Style<'_>)],
+        coffre: Option<&Exercice>,
+    ) -> Result<(), ErreurCoffre> {
+        self.jeu.dire(&self.pseudo, message, style).await?;
+        if let Some(parole) = &self.parole {
+            parole.retenir(message, coffre);
+        }
+        Ok(())
+    }
+
+    /// Dit ce qui a été retenu, une fois toutes les lignes écrites.
+    async fn parler(&self) {
+        if let Some(parole) = &self.parole {
+            parole.dire().await;
+        }
     }
 
     /// Avec de quoi lire les phrases de dictée à l'enfant, par le chat vocal.
@@ -514,13 +552,15 @@ impl CoffreDuSoir {
         titre: &str,
     ) -> Result<(), ErreurCoffre> {
         self.equiper_pour_la_dictee().await?;
-        self.jeu.dire(&self.pseudo, titre, &OR).await?;
+        self.dire_et_retenir(titre, &OR, Some(&s.exercice)).await?;
         if let Some(phrase) = dictee::phrase_a_trou(&s.exercice) {
             self.jeu
                 .dire(&self.pseudo, &format!("Dictée : {phrase}"), &BLANC)
                 .await?;
         }
         self.mode_emploi(true).await?;
+        // L'annonce d'abord, puis la phrase : les deux attendent leur tour dans la même file.
+        self.parler().await;
         // Une voix en panne ne casse pas le coffre : la phrase à trou est dans le chat.
         if let Some(lecteur) = &self.lecteur {
             // Redit à chaque présentation : un serveur redémarré a oublié la phrase désignée.
@@ -600,13 +640,12 @@ impl Coffre for CoffreDuSoir {
             // Pas de cloche : elle couvrirait le début de la phrase.
             return self.presenter_la_dictee(s, dictee::ANNONCE).await;
         }
-        self.jeu
-            .dire(
-                &self.pseudo,
-                "Un nouveau coffre est apparu à l'atelier !",
-                &OR,
-            )
-            .await?;
+        self.dire_et_retenir(
+            "Un nouveau coffre est apparu à l'atelier !",
+            &OR,
+            Some(&s.exercice),
+        )
+        .await?;
         self.mode_emploi(false).await?;
         self.jeu
             .commande(&format!(
@@ -614,6 +653,7 @@ impl Coffre for CoffreDuSoir {
                 self.pseudo
             ))
             .await?;
+        self.parler().await;
         Ok(())
     }
 
@@ -636,14 +676,15 @@ impl Coffre for CoffreDuSoir {
             return self.presenter_la_dictee(s, dictee::RAPPEL).await;
         }
         self.donner_cle().await?;
-        self.jeu
-            .dire(
-                &self.pseudo,
-                &format!("Un coffre t'attend à l'atelier : {}", s.exercice.enonce),
-                &OR,
-            )
-            .await?;
-        self.mode_emploi(false).await
+        self.dire_et_retenir(
+            &format!("Un coffre t'attend à l'atelier : {}", s.exercice.enonce),
+            &OR,
+            Some(&s.exercice),
+        )
+        .await?;
+        self.mode_emploi(false).await?;
+        self.parler().await;
+        Ok(())
     }
 
     async fn demander_de_vider(&self) -> Result<(), ErreurCoffre> {
@@ -706,13 +747,15 @@ impl Coffre for CoffreDuSoir {
     async fn accepter_la_cle(&self, nom: &str) -> Result<(), ErreurCoffre> {
         let a = self.verifier_atelier()?;
         self.executer(&[commande_verrou(&a, nom)]).await?;
-        self.jeu.dire(&self.pseudo, CLE_JUSTE, &VERT).await?;
+        // Le message ne redit pas le mot : rien à en retirer.
+        self.dire_et_retenir(CLE_JUSTE, &VERT, None).await?;
         self.jeu
             .commande(&format!(
                 "execute at {0} run playsound minecraft:entity.experience_orb.pickup master {0} ~ ~ ~ 1 1",
                 self.pseudo
             ))
             .await?;
+        self.parler().await;
         Ok(())
     }
 

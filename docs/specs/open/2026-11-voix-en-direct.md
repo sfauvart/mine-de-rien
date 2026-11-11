@@ -140,7 +140,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 - [x] **Phase 2 : La dictée passe par la voix en direct**
 - [x] **Phase 3 : Le plugin est livré avec l'image**
 - [x] **Phase 4 : Le pack de sons disparaît**
-- [ ] **Phase 5 : Pixel et les annonces se font entendre**
+- [x] **Phase 5 : Pixel et les annonces se font entendre**
 
 La phase 1 porte tout le risque : si le son n'arrive pas, arrive en retard ou si le mod
 gêne l'enfant, on s'arrête là et on revoit la spec. La phase 2 dépend de la 1, la 3 de la
@@ -410,6 +410,30 @@ quelconque. Indépendante des phases 2 à 4.
   d'autre ne se passe : jamais d'erreur dans le chat de l'enfant pour une voix manquante.
 - Réglage `[voix] dire_le_chat`, vrai par défaut quand `[voix]` existe.
 - Les sons des messages sont effacés du dossier partagé une fois joués.
+
+**Précisé en codant.**
+
+- Le point de passage est `diffusion::Parole`. L'appelant écrit toutes ses lignes dans le
+  chat, puis la voix les lit dans l'ordre : le texte n'attend jamais la voix. Pour une
+  dictée, l'annonce est dite, puis la phrase.
+- Avant de solliciter la voix, la parole demande au plugin si le jeu de l'enfant est
+  relié. Sinon rien n'est fabriqué, et le message n'est pas gardé pour plus tard.
+- La voix se tait devant tout texte qui contient la réponse du coffre en cours, **même si
+  le chat l'écrit** (le rappel de « 5 × 1 = ? », par exemple) : plus strict que « la règle
+  du chat », pour que la réécriture des symboles ne puisse jamais fabriquer une réponse
+  (« 3 + 4 » se lit « 3 plus 4 », et « plus » peut être un mot de dictée).
+- Réécritures : « ÷ » divisé par, « × » fois, « + » plus, « − » et le tiret entre deux
+  nombres moins, « = » égale, « = ? » égale combien, « % » pour cent, « _____ » le mot
+  manquant ; les codes de couleur sont retirés. Les nombres sont laissés à la voix.
+- Ne sont pas dits, en plus du mode d'emploi et de la phrase à trou : les trois points
+  d'attente de Pixel, son excuse quand une phrase ne peut pas être relue, la demande de
+  vider le coffre, le message « sans chat vocal », et les messages du mode paisible
+  (`games/paisible.rs`, hors des fichiers de la phase).
+- « Le message d'un coffre ouvert » n'existe pas dans le code : rien n'est écrit à l'enfant
+  à l'ouverture, donc rien n'est dit.
+- `/essai-en-jeu` sans joueur, le 2026-11-11 : non joué tel quel. Sans joueur relié, la
+  parole ne fabrique aucun son, par conception ; le dossier partagé reste vide. Le passage
+  des sons dans le dossier se vérifie avec un joueur, à la partie jouée.
 
 **Vérification automatique.**
 

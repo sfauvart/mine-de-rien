@@ -36,6 +36,12 @@
 //! La position est relue dans le monde (`atelier.lire_atelier`) : sans atelier construit, rien ne
 //! garantit que ce bloc soit de l'air, et Pixel refuse.
 //!
+//! **À voix haute.** Ce que Pixel écrit à l'enfant est aussi dit par le chat vocal
+//! (`diffusion::Parole`), après avoir été écrit : pour un enfant dyslexique, chaque réponse
+//! est un texte de moins à déchiffrer. La voix ne dit rien que le chat n'écrit pas, et se
+//! tait si le texte donnait la réponse du coffre en cours. Les trois points d'attente et
+//! l'excuse d'une phrase impossible à relire ne sont pas dits.
+//!
 //! **Rapport.** Chaque indice et chaque téléportation est noté dans `evenements` avec le numéro
 //! du coffre ; aucun texte du chat n'est gardé.
 //!
@@ -64,6 +70,7 @@ use crate::adapters::game::base::{AdaptateurJeu, MessageChat};
 use crate::adapters::game::rcon::ErreurRcon;
 use crate::adapters::llm::base::{ErreurLlm, Llm, lire_json};
 use crate::dictees::Lecteur;
+use crate::diffusion::Parole;
 use crate::exercises::base::{Exercice, normaliser};
 use crate::exercises::indices::{contient_la_reponse, indices};
 use crate::games::atelier::{Atelier, PAS_CONSTRUIT, lire_atelier};
@@ -305,6 +312,8 @@ pub struct Pixel {
     tache: RefCell<Option<JoinHandle<()>>>,
     /// Ce qui relit la phrase d'une dictée, lentement : le premier indice.
     lecteur: RefCell<Option<Rc<Lecteur>>>,
+    /// Ce qui dit à voix haute ce que Pixel écrit.
+    parole: RefCell<Option<Rc<Parole>>>,
 }
 
 impl Pixel {
@@ -326,7 +335,13 @@ impl Pixel {
             horloge,
             tache: RefCell::new(None),
             lecteur: RefCell::new(None),
+            parole: RefCell::new(None),
         }))
+    }
+
+    /// Avec de quoi dire à voix haute ce que Pixel écrit dans le chat.
+    pub fn avec_parole(&self, parole: Rc<Parole>) {
+        *self.parole.borrow_mut() = Some(parole);
     }
 
     /// Avec de quoi relire les phrases de dictée à l'enfant, par le chat vocal.
@@ -339,7 +354,8 @@ impl Pixel {
         self.llm.is_some()
     }
 
-    async fn dire(&self, phrase: &str, couleur: &str) -> Result<(), ErreurRcon> {
+    /// Écrit dans le chat, sans rien dire à voix haute.
+    async fn ecrire(&self, phrase: &str, couleur: &str) -> Result<(), ErreurRcon> {
         self.jeu
             .dire(
                 &self.pseudo,
@@ -347,6 +363,19 @@ impl Pixel {
                 &[("color", Style::Texte(couleur))],
             )
             .await
+    }
+
+    /// Écrit dans le chat, puis le dit à voix haute. La voix ne prononce pas le nom de Pixel
+    /// en tête de ligne, et se tait si la phrase donnait la réponse du coffre en cours.
+    async fn dire(&self, phrase: &str, couleur: &str) -> Result<(), ErreurRcon> {
+        self.ecrire(phrase, couleur).await?;
+        let parole = self.parole.borrow().clone();
+        if let Some(parole) = parole {
+            let actif = self.depot.actif().ok().flatten();
+            parole.retenir(phrase, actif.as_ref().map(|s| &s.exercice));
+            parole.dire().await;
+        }
+        Ok(())
     }
 
     /// Suit le chat aussi longtemps que l'agent tourne.
@@ -374,7 +403,7 @@ impl Pixel {
             self.dire(OCCUPE, "gray").await?;
             return Ok(());
         }
-        self.dire(ATTENTE, "gray").await?;
+        self.ecrire(ATTENTE, "gray").await?;
         let pixel = Rc::clone(self);
         let tache = tokio::task::spawn_local(async move {
             if let Err(e) = pixel.repondre(&demande).await {
@@ -493,13 +522,13 @@ impl Pixel {
             }
             let lecteur = self.lecteur.borrow().clone();
             let Some(lecteur) = lecteur.filter(|_| dictee::son(ex).is_some()) else {
-                self.dire(dictee::SANS_SON, COULEUR).await?;
+                self.ecrire(dictee::SANS_SON, COULEUR).await?;
                 return Ok(());
             };
             self.dire(palier, COULEUR).await?;
             if let Err(e) = lecteur.dire(ex, true).await {
                 journal::avertissement(format!("phrase de dictée non relue : {e}"));
-                self.dire(dictee::SANS_SON, COULEUR).await?;
+                self.ecrire(dictee::SANS_SON, COULEUR).await?;
             }
             return Ok(());
         }

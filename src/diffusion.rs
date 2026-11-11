@@ -9,8 +9,16 @@
 //! plugin la relit à chaque clic droit de l'Écouteur, sans passer par l'agent.
 //!
 //! Les fichiers portent des numéros, jamais de mots : leur nom ne dit rien de ce qui est lu.
+//!
+//! **Les messages du chat** passent par un seul point, `Parole` : ce que l'agent écrit à
+//! l'enfant (annonce, rappel, réponse de Pixel) est aussi lu par la voix locale et mis dans
+//! la file. La voix s'ajoute au texte, elle ne le remplace pas et ne le retarde pas : les
+//! lignes partent d'abord dans le chat, la voix suit. Elle ne dit rien que le chat n'écrit
+//! pas, et se tait plutôt que de prononcer la réponse d'un coffre. Une voix en panne ou un
+//! jeu sans chat vocal ne produisent aucune erreur : le message reste écrit.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
+use std::collections::VecDeque;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -20,8 +28,12 @@ use async_trait::async_trait;
 
 use crate::adapters::game::base::AdaptateurJeu;
 use crate::adapters::game::rcon::ErreurRcon;
+use crate::adapters::voix::base::Voix;
+use crate::exercises::base::Exercice;
+use crate::exercises::indices::contient_la_reponse;
+use crate::journal;
 use crate::minecraft::texte::{PseudoInvalide, verifier_pseudo};
-use crate::son::{FREQUENCE_DU_CHAT_VOCAL, Pcm};
+use crate::son::{FREQUENCE_DU_CHAT_VOCAL, Pcm, lire_wav};
 use crate::util::{repr, strip};
 
 /// Le son n'a pas été dit ; le message s'adresse au parent.
@@ -269,6 +281,158 @@ impl Diffusion for ChatVocal {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(ErreurDiffusion(format!("son impossible à effacer : {e}"))),
+        }
+    }
+}
+
+/// Ce qui se lit à la place d'un trou « _____ ».
+const TROU_PRONONCE: &str = "le mot manquant";
+
+/// Les symboles d'un énoncé, tels qu'ils se disent. Les règles sont ici, pas dans un LLM.
+const SYMBOLES: [(char, &str); 6] = [
+    ('÷', "divisé par"),
+    ('×', "fois"),
+    ('+', "plus"),
+    ('−', "moins"),
+    ('=', "égale"),
+    ('%', "pour cent"),
+];
+
+/// Le texte d'un message du chat tel que la voix le lit, ou `None` s'il n'y a rien à dire.
+///
+/// Les codes de couleur (« §a ») sont retirés ; un trou « _____ » se lit « le mot manquant » ;
+/// « 348 ÷ 12 = ? » se lit « 348 divisé par 12 égale combien ? ». Un tiret entre deux nombres
+/// est un « moins » ; ailleurs il reste un trait d'union.
+pub fn prononcer(ecrit: &str) -> Option<String> {
+    let caracteres: Vec<char> = ecrit.chars().collect();
+    let mut mots: Vec<String> = Vec::new();
+    let mut courant = String::new();
+    let mut i = 0;
+    let finir = |courant: &mut String, mots: &mut Vec<String>| {
+        if !courant.is_empty() {
+            mots.push(std::mem::take(courant));
+        }
+    };
+    while i < caracteres.len() {
+        let c = caracteres[i];
+        if c == '§' {
+            // Le code de couleur et son caractère.
+            i += 2;
+            continue;
+        }
+        if c == '_' {
+            let debut = i;
+            while i < caracteres.len() && caracteres[i] == '_' {
+                i += 1;
+            }
+            finir(&mut courant, &mut mots);
+            if i - debut >= 2 {
+                mots.push(TROU_PRONONCE.to_owned());
+            }
+            continue;
+        }
+        if let Some((_, dit)) = SYMBOLES.iter().find(|(symbole, _)| *symbole == c) {
+            finir(&mut courant, &mut mots);
+            mots.push((*dit).to_owned());
+        } else if c == '-'
+            && courant.is_empty()
+            && suit_un_nombre(&caracteres, i)
+            && precede_d_un_nombre(&mots)
+        {
+            mots.push("moins".to_owned());
+        } else if c.is_whitespace() {
+            finir(&mut courant, &mut mots);
+        } else {
+            courant.push(c);
+        }
+        i += 1;
+    }
+    finir(&mut courant, &mut mots);
+    // « égale ? » : la question se dit.
+    let mut dits: Vec<String> = Vec::with_capacity(mots.len());
+    for mot in mots {
+        if mot == "?" && dits.last().is_some_and(|precedent| precedent == "égale") {
+            dits.push("combien ?".to_owned());
+        } else {
+            dits.push(mot);
+        }
+    }
+    let texte = dits.join(" ");
+    texte.chars().any(char::is_alphanumeric).then_some(texte)
+}
+
+fn suit_un_nombre(caracteres: &[char], tiret: usize) -> bool {
+    caracteres[tiret + 1..]
+        .iter()
+        .find(|c| !c.is_whitespace())
+        .is_some_and(char::is_ascii_digit)
+}
+
+fn precede_d_un_nombre(mots: &[String]) -> bool {
+    mots.last()
+        .and_then(|mot| mot.chars().last())
+        .is_some_and(|c| c.is_ascii_digit())
+}
+
+/// Le point de passage unique des messages du chat vers la voix.
+///
+/// `retenir` ne fait que noter le message, sans rien attendre : l'appelant écrit toutes ses
+/// lignes dans le chat, puis appelle `dire`, qui les fait lire dans l'ordre.
+pub struct Parole {
+    diffusion: Rc<dyn Diffusion>,
+    voix: Rc<dyn Voix>,
+    attente: RefCell<VecDeque<String>>,
+}
+
+impl Parole {
+    pub fn new(diffusion: Rc<dyn Diffusion>, voix: Rc<dyn Voix>) -> Self {
+        Self {
+            diffusion,
+            voix,
+            attente: RefCell::new(VecDeque::new()),
+        }
+    }
+
+    /// Note un message écrit à l'enfant, pour le dire ensuite. `coffre` est l'exercice du
+    /// coffre en cours, s'il y en a un : un texte qui en donnerait la réponse n'est pas dit,
+    /// même si le chat l'écrit.
+    pub fn retenir(&self, ecrit: &str, coffre: Option<&Exercice>) {
+        let Some(texte) = prononcer(ecrit) else {
+            return;
+        };
+        if coffre.is_some_and(|ex| contient_la_reponse(&texte, ex)) {
+            return;
+        }
+        self.attente.borrow_mut().push_back(texte);
+    }
+
+    /// Fait lire par la voix ce qui a été retenu, dans l'ordre, et le met dans la file de
+    /// l'enfant. Ne rend jamais d'erreur : sans chat vocal ou sans voix, les messages restent
+    /// écrits, et rien d'autre ne se passe.
+    pub async fn dire(&self) {
+        let messages: Vec<String> = self.attente.borrow_mut().drain(..).collect();
+        if messages.is_empty() {
+            return;
+        }
+        // Avant de demander quoi que ce soit à la voix : l'enfant entendrait-il ?
+        if !matches!(self.diffusion.relie().await, Ok(true)) {
+            return;
+        }
+        for texte in messages {
+            let dit = async {
+                let wav = self
+                    .voix
+                    .dire(&texte, false)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                let son = lire_wav(&wav).map_err(|e| e.to_string())?;
+                self.diffusion.dire(&son).await.map_err(|e| e.to_string())
+            };
+            if let Err(e) = dit.await {
+                // Le texte du message n'est pas journalisé.
+                journal::info(format!("message du chat non dit : {e}"));
+                return;
+            }
         }
     }
 }
