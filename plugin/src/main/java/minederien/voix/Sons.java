@@ -65,6 +65,11 @@ public final class Sons {
         }
     }
 
+    /** Vrai si un son de ce nom est dans le dossier partagé. */
+    public boolean existe(String nom) {
+        return nomPermis(nom) && Files.isRegularFile(dossier.resolve(nom), LinkOption.NOFOLLOW_LINKS);
+    }
+
     /** Découpe du PCM 16 bits en trames ; la dernière est complétée par du silence. */
     public static List<short[]> enTrames(byte[] octets) throws Refus {
         int echantillons = octets.length / 2;

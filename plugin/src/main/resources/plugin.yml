@@ -8,7 +8,7 @@ depend: [voicechat]
 commands:
   mdrvoix:
     description: Réservée à la console et à RCON.
-    usage: /mdrvoix jouer|couper|etat <pseudo> [fichier]
+    usage: /mdrvoix jouer|couper|etat|phrase <pseudo> [fichier]
     permission: minederien.voix
 
 permissions:

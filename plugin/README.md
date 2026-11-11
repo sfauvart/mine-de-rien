@@ -13,14 +13,22 @@ Réservée à la console du serveur et à RCON : un joueur, même opérateur, es
 mdrvoix jouer <pseudo> <fichier>      met le son dans la file du joueur
 mdrvoix couper <pseudo>               vide la file et arrête le son en cours
 mdrvoix etat <pseudo>                 répond « relié », « sans chat vocal » ou « absent »
+mdrvoix phrase <pseudo> [fichier]     désigne le son que l'Écouteur rejoue ; sans fichier, l'oublie
 ```
 
-`jouer` et `couper` répondent `ok`, ou `refusé : <raison>`.
+`jouer`, `couper` et `phrase` répondent `ok`, ou `refusé : <raison>`.
+
+L'**Écouteur** est l'objet que l'agent donne à l'enfant devant un coffre de dictée
+(`warped_fungus_on_a_stick` marqué `mdr_ecouteur`). Un clic droit avec lui coupe ce qui joue
+et rejoue le son désigné par `phrase`, lu dans le dossier partagé à ce moment-là. Le plugin
+oublie les phrases désignées quand le serveur redémarre : l'agent les redésigne à chaque
+rappel.
 
 - `<fichier>` est un nom seul, `[a-z0-9-]+\.pcm`, cherché dans le dossier partagé et nulle
   part ailleurs. Format : PCM brut, mono, 16 bits petit-boutiste, 48 000 Hz.
-- Le son est lu en mémoire au moment de la commande : l'agent peut effacer le fichier dès
-  que le serveur a répondu `ok`.
+- Pour `jouer`, le son est lu en mémoire au moment de la commande : l'agent peut effacer le
+  fichier dès que le serveur a répondu `ok`. Le son de `phrase`, lui, doit rester dans le
+  dossier tant que l'Écouteur doit le rejouer.
 - Un son à la fois par joueur : un nouveau son attend la fin du précédent.
 - Le dossier partagé est `plugins/mine-de-rien-voix/sons`, ou celui de la variable
   d'environnement `MDR_VOIX_DOSSIER`.

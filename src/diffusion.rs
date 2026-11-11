@@ -5,6 +5,9 @@
 //! (`plugin/`), qui le joue au seul joueur nommé. Le plugin lit le fichier en mémoire avant de
 //! répondre : l'agent l'efface aussitôt, rien ne reste sur le disque.
 //!
+//! Une phrase de dictée, elle, est **gardée** dans le dossier tant que son coffre attend : le
+//! plugin la relit à chaque clic droit de l'Écouteur, sans passer par l'agent.
+//!
 //! Les fichiers portent des numéros, jamais de mots : leur nom ne dit rien de ce qui est lu.
 
 use std::cell::Cell;
@@ -47,6 +50,16 @@ pub trait Diffusion {
     async fn couper(&self) -> Result<(), ErreurDiffusion>;
     /// Vrai si le jeu de l'enfant est relié au chat vocal : il entendrait un son.
     async fn relie(&self) -> Result<bool, ErreurDiffusion>;
+    /// Garde un son dans le dossier partagé sous `nom`, jusqu'à `oublier`.
+    async fn garder(&self, nom: &str, son: &Pcm) -> Result<(), ErreurDiffusion>;
+    /// Vrai si un son est gardé sous ce nom.
+    async fn garde(&self, nom: &str) -> bool;
+    /// Met un son gardé dans la file de l'enfant.
+    async fn redire(&self, nom: &str) -> Result<(), ErreurDiffusion>;
+    /// Désigne le son gardé que l'Écouteur rejoue au clic droit ; `None` : il redevient muet.
+    async fn designer(&self, nom: Option<&str>) -> Result<(), ErreurDiffusion>;
+    /// Efface un son gardé ; sans effet s'il n'y est pas.
+    async fn oublier(&self, nom: &str) -> Result<(), ErreurDiffusion>;
 }
 
 /// Ce que le plugin répond à `mdrvoix etat`.
@@ -94,6 +107,15 @@ pub fn commande_jouer(pseudo: &str, fichier: &str) -> Result<String, ErreurDiffu
 
 pub fn commande_couper(pseudo: &str) -> Result<String, ErreurDiffusion> {
     Ok(format!("mdrvoix couper {}", verifier_pseudo(pseudo)?))
+}
+
+/// Désigne la phrase de l'Écouteur, ou l'oublie si `fichier` est `None`.
+pub fn commande_phrase(pseudo: &str, fichier: Option<&str>) -> Result<String, ErreurDiffusion> {
+    let pseudo = verifier_pseudo(pseudo)?;
+    Ok(match fichier {
+        Some(fichier) => format!("mdrvoix phrase {pseudo} {}", verifier_fichier(fichier)?),
+        None => format!("mdrvoix phrase {pseudo}"),
+    })
 }
 
 pub fn commande_etat(pseudo: &str) -> Result<String, ErreurDiffusion> {
@@ -153,6 +175,27 @@ impl ChatVocal {
         tokio::fs::rename(&provisoire, self.dossier.join(nom)).await
     }
 
+    fn depot_impossible(&self, e: std::io::Error) -> ErreurDiffusion {
+        ErreurDiffusion(format!(
+            "son impossible à déposer dans {} : {e}",
+            self.dossier.display()
+        ))
+    }
+
+    /// Envoie une commande au plugin, qui répond « ok » ou dit pourquoi il refuse.
+    async fn commander(&self, commande: &str) -> Result<(), ErreurDiffusion> {
+        let reponse = self.jeu.commande(commande).await?;
+        match strip(&reponse) {
+            "ok" => Ok(()),
+            "" => Err(ErreurDiffusion(
+                "Le serveur n'a pas joué le son : aucune réponse".to_owned(),
+            )),
+            autre => Err(ErreurDiffusion(format!(
+                "Le serveur n'a pas joué le son : {autre}"
+            ))),
+        }
+    }
+
     /// Où en est le jeu de l'enfant, d'après le plugin.
     pub async fn etat(&self) -> Result<Etat, ErreurDiffusion> {
         let reponse = self.jeu.commande(&commande_etat(&self.pseudo)?).await?;
@@ -174,27 +217,13 @@ impl Diffusion for ChatVocal {
         let nom = self.nom_suivant();
         let commande = commande_jouer(&self.pseudo, &nom)?;
         let octets = son.reechantillonner(FREQUENCE_DU_CHAT_VOCAL).en_pcm16();
-        self.deposer(&nom, &octets).await.map_err(|e| {
-            ErreurDiffusion(format!(
-                "son impossible à déposer dans {} : {e}",
-                self.dossier.display()
-            ))
-        })?;
-        let reponse = self.jeu.commande(&commande).await;
+        self.deposer(&nom, &octets)
+            .await
+            .map_err(|e| self.depot_impossible(e))?;
+        let resultat = self.commander(&commande).await;
         // Joué ou refusé, le plugin n'a plus besoin du fichier.
         let _ = tokio::fs::remove_file(self.dossier.join(&nom)).await;
-        let reponse = reponse?;
-        match strip(&reponse) {
-            "ok" => Ok(()),
-            autre => Err(ErreurDiffusion(format!(
-                "Le serveur n'a pas joué le son : {}",
-                if autre.is_empty() {
-                    "aucune réponse"
-                } else {
-                    autre
-                }
-            ))),
-        }
+        resultat
     }
 
     async fn couper(&self) -> Result<(), ErreurDiffusion> {
@@ -204,5 +233,42 @@ impl Diffusion for ChatVocal {
 
     async fn relie(&self) -> Result<bool, ErreurDiffusion> {
         Ok(self.etat().await? == Etat::Relie)
+    }
+
+    async fn garder(&self, nom: &str, son: &Pcm) -> Result<(), ErreurDiffusion> {
+        verifier_fichier(nom)?;
+        if son.echantillons.is_empty() {
+            return Err(ErreurDiffusion(
+                "Rien à garder : le son est vide.".to_owned(),
+            ));
+        }
+        let octets = son.reechantillonner(FREQUENCE_DU_CHAT_VOCAL).en_pcm16();
+        self.deposer(nom, &octets)
+            .await
+            .map_err(|e| self.depot_impossible(e))
+    }
+
+    async fn garde(&self, nom: &str) -> bool {
+        verifier_fichier(nom).is_ok()
+            && tokio::fs::metadata(self.dossier.join(nom))
+                .await
+                .is_ok_and(|m| m.is_file() && m.len() > 0)
+    }
+
+    async fn redire(&self, nom: &str) -> Result<(), ErreurDiffusion> {
+        self.commander(&commande_jouer(&self.pseudo, nom)?).await
+    }
+
+    async fn designer(&self, nom: Option<&str>) -> Result<(), ErreurDiffusion> {
+        self.commander(&commande_phrase(&self.pseudo, nom)?).await
+    }
+
+    async fn oublier(&self, nom: &str) -> Result<(), ErreurDiffusion> {
+        verifier_fichier(nom)?;
+        match tokio::fs::remove_file(self.dossier.join(nom)).await {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(ErreurDiffusion(format!("son impossible à effacer : {e}"))),
+        }
     }
 }

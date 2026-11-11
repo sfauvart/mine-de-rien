@@ -14,8 +14,10 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
@@ -23,7 +25,10 @@ import org.bukkit.command.RemoteConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -35,8 +40,12 @@ import org.bukkit.plugin.java.JavaPlugin;
  * <pre>
  * mdrvoix jouer &lt;pseudo&gt; &lt;fichier&gt;   met le son dans la file du joueur
  * mdrvoix couper &lt;pseudo&gt;            vide la file et arrête le son en cours
+ * mdrvoix phrase &lt;pseudo&gt; [fichier]  désigne le son que l'Écouteur rejoue, ou l'oublie
  * mdrvoix etat &lt;pseudo&gt;              répond « relié », « sans chat vocal » ou « absent »
  * </pre>
+ *
+ * <p>L'Écouteur est l'objet que l'agent donne à l'enfant devant un coffre de dictée. Un clic
+ * droit avec lui coupe ce qui joue et rejoue la phrase désignée, sans passer par l'agent.
  */
 public final class MineDeRienVoix extends JavaPlugin implements VoicechatPlugin, Listener {
     /** Le réglage de volume que l'enfant voit dans le mod. Seize caractères au plus. */
@@ -49,7 +58,18 @@ public final class MineDeRienVoix extends JavaPlugin implements VoicechatPlugin,
     /** Le dossier partagé, quand il n'est pas celui du plugin. */
     static final String VARIABLE_DOSSIER = "MDR_VOIX_DOSSIER";
 
+    static final String USAGE = "refusé : mdrvoix jouer|couper|etat|phrase <pseudo> [fichier]";
+
+    /** La marque que porte l'Écouteur dans ses données, posée par l'agent. */
+    static final String MARQUE_ECOUTEUR = "mdr_ecouteur";
+
+    /** Un clic maintenu se répète quatre fois par seconde : la phrase ne repart pas à chaque fois. */
+    static final long REPIT_ECOUTEUR_MS = 1_000;
+
     private final Map<UUID, FileDeSons> files = new HashMap<>();
+    /** Le son que l'Écouteur rejoue, par pseudo en minuscules : désigné même en l'absence du joueur. */
+    private final Map<String, String> phrases = new HashMap<>();
+    private final Map<UUID, Long> derniersClics = new HashMap<>();
     private Sons sons;
     /** Donnée par le chat vocal quand son serveur a démarré, sur un autre fil. */
     private volatile VoicechatServerApi api;
@@ -158,9 +178,54 @@ public final class MineDeRienVoix extends JavaPlugin implements VoicechatPlugin,
 
     @EventHandler
     public void quandUnJoueurPart(PlayerQuitEvent evenement) {
-        FileDeSons file = files.remove(evenement.getPlayer().getUniqueId());
+        UUID id = evenement.getPlayer().getUniqueId();
+        derniersClics.remove(id);
+        FileDeSons file = files.remove(id);
         if (file != null) {
             file.couper();
+        }
+    }
+
+    private FileDeSons fileDe(UUID id) {
+        return files.computeIfAbsent(id, cle -> new FileDeSons((t, fin) -> jouer(id, t, fin)));
+    }
+
+    private static boolean estUnEcouteur(ItemStack objet) {
+        if (objet == null || objet.getType() != Material.WARPED_FUNGUS_ON_A_STICK || !objet.hasItemMeta()) {
+            return false;
+        }
+        return objet.getItemMeta().getAsComponentString().contains(MARQUE_ECOUTEUR);
+    }
+
+    /** Clic droit avec l'Écouteur : la phrase désignée passe devant tout ce qui joue. */
+    @EventHandler
+    public void quandUnJoueurClique(PlayerInteractEvent evenement) {
+        Action geste = evenement.getAction();
+        if (geste != Action.RIGHT_CLICK_AIR && geste != Action.RIGHT_CLICK_BLOCK) {
+            return;
+        }
+        if (!estUnEcouteur(evenement.getItem())) {
+            return;
+        }
+        Player joueur = evenement.getPlayer();
+        String fichier = phrases.get(joueur.getName().toLowerCase(Locale.ROOT));
+        if (fichier == null || !RELIE.equals(etat(joueur))) {
+            return;
+        }
+        UUID id = joueur.getUniqueId();
+        long maintenant = System.currentTimeMillis();
+        Long dernier = derniersClics.get(id);
+        if (dernier != null && maintenant - dernier < REPIT_ECOUTEUR_MS) {
+            return;
+        }
+        derniersClics.put(id, maintenant);
+        try {
+            List<short[]> trames = sons.lire(fichier);
+            FileDeSons file = fileDe(id);
+            file.couper();
+            file.ajouter(trames);
+        } catch (Sons.Refus refus) {
+            getLogger().warning("Écouteur : " + fichier + " " + refus.getMessage());
         }
     }
 
@@ -185,7 +250,7 @@ public final class MineDeRienVoix extends JavaPlugin implements VoicechatPlugin,
 
     private String repondre(String[] mots) {
         if (mots.length < 2) {
-            return "refusé : mdrvoix jouer|couper|etat <pseudo> [fichier]";
+            return USAGE;
         }
         Player joueur = getServer().getPlayerExact(mots[1]);
         switch (mots[0]) {
@@ -220,16 +285,31 @@ public final class MineDeRienVoix extends JavaPlugin implements VoicechatPlugin,
                 }
                 try {
                     List<short[]> trames = sons.lire(mots[2]);
-                    UUID id = joueur.getUniqueId();
-                    files.computeIfAbsent(id, cle -> new FileDeSons((t, fin) -> jouer(id, t, fin)))
-                            .ajouter(trames);
+                    fileDe(joueur.getUniqueId()).ajouter(trames);
                     return "ok";
                 } catch (Sons.Refus refus) {
                     return "refusé : " + refus.getMessage();
                 }
+            case "phrase":
+                // Le joueur peut être absent : la phrase l'attend à son retour.
+                if (mots.length == 2) {
+                    phrases.remove(mots[1].toLowerCase(Locale.ROOT));
+                    return "ok";
+                }
+                if (mots.length != 3) {
+                    break;
+                }
+                if (!Sons.nomPermis(mots[2])) {
+                    return "refusé : nom de fichier hors gabarit";
+                }
+                if (!sons.existe(mots[2])) {
+                    return "refusé : fichier introuvable";
+                }
+                phrases.put(mots[1].toLowerCase(Locale.ROOT), mots[2]);
+                return "ok";
             default:
                 break;
         }
-        return "refusé : mdrvoix jouer|couper|etat <pseudo> [fichier]";
+        return USAGE;
     }
 }

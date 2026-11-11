@@ -7,12 +7,14 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
+use std::rc::Rc;
 
 use chrono::{DateTime, Datelike, NaiveDate, TimeDelta, Utc, Weekday};
 use serde_json::{Value, json};
 
 use crate::adapters::voix::base::{ErreurVoix, Voix};
 use crate::alea::Alea;
+use crate::diffusion::{Diffusion, ErreurDiffusion};
 use crate::exercises::base::{Exercice, normaliser};
 use crate::exercises::francais::dictee::{
     ErreurDictee, Phrase, Position, candidats, decouper, decouper_liste, exercice, phrase_de, tirer,
@@ -36,6 +38,8 @@ pub enum ErreurDictees {
     Pack(#[from] ErreurPack),
     #[error("{0}")]
     Stockage(#[from] ErreurStockage),
+    #[error("{0}")]
+    Diffusion(#[from] ErreurDiffusion),
 }
 
 /// Au-delà, ce n'est plus une dictée de CM2, et la voix mettrait des minutes.
@@ -235,6 +239,125 @@ pub fn seance(
         coffres.push((numero, ex));
     }
     Ok(coffres)
+}
+
+/// Le nom, dans le dossier partagé avec le serveur, du son n°`numero` : un numéro, jamais un
+/// mot de la phrase.
+pub fn fichier_du_son(numero: u32) -> String {
+    format!("phrase-{numero}.pcm")
+}
+
+/// Ce qui fait entendre à l'enfant la phrase d'un coffre de dictée, par le chat vocal.
+///
+/// Les deux sons de la phrase (normal et lent) sont gardés dans le dossier partagé tant que le
+/// coffre attend. S'ils manquent, la voix relit la phrase, retrouvée dans la base : rien ne
+/// dépend d'un son fabriqué le jour où le parent a envoyé la dictée.
+pub struct Lecteur {
+    diffusion: Rc<dyn Diffusion>,
+    voix: Rc<dyn Voix>,
+    depot: Rc<Depot>,
+}
+
+impl Lecteur {
+    pub fn new(diffusion: Rc<dyn Diffusion>, voix: Rc<dyn Voix>, depot: Rc<Depot>) -> Self {
+        Self {
+            diffusion,
+            voix,
+            depot,
+        }
+    }
+
+    /// La diffusion sous-jacente, pour ce qui n'est pas une phrase de dictée.
+    pub fn diffusion(&self) -> &Rc<dyn Diffusion> {
+        &self.diffusion
+    }
+
+    /// Vrai si le jeu de l'enfant est relié au chat vocal.
+    pub async fn relie(&self) -> Result<bool, ErreurDictees> {
+        Ok(self.diffusion.relie().await?)
+    }
+
+    /// Les numéros des sons de la phrase d'un coffre : le normal, et le lent s'il existe.
+    fn numeros(ex: &Exercice) -> Result<(u32, Option<u32>), ErreurDictees> {
+        let numero = |cle: &str| {
+            ex.donnees
+                .get(cle)
+                .and_then(Value::as_u64)
+                .and_then(|n| u32::try_from(n).ok())
+        };
+        match numero("son") {
+            Some(normal) => Ok((normal, numero("son_lent"))),
+            None => {
+                Err(ErreurDictee("Ce coffre de dictée n'a pas de phrase à lire.".to_owned()).into())
+            }
+        }
+    }
+
+    /// Le texte de la phrase d'un coffre, relu dans la base.
+    fn texte(&self, ex: &Exercice, normal: u32) -> Result<String, ErreurDictees> {
+        let introuvable =
+            || ErreurDictee("La phrase de ce coffre de dictée est introuvable.".to_owned());
+        let dictee = ex
+            .donnees
+            .get("dictee")
+            .and_then(Value::as_i64)
+            .ok_or_else(introuvable)?;
+        self.depot
+            .phrases_de(dictee)?
+            .into_iter()
+            .find(|p| u32::try_from(p.id).is_ok_and(|id| numero_son(id, false) == normal))
+            .map(|p| p.texte)
+            .ok_or_else(|| introuvable().into())
+    }
+
+    /// S'assure que les deux sons de la phrase sont dans le dossier partagé ; la voix ne relit
+    /// que ceux qui manquent.
+    pub async fn preparer(&self, ex: &Exercice) -> Result<(), ErreurDictees> {
+        let (normal, lent) = Self::numeros(ex)?;
+        for (numero, lentement) in [(Some(normal), false), (lent, true)] {
+            let Some(numero) = numero else {
+                continue;
+            };
+            let nom = fichier_du_son(numero);
+            if self.diffusion.garde(&nom).await {
+                continue;
+            }
+            let texte = self.texte(ex, normal)?;
+            let son = lire_wav(&self.voix.dire(&texte, lentement).await?)?;
+            self.diffusion.garder(&nom, &son).await?;
+        }
+        Ok(())
+    }
+
+    /// Désigne la phrase du coffre à l'Écouteur : un clic droit la rejoue.
+    pub async fn designer(&self, ex: &Exercice) -> Result<(), ErreurDictees> {
+        self.preparer(ex).await?;
+        let (normal, _) = Self::numeros(ex)?;
+        Ok(self
+            .diffusion
+            .designer(Some(&fichier_du_son(normal)))
+            .await?)
+    }
+
+    /// Fait entendre la phrase du coffre, à vitesse normale ou lente (à défaut de son lent,
+    /// le normal).
+    pub async fn dire(&self, ex: &Exercice, lent: bool) -> Result<(), ErreurDictees> {
+        self.preparer(ex).await?;
+        let (normal, lentement) = Self::numeros(ex)?;
+        let numero = lentement.filter(|_| lent).unwrap_or(normal);
+        Ok(self.diffusion.redire(&fichier_du_son(numero)).await?)
+    }
+
+    /// Le coffre est ouvert ou retiré : l'Écouteur redevient muet, les sons sont effacés.
+    pub async fn oublier(&self, ex: &Exercice) -> Result<(), ErreurDictees> {
+        let muet = self.diffusion.designer(None).await;
+        if let Ok((normal, lent)) = Self::numeros(ex) {
+            for numero in [Some(normal), lent].into_iter().flatten() {
+                self.diffusion.oublier(&fichier_du_son(numero)).await?;
+            }
+        }
+        Ok(muet?)
+    }
 }
 
 const JOURS: [&str; 7] = [
