@@ -8,3 +8,6 @@ config.essai.toml
 
 # rust
 /target/
+
+# plugin Java
+/plugin/target/

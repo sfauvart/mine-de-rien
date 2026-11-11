@@ -33,12 +33,28 @@ services:
       # Permet à l'agent de renvoyer le jeu de l'enfant vers ce serveur (commande « transfer »)
       # pour qu'il recharge les sons d'une nouvelle dictée sans se déconnecter à la main.
       ACCEPTS_TRANSFERS: "TRUE"
+      # Le chat vocal, version épinglée : celle du mod à installer dans le jeu du testeur
+      # (docs/rejoindre-le-serveur.md). Téléchargé sur Modrinth au démarrage, comme Paper.
+      MODRINTH_PROJECTS: "simple-voice-chat:bukkit-2.6.27"
+      # Le plugin maison, construit avant le premier lancement (plugin/README.md).
+      PLUGINS: /plugin-maison/mine-de-rien-voix.jar
+      # Où le plugin maison lit les sons que l'agent dépose (« cargo run -- parler … »).
+      MDR_VOIX_DOSSIER: /sons
     ports:
       - "25566:25565"
       - "25576:25575"
+      # Le chat vocal, entre le jeu et le serveur. 24464 et non 24454, le port d'usage : le
+      # serveur d'essai ne prend pas celui du vrai serveur. Le jeu joint le port que le
+      # serveur lui annonce : celui-ci est aussi réglé dans essai-plugins/voicechat.
+      - "24464:24464/udp"
     volumes:
       - ../data/essai:/data
       - ../datapacks:/datapacks:ro
+      # Réglages des plugins, recopiés dans plugins/ à chaque démarrage.
+      - ./essai-plugins:/plugins:ro
+      - ../plugin/target:/plugin-maison:ro
+      # Écrit par l'agent sur le poste, lu par le serveur.
+      - ../data/essai-sons:/sons:ro
 
   # Voix de synthèse pour les dictées, jointe par `cargo run` sur le poste (port 5055).
   #   docker compose -f docker/essai.compose.yml --profile voix up -d voix

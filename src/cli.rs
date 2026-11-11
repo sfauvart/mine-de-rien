@@ -17,6 +17,7 @@ use crate::adapters::llm::creer as creer_llm;
 use crate::adapters::voix::creer as creer_voix;
 use crate::alea::Alea;
 use crate::config::{Config, charger_config};
+use crate::diffusion::{ChatVocal, Diffusion, Etat};
 use crate::games::atelier::{self, ErreurAtelier};
 use crate::games::coffre_du_soir::{CoffreDuSoir, Notificateur, NotificateurConsole};
 use crate::games::paisible::ModePaisible;
@@ -87,6 +88,13 @@ enum Action {
         /// fichier .ogg à écrire
         #[arg(long)]
         sortie: PathBuf,
+    },
+    /// fait lire un texte par la voix locale et le fait entendre à l'enfant, par le chat vocal
+    Parler {
+        texte: String,
+        /// vitesse lente, celle du premier indice
+        #[arg(long)]
+        lent: bool,
     },
     /// essaie une dictée sans Telegram : fait lire le texte, construit le pack et met des
     /// coffres en file
@@ -445,6 +453,55 @@ async fn lire_a_voix_haute(
     Ok(())
 }
 
+/// La chaîne entière de la voix en direct : Piper lit le texte, l'agent dépose le son dans le
+/// dossier partagé, le plugin le joue au pseudo configuré.
+async fn parler(config: &Config, texte: &str, lent: bool) -> Result<(), String> {
+    let Some(section) = &config.voix else {
+        return Err("Section [voix] absente de la configuration.".to_owned());
+    };
+    let pseudo = config.enfant.pseudo_minecraft.as_str();
+    let voix = creer_voix(section).map_err(|e| e.to_string())?;
+    let jeu = Rc::new(jeu(config));
+    let chat_vocal = ChatVocal::new(
+        jeu.clone(),
+        pseudo,
+        std::path::Path::new(&section.dossier_du_jeu),
+    )
+    .map_err(|e| e.to_string())?;
+    let resultat = async {
+        match chat_vocal.etat().await.map_err(|e| e.to_string())? {
+            Etat::Relie => {}
+            Etat::SansChatVocal => {
+                return Err(format!(
+                    "{pseudo} est en jeu, mais son jeu n'est pas relié au chat vocal (mod \
+                     Simple Voice Chat absent, ou chat vocal coupé)."
+                ));
+            }
+            Etat::Absent => return Err(format!("{pseudo} n'est pas en jeu.")),
+            Etat::Inconnu(reponse) => {
+                return Err(format!(
+                    "Le serveur ne connaît pas la commande du plugin mine-de-rien-voix : {reponse}"
+                ));
+            }
+        }
+        let debut = std::time::Instant::now();
+        let wav = voix.dire(texte, lent).await.map_err(|e| e.to_string())?;
+        let pcm = son::lire_wav(&wav).map_err(|e| e.to_string())?;
+        let lu = debut.elapsed();
+        chat_vocal.dire(&pcm).await.map_err(|e| e.to_string())?;
+        println!(
+            "{:.1} s de son pour {pseudo} : lu par la voix en {:.2} s, remis au serveur en {:.2} s.",
+            pcm.duree_secondes(),
+            lu.as_secs_f64(),
+            (debut.elapsed() - lu).as_secs_f64()
+        );
+        Ok(())
+    }
+    .await;
+    jeu.fermer().await;
+    resultat
+}
+
 /// Le chemin d'une dictée envoyée par Telegram, sans Telegram : la voix lit le texte, la
 /// dictée est enregistrée pour dans une semaine, le pack est refait, une séance part en file.
 async fn dictee_essai(config: &Config, texte: &str, nombre: usize) -> Result<(), String> {
@@ -635,6 +692,7 @@ fn executer(action: Option<Action>, config: &Config) -> ExitCode {
             lent,
             sortie,
         }) => terminer(attendre(lire_a_voix_haute(config, &phrase, lent, &sortie))),
+        Some(Action::Parler { texte, lent }) => terminer(attendre(parler(config, &texte, lent))),
         Some(Action::DicteeEssai { texte, nombre }) => {
             terminer(attendre(dictee_essai(config, &texte, nombre)))
         }
