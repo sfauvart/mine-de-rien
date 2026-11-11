@@ -5,7 +5,9 @@ data/
 config.toml
 config.essai.toml
 
-# Inutile à l'image : seuls Cargo.toml, Cargo.lock, src/ et datapacks/ servent.
+# Inutile à l'image : seuls Cargo.toml, Cargo.lock, src/, datapacks/, plugin/pom.xml et
+# plugin/src/ servent.
+plugin/target/
 .git/
 .github/
 .claude/

@@ -1,4 +1,5 @@
-# Image de l'agent : un seul fichier, le binaire `mine-de-rien`, datapack compris.
+# Image de l'agent : le binaire `mine-de-rien`, datapack compris, et le plugin Paper
+# `mine-de-rien-voix.jar` que l'agent livre au serveur. Rien d'autre.
 #
 # Le binaire est statique (musl) et compilé sur la plateforme de la machine qui construit,
 # pour amd64 comme pour arm64 : pas d'émulation QEMU pendant la compilation, qui prendrait
@@ -50,16 +51,28 @@ RUN touch src/main.rs src/lib.rs \
  && cargo build --release --locked --target "$(cat /cible)" \
  && cp "target/$(cat /cible)/release/mine-de-rien" /mine-de-rien
 
-# --- Image finale : le binaire, rien d'autre -------------------------------------------------
+# --- Le plugin Paper, construit une fois : un .jar est le même sur toutes les architectures --
+FROM --platform=$BUILDPLATFORM maven:3.9.16-eclipse-temurin-25 AS plugin
+WORKDIR /plugin
+COPY plugin/pom.xml ./
+COPY plugin/src ./src
+# Les dépendances (API de Paper et du chat vocal, JUnit) restent dans un cache de
+# construction : aucune n'entre dans le .jar. Les tests du plugin tournent ici : une image ne
+# se construit pas sur un plugin qui échoue.
+RUN --mount=type=cache,target=/root/.m2 mvn -B -q package
+
+# --- Image finale : le binaire et le plugin, rien d'autre ------------------------------------
 FROM scratch
 COPY --from=construction /mine-de-rien /usr/local/bin/mine-de-rien
+# Recopié chez le serveur par « mine-de-rien livrer », avant son démarrage.
+COPY --from=plugin /plugin/target/mine-de-rien-voix.jar /usr/local/share/mine-de-rien/mine-de-rien-voix.jar
 ENV PATH=/usr/local/bin
 WORKDIR /app
 
 ARG VERSION=dev
 ARG REVISION=inconnue
 LABEL org.opencontainers.image.title="mine-de-rien" \
-      org.opencontainers.image.description="Agent Mine de rien et son datapack : les devoirs de CM2 mis en jeu dans Minecraft." \
+      org.opencontainers.image.description="Agent Mine de rien, son datapack et son plugin Paper : les devoirs de CM2 mis en jeu dans Minecraft." \
       org.opencontainers.image.source="https://github.com/sfauvart/mine-de-rien" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="$VERSION" \

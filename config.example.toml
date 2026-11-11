@@ -62,6 +62,9 @@ cle = "${ANTHROPIC_API_KEY}"
 # voix = "fr_FR-siwis-medium"     # la même que VOIX dans .env, si elle y est changée
 # vitesse_normale = 1.4           # 1 = débit naturel de la voix, davantage = plus lent
 # vitesse_lente = 1.8             # la phrase relue lentement, premier indice de Pixel
+# Le dossier partagé avec le serveur Minecraft (data/sons dans docker-compose.yml) : l'agent
+# y dépose les sons que l'enfant entend par le chat vocal. Sans lui, les dictées attendent.
+# dossier_du_jeu = "/sons"
 
 # Service qui donne au jeu de l'enfant le pack de sons des dictées (docs/installation.md).
 # L'adresse que le jeu demande se règle dans .env (PACK_URL), pas ici.

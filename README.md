@@ -36,13 +36,16 @@ Détail des idées et des choix : [docs/idees.md](docs/idees.md), [docs/architec
 ## Pile technique
 
 - **Minecraft Java Edition** sur un serveur **Paper** auto-hébergé, piloté par RCON et
-  la lecture du log serveur. Aucun plugin requis pour commencer.
+  la lecture du log serveur. Les coffres de calcul ne demandent aucun plugin. Pour les
+  dictées, l'enfant entend la voix par le chat vocal du jeu : le serveur porte le plugin
+  **Simple Voice Chat** et un petit plugin maison (`plugin/`), le jeu de l'enfant le mod
+  du même nom ([docs/rejoindre-le-serveur.md](docs/rejoindre-le-serveur.md)).
 - **Java Edition uniquement** pour l'instant. Bedrock (tablette, console, Minecraft pour
   Windows) n'est pas pris en charge : voir [docs/architecture.md](docs/architecture.md).
 - **Rust**, un seul binaire statique, SQLite embarqué.
-- `docker compose` qui lance Paper et l'agent d'un coup. L'agent et son datapack sont
-  publiés en une image, `ghcr.io/sfauvart/mine-de-rien`, pour amd64 et arm64 : elle ne
-  contient que le binaire.
+- `docker compose` qui lance Paper et l'agent d'un coup. L'agent, son datapack et son
+  plugin sont publiés en une image, `ghcr.io/sfauvart/mine-de-rien`, pour amd64 et arm64 :
+  elle ne contient que le binaire et le `.jar` du plugin.
 
 ## Installation
 
@@ -54,7 +57,7 @@ En résumé, sans cloner le dépôt : récupérer `docker-compose.yml`, `.env.ex
 ```bash
 cp .env.example .env            # EULA, version, mot de passe RCON, jeton Telegram
 cp config.example.toml config.toml
-docker compose up -d            # télécharge les images, datapack, serveur Minecraft, agent
+docker compose up -d            # télécharge les images, livre datapack et plugin, lance serveur et agent
 ```
 
 Publier une nouvelle version de l'image : [docs/publier-une-version.md](docs/publier-une-version.md).

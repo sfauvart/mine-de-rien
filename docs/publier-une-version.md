@@ -2,7 +2,9 @@
 
 Un tag git `vX.Y.Z` poussé sur GitHub publie l'image
 `ghcr.io/sfauvart/mine-de-rien` pour amd64 et arm64, avec trois tags : `X.Y.Z`, `X.Y` et
-`latest`. L'image ne contient que le binaire de l'agent, datapack de cette version compris.
+`latest`. L'image contient le binaire de l'agent, datapack de cette version compris, et le
+plugin Paper `mine-de-rien-voix.jar` de la même version, construit et testé par la même
+chaîne (étape Maven de `docker/agent.Dockerfile`). Rien d'autre.
 Rien n'est publié sur un simple push.
 
 Le workflow (`.github/workflows/publier.yml`) refuse de publier :
@@ -14,11 +16,13 @@ Le workflow (`.github/workflows/publier.yml`) refuse de publier :
 
 1. Choisir le numéro : `Z` pour une correction, `Y` pour une nouveauté, `X` pour un
    changement qui demande d'intervenir sur une installation existante.
-2. Le reporter à deux endroits :
+2. Le reporter à trois endroits :
    - `version` dans `Cargo.toml`, seule source de la version : c'est elle qu'affiche
      `mine-de-rien --version` ;
+   - `<version>` du plugin dans `plugin/pom.xml` : agent, datapack et plugin sortent
+     ensemble ;
    - le tag de `ghcr.io/sfauvart/mine-de-rien` dans `docker-compose.yml`, services `agent`
-     et `datapack`. C'est ce fichier que les installations téléchargent depuis le tag : il
+     et `livraison`. C'est ce fichier que les installations téléchargent depuis le tag : il
      doit désigner l'image que le tag publie.
 3. Vérifier en local, puis commiter sur `main` :
 
@@ -37,6 +41,14 @@ Le workflow (`.github/workflows/publier.yml`) refuse de publier :
    ```
 
 5. Suivre le workflow « Publier l'image » dans l'onglet **Actions** du dépôt GitHub.
+
+## Changer de version de Minecraft ou du chat vocal
+
+Le plugin Simple Voice Chat est épinglé dans `docker-compose.yml` (`MODRINTH_PROJECTS`) et
+dans `docker/essai.compose.yml`, et son API dans `plugin/pom.xml` (`voicechat.api.version`,
+avec `paper.version`). Les changer ensemble, rejouer `/essai-en-jeu`, et mettre à jour la
+version du mod annoncée dans `docs/rejoindre-le-serveur.md` : le jeu de l'enfant doit porter
+le même numéro que le serveur.
 
 ## Visibilité du paquet
 
