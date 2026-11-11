@@ -13,6 +13,7 @@ use mine_de_rien::adapters::game::log::FluxChat;
 use mine_de_rien::adapters::game::rcon::ErreurRcon;
 use mine_de_rien::adapters::llm::base::{ErreurLlm, Llm};
 use mine_de_rien::dictees::{Lecteur, fichier_du_son};
+use mine_de_rien::diffusion::Parole;
 use mine_de_rien::exercises::base::Exercice;
 use mine_de_rien::exercises::indices::indices;
 use mine_de_rien::games::atelier::Atelier;
@@ -1053,4 +1054,116 @@ fn depot_sans_son() -> (tempfile::TempDir, Rc<Depot>) {
     ex.donnees.remove("son_lent");
     poser_exercice(&depot, &ex);
     (dossier, depot)
+}
+
+/// De quoi dire à voix haute ce que Pixel écrit : la fausse voix note ce qu'elle lit.
+fn parole() -> (Rc<Parole>, Rc<FausseDiffusion>, Rc<VoixDeTest>) {
+    let (diffusion, voix) = (
+        Rc::new(FausseDiffusion::new()),
+        Rc::new(VoixDeTest::default()),
+    );
+    let parole = Rc::new(Parole::new(diffusion.clone(), voix.clone()));
+    (parole, diffusion, voix)
+}
+
+fn lus(voix: &VoixDeTest) -> Vec<String> {
+    voix.lus.borrow().iter().map(|(t, _)| t.clone()).collect()
+}
+
+#[tokio::test]
+async fn ce_que_pixel_ecrit_est_dit_sans_son_nom_ni_les_points_d_attente() {
+    local(async {
+        let (_dossier, depot) = depot();
+        poser(&depot);
+        let jeu = FauxJeu::nouveau();
+        let (pixel, _) = pixel(&depot, None, &jeu);
+        let (parole, diffusion, voix) = parole();
+        pixel.avec_parole(parole);
+        dit(&pixel, "Pixel, aide-moi").await;
+        dit(&pixel, "Pixel, ramène-moi au coffre").await;
+
+        // Écrit : les trois points, puis la réponse, avec le nom de Pixel en tête.
+        let ecrits = jeu.dits();
+        assert_eq!(ecrits[0], "<Pixel> …");
+        assert_eq!(ecrits[1], premier_palier());
+        // Dit : les mêmes réponses, dans l'ordre, sans « <Pixel> » ni « … ».
+        let attendus: Vec<String> = ecrits
+            .iter()
+            .filter(|e| *e != "<Pixel> …")
+            .map(|e| e.trim_start_matches("<Pixel> ").to_owned())
+            .collect();
+        assert_eq!(lus(&voix), attendus);
+        assert_eq!(attendus.len(), 2);
+        assert_eq!(diffusion.dits.borrow().len(), 2);
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn pixel_ne_dit_ni_l_excuse_d_une_phrase_illisible_ni_la_reponse() {
+    local(async {
+        // Devant une dictée sans son : l'excuse est écrite, pas dite.
+        let (_dossier, depot) = depot_sans_son();
+        let jeu = FauxJeu::nouveau();
+        let (muet, _) = pixel(&depot, None, &jeu);
+        let (lecteur, _, _) = lecteur(&depot);
+        muet.avec_lecteur(lecteur);
+        let (parole, _, voix) = parole();
+        muet.avec_parole(parole);
+        dit(&muet, "Pixel, aide-moi").await;
+        assert!(jeu.dernier().contains("Je n'arrive pas à relire"));
+        assert!(lus(&voix).is_empty(), "{:?}", lus(&voix));
+
+        // Les paliers d'un calcul, dits l'un après l'autre : jamais la réponse.
+        let (_dossier, depot) = crate::depot();
+        let ident = poser(&depot);
+        let ex = depot.lire(ident).unwrap().unwrap().exercice;
+        let jeu = FauxJeu::nouveau();
+        let (pixel, _) = crate::pixel(&depot, None, &jeu);
+        let (parole, _, voix) = crate::parole();
+        pixel.avec_parole(parole);
+        for _ in 0..5 {
+            dit(&pixel, "Pixel, aide-moi").await;
+        }
+        assert!(lus(&voix).len() >= 3, "{:?}", lus(&voix));
+        for texte in lus(&voix) {
+            assert!(
+                !mine_de_rien::exercises::indices::contient_la_reponse(&texte, &ex),
+                "{texte}"
+            );
+        }
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn une_voix_en_panne_ne_change_rien_a_ce_que_pixel_ecrit() {
+    local(async {
+        let mut ecrits = Vec::new();
+        for (avec_parole, voix_en_panne, relie) in [
+            (false, false, true),
+            (true, false, true),
+            (true, true, true),
+            (true, false, false),
+        ] {
+            let (_dossier, depot) = depot();
+            let ident = poser(&depot);
+            let jeu = FauxJeu::nouveau();
+            let (pixel, _) = pixel(&depot, None, &jeu);
+            if avec_parole {
+                let (parole, diffusion, voix) = parole();
+                voix.en_panne.set(voix_en_panne);
+                diffusion.reliee.set(relie);
+                pixel.avec_parole(parole);
+            }
+            dit(&pixel, "Pixel, aide-moi").await;
+            dit(&pixel, "Pixel, tu fais quoi ?").await;
+            ecrits.push((jeu.dits(), depot.compter(EVENEMENT_INDICE, ident).unwrap()));
+        }
+        for vu in &ecrits[1..] {
+            assert_eq!(vu, &ecrits[0]);
+        }
+        assert_eq!(ecrits[0].1, 1);
+    })
+    .await;
 }

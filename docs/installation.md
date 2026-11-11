@@ -110,6 +110,14 @@ coffre et aux durées. Jamais le pseudo ni le prénom de l'enfant.
   entendre par le chat vocal. Il faut alors le mod du chat vocal dans le jeu de l'enfant
   (étape 8).
 
+  Avec ce réglage, la voix lit aussi **ce que l'agent et Pixel écrivent à l'enfant** :
+  l'annonce d'un coffre, son rappel à la connexion (« 348 ÷ 12 » est lu « 348 divisé par
+  12 »), les indices et les réponses de Pixel, « C'est la bonne réponse ! ». Tout reste
+  écrit dans le chat : la voix s'ajoute, pour un enfant à qui lire coûte. Elle ne lit ni le
+  mode d'emploi répété à chaque coffre, ni la phrase à trou d'une dictée, ni un texte qui
+  donnerait la réponse. Pour ne garder à voix haute que les phrases de dictée :
+  `dire_le_chat = false` dans `[voix]`.
+
 ## 5. Démarrer le serveur, importer le monde
 
 Pour garder le monde dans lequel l'enfant joue déjà (en solo), copier son dossier **avant**

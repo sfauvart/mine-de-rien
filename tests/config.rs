@@ -115,3 +115,33 @@ fn une_configuration_qui_porte_encore_pack_se_charge() {
             .is_none()
     );
 }
+
+#[test]
+fn la_voix_dit_le_chat_par_defaut_et_le_reglage_se_coupe() {
+    let voix = |reste: &str| {
+        lire_config(
+            &format!("{MINIMALE}[voix]\nurl = \"http://voix:5000\"\n{reste}"),
+            &sans_variable,
+        )
+        .unwrap()
+        .voix
+        .unwrap()
+    };
+    let par_defaut = voix("");
+    assert!(par_defaut.dire_le_chat);
+    assert_eq!(par_defaut.dossier_du_jeu, "");
+    let regle = voix("dossier_du_jeu = \"/sons\"\ndire_le_chat = false\n");
+    assert!(!regle.dire_le_chat);
+    assert_eq!(regle.dossier_du_jeu, "/sons");
+    // Aux valeurs d'usage, ni l'un ni l'autre ne s'écrit : même relecture qu'avant.
+    let ecrite = toml::to_string(&par_defaut).unwrap();
+    assert!(
+        !ecrite.contains("dire_le_chat") && !ecrite.contains("dossier_du_jeu"),
+        "{ecrite}"
+    );
+    assert!(
+        toml::to_string(&regle)
+            .unwrap()
+            .contains("dire_le_chat = false")
+    );
+}

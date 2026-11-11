@@ -136,6 +136,14 @@ pub struct Voix {
     /// `mine-de-rien-voix` joue à l'enfant par le chat vocal. Vide : rien n'est dit en jeu.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub dossier_du_jeu: String,
+    /// Les messages que l'agent et Pixel écrivent à l'enfant dans le chat sont aussi dits à
+    /// voix haute, par le chat vocal. Demande `dossier_du_jeu`.
+    #[serde(skip_serializing_if = "est_vrai")]
+    pub dire_le_chat: bool,
+}
+
+fn est_vrai(valeur: &bool) -> bool {
+    *valeur
 }
 
 impl Default for Voix {
@@ -149,6 +157,7 @@ impl Default for Voix {
             vitesse_normale: 1.4,
             vitesse_lente: 1.8,
             dossier_du_jeu: String::new(),
+            dire_le_chat: true,
         }
     }
 }

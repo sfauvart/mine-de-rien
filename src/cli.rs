@@ -18,7 +18,7 @@ use crate::adapters::voix::creer as creer_voix;
 use crate::alea::Alea;
 use crate::config::{Config, charger_config};
 use crate::dictees::Lecteur;
-use crate::diffusion::{ChatVocal, Diffusion, Etat};
+use crate::diffusion::{ChatVocal, Diffusion, Etat, Parole};
 use crate::games::atelier::{self, ErreurAtelier};
 use crate::games::coffre_du_soir::{CoffreDuSoir, Notificateur, NotificateurConsole};
 use crate::games::paisible::ModePaisible;
@@ -267,9 +267,12 @@ async fn lancer(config: &Config) -> Result<(), String> {
         assistant,
     )
     .map_err(|e| e.to_string())?;
-    let lecteur = lecteur_de_dictee(config, &jeu, &depot);
+    let (lecteur, parole) = voix_du_jeu(config, &jeu, &depot);
     if let Some(lecteur) = &lecteur {
         coffre = coffre.avec_lecteur(lecteur.clone());
+    }
+    if let Some(parole) = &parole {
+        coffre = coffre.avec_parole(parole.clone());
     }
     let coffre = Rc::new(coffre);
     println!(
@@ -343,6 +346,9 @@ async fn lancer(config: &Config) -> Result<(), String> {
         if let Some(lecteur) = &lecteur {
             pixel.avec_lecteur(lecteur.clone());
         }
+        if let Some(parole) = &parole {
+            pixel.avec_parole(parole.clone());
+        }
         Some(pixel)
     } else {
         None
@@ -390,14 +396,18 @@ async fn lancer(config: &Config) -> Result<(), String> {
     resultat
 }
 
-/// Ce qui lit les phrases de dictée à l'enfant par le chat vocal : il faut une voix et le
-/// dossier partagé avec le serveur (`[voix] dossier_du_jeu`). Sans lui, les dictées attendent.
-fn lecteur_de_dictee(
+/// Ce qui fait entendre la voix à l'enfant par le chat vocal : le lecteur des phrases de
+/// dictée, et la parole qui dit les messages du chat (`[voix] dire_le_chat`). Il faut une
+/// voix et le dossier partagé avec le serveur (`[voix] dossier_du_jeu`) ; sans eux, les
+/// dictées attendent et les messages restent écrits.
+fn voix_du_jeu(
     config: &Config,
     jeu: &Rc<JavaRcon>,
     depot: &Rc<Depot>,
-) -> Option<Rc<Lecteur>> {
-    let section = config.voix.as_ref()?;
+) -> (Option<Rc<Lecteur>>, Option<Rc<Parole>>) {
+    let Some(section) = config.voix.as_ref() else {
+        return (None, None);
+    };
     let cree = creer_voix(section)
         .map_err(|e| e.to_string())
         .and_then(|voix| {
@@ -406,20 +416,25 @@ fn lecteur_de_dictee(
                 &config.enfant.pseudo_minecraft,
                 std::path::Path::new(&section.dossier_du_jeu),
             )
-            .map(|chat_vocal| Lecteur::new(Rc::new(chat_vocal), voix, depot.clone()))
+            .map(|chat_vocal| (Rc::new(chat_vocal) as Rc<dyn Diffusion>, voix))
             .map_err(|e| e.to_string())
         });
     match cree {
-        Ok(lecteur) => {
+        Ok((diffusion, voix)) => {
             println!(
                 "Dictées lues par le chat vocal, sons déposés dans {}.",
                 section.dossier_du_jeu
             );
-            Some(Rc::new(lecteur))
+            let parole = section.dire_le_chat.then(|| {
+                println!("Les messages du chat sont aussi dits à voix haute.");
+                Rc::new(Parole::new(diffusion.clone(), voix.clone()))
+            });
+            let lecteur = Rc::new(Lecteur::new(diffusion, voix, depot.clone()));
+            (Some(lecteur), parole)
         }
         Err(e) => {
-            eprintln!("Dictées muettes en jeu : {e}");
-            None
+            eprintln!("Voix muette en jeu : {e}");
+            (None, None)
         }
     }
 }
