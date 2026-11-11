@@ -545,6 +545,25 @@ impl CoffreDuSoir {
         Ok(())
     }
 
+    /// La phrase que le chat écrit devant un coffre de dictée : le mot du coffre en `_____`,
+    /// ceux des coffres qui attendent masqués aussi. Si la base ne répond pas, rien n'est
+    /// écrit plutôt qu'une phrase qui donnerait les réponses suivantes : la voix la lit.
+    fn phrase_du_chat(&self, s: &ExerciceStocke) -> Option<String> {
+        let seule = || dictee::phrase_a_trou(&s.exercice).map(str::to_owned);
+        let Some(lecteur) = &self.lecteur else {
+            return seule();
+        };
+        match lecteur.phrase_du_chat(s) {
+            Ok(Some(phrase)) => Some(phrase),
+            // Pas une dictée enregistrée : un seul coffre, rien d'autre à cacher.
+            Ok(None) => seule(),
+            Err(e) => {
+                journal::avertissement(format!("phrase de dictée non écrite : {e}"));
+                None
+            }
+        }
+    }
+
     /// La phrase à trou dans le chat, le mode d'emploi, puis la phrase lue.
     async fn presenter_la_dictee(
         &self,
@@ -553,7 +572,7 @@ impl CoffreDuSoir {
     ) -> Result<(), ErreurCoffre> {
         self.equiper_pour_la_dictee().await?;
         self.dire_et_retenir(titre, &OR, Some(&s.exercice)).await?;
-        if let Some(phrase) = dictee::phrase_a_trou(&s.exercice) {
+        if let Some(phrase) = self.phrase_du_chat(s) {
             self.jeu
                 .dire(&self.pseudo, &format!("Dictée : {phrase}"), &BLANC)
                 .await?;
@@ -626,10 +645,11 @@ impl Coffre for CoffreDuSoir {
                 s.id
             )));
         }
-        if dictee::est_dictee(&s.exercice) {
+        if dictee::est_dictee(&s.exercice)
+            && let Some(phrase) = self.phrase_du_chat(s)
+        {
             // Ce que l'Écouteur réaffichera, sans attendre l'agent.
-            self.executer(&dictee::commandes_stockage(&s.exercice))
-                .await?;
+            self.executer(&[dictee::commande_stockage(&phrase)]).await?;
         }
         Ok(())
     }

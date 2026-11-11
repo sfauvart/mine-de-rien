@@ -83,18 +83,61 @@ fn tranche(texte: &str, debut: usize, fin: usize) -> String {
         .collect()
 }
 
-/// Le texte de la dictée, découpé en morceaux de couleur. Les phrases se suivent, séparées
-/// par une espace.
-pub fn morceaux(phrases: &[Phrase], trous: &HashMap<Position, Trou>) -> Vec<Morceau> {
-    // Les mots encore à trouver : masqués partout.
-    let caches: Vec<String> = trous
+/// Ce qui tient lieu, dans le chat, d'un mot qui attend son tour : pas un second `_____`,
+/// pour que l'enfant sache lequel écrire.
+pub const PLUS_TARD: &str = "…";
+
+/// Les mots encore à trouver, en minuscules : ils sont masqués partout où ils apparaissent.
+fn caches(phrases: &[Phrase], trous: &HashMap<Position, Trou>) -> Vec<String> {
+    trous
         .iter()
         .filter(|(_, etat)| **etat != Trou::Trouve)
         .filter_map(|(position, _)| {
             let mot = phrases.get(position.phrase)?.mots.get(position.mot)?;
             Some(mot.texte.to_lowercase())
         })
-        .collect();
+        .collect()
+}
+
+/// La phrase n°`rang` telle que le chat l'écrit : `_____` à la place du mot du coffre posé,
+/// `…` à la place de tout mot qu'un coffre de la file demandera, où qu'il soit dans le texte.
+/// Sans cela, la phrase d'un coffre donnerait la réponse des suivants.
+pub fn phrase_du_chat(
+    phrases: &[Phrase],
+    trous: &HashMap<Position, Trou>,
+    rang: usize,
+) -> Option<String> {
+    let phrase = phrases.get(rang)?;
+    let caches = caches(phrases, trous);
+    let mut resultat = String::new();
+    let mut curseur = 0;
+    for (indice, mot) in phrase.mots.iter().enumerate() {
+        resultat.push_str(&tranche(&phrase.texte, curseur, mot.debut));
+        curseur = mot.fin;
+        let position = Position {
+            phrase: rang,
+            mot: indice,
+        };
+        match trous.get(&position) {
+            Some(Trou::Actif) => resultat.push_str(TROU),
+            Some(Trou::Attente) => resultat.push_str(PLUS_TARD),
+            _ if caches.contains(&mot.texte.to_lowercase()) => resultat.push_str(PLUS_TARD),
+            _ => resultat.push_str(&mot.texte),
+        }
+    }
+    resultat.push_str(&tranche(
+        &phrase.texte,
+        curseur,
+        phrase.texte.chars().count(),
+    ));
+    Some(resultat)
+}
+
+/// Le texte de la dictée, découpé en morceaux de couleur. Les phrases se suivent, séparées
+/// par une espace.
+pub fn morceaux(phrases: &[Phrase], trous: &HashMap<Position, Trou>) -> Vec<Morceau> {
+    // Les mots encore à trouver : masqués partout.
+    let caches = caches(phrases, trous);
     let mut resultat: Vec<Morceau> = Vec::new();
     let mut ajouter = |texte: String, genre: Genre| {
         if texte.is_empty() {
