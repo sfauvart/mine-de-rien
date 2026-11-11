@@ -64,7 +64,7 @@ envoyées à Minecraft.
 La dictée audio faisait voyager ses sons dans un pack de ressources, que Minecraft ne
 recharge qu'à la connexion : l'enfant devait se reconnecter, ou voir son jeu renvoyé vers
 le serveur, à chaque nouvelle dictée. Rien ne pouvait être dit à la volée. Depuis la spec
-[voix en direct](specs/open/2026-11-voix-en-direct.md) :
+[voix en direct](specs/done/2026-11-voix-en-direct.md) :
 
 - le son passe par le chat vocal de **Simple Voice Chat**, auto-hébergé : un plugin sur le
   serveur Paper, un mod Fabric dans le jeu de l'enfant. L'enfant entend dans la seconde,
