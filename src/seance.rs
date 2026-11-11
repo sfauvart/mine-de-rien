@@ -26,11 +26,12 @@ use std::collections::{BTreeMap, HashMap};
 
 use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
 use chrono_tz::Tz;
-use serde_json::{Value, json};
+use serde_json::json;
 
 use crate::alea::Alea;
 use crate::dictees::{
-    ErreurDictees, JOURS_GARDES, ecrire_jour, exercice_sonore, phrases_enregistrees, seance,
+    ErreurDictees, JOURS_GARDES, ecrire_jour, exercice_sonore, phrases_enregistrees, position_de,
+    seance,
 };
 use crate::exercises::base::Exercice;
 use crate::exercises::francais::dictee::{Position, candidats};
@@ -108,19 +109,6 @@ pub fn poids_de(apparitions: &[Apparition], aujourdhui: NaiveDate) -> f64 {
             }
         }
     }
-}
-
-fn position_de(ex: &Exercice) -> Option<Position> {
-    let lire = |cle: &str| {
-        ex.donnees
-            .get(cle)
-            .and_then(Value::as_u64)
-            .and_then(|n| usize::try_from(n).ok())
-    };
-    Some(Position {
-        phrase: lire("phrase")?,
-        mot: lire("mot")?,
-    })
 }
 
 /// L'histoire de chaque trou déjà demandé d'une dictée, de la plus ancienne apparition à la

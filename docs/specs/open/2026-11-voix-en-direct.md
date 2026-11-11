@@ -464,5 +464,8 @@ sont-ils lus correctement. Noter l'avis de l'enfant dans « Retours de jeu ».
     bloc ; elle se coupe désormais aux espaces, chaque mot est lu seul ;
   - les mots à écrire arrivaient dans l'ordre du tirage ; les coffres d'une séance suivent
     maintenant l'ordre du texte, « trop compliqué pour l'enfant » sinon.
+- **Phase 2, 2026-11-11, suite.** Dans le chat, la phrase d'un coffre ne cachait que son
+  propre mot : l'enfant y lisait les mots des coffres suivants de la séance. Le chat écrit
+  maintenant `…` à leur place, comme le tableau les grise déjà.
 
 *(à compléter au fil des phases.)*

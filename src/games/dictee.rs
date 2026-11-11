@@ -37,7 +37,9 @@
 //! dictée actif, rien n'est désigné, le stockage est vide et l'Écouteur ne fait rien.
 //!
 //! **Ce que l'enfant ne voit jamais** : le mot, ni une graphie fausse, même la sienne. La
-//! phrase à trou porte toujours cinq tirets. Les sons ne portent que des numéros.
+//! phrase à trou porte toujours cinq tirets. Les mots que demanderont les coffres suivants de
+//! la séance n'y sont pas non plus : le chat écrit `…` à leur place, comme le tableau les
+//! grise (`dictees::phrase_du_chat`). Les sons ne portent que des numéros.
 //!
 //! **La clé.** Sa description disait « en minuscules » : faux pour « Dans » ou « Dubaï ».
 //! Devant un coffre de dictée, une clé à l'ancienne description est remplacée, et c'est le
@@ -121,17 +123,12 @@ fn snbt(chaine: &str) -> String {
     json_python(&Value::String(texte::nettoyer(chaine, LONGUEUR_MAX)))
 }
 
-/// À la pose : la phrase à trou que l'Écouteur réaffichera. Vide si l'exercice n'en a pas.
-pub fn commandes_stockage(ex: &Exercice) -> Vec<String> {
-    phrase_a_trou(ex)
-        .map(|phrase| {
-            format!(
-                "data modify storage {STOCKAGE} phrase set value {}",
-                snbt(phrase)
-            )
-        })
-        .into_iter()
-        .collect()
+/// À la pose : la phrase à trou que l'Écouteur réaffichera.
+pub fn commande_stockage(phrase: &str) -> String {
+    format!(
+        "data modify storage {STOCKAGE} phrase set value {}",
+        snbt(phrase)
+    )
 }
 
 /// À l'ouverture ou au retrait : l'Écouteur n'affiche plus rien. `son` date d'avant le chat

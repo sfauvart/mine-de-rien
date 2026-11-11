@@ -7,11 +7,11 @@ use std::collections::HashMap;
 use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
 use mine_de_rien::adapters::game::rcon::TAILLE_MAX_COMMANDE;
 use mine_de_rien::alea::Alea;
-use mine_de_rien::dictees::{seance, tableau};
+use mine_de_rien::dictees::{phrase_du_chat, seance, tableau};
 use mine_de_rien::exercises::francais::dictee::{Position, decouper};
 use mine_de_rien::games::atelier::Atelier;
 use mine_de_rien::games::tableau::{
-    Genre, Morceau, Trou, commande_effacement, commandes, morceaux,
+    self as jeu_tableau, Genre, Morceau, Trou, commande_effacement, commandes, morceaux,
 };
 use mine_de_rien::saisie::Source;
 use mine_de_rien::storage::sqlite::{Demande, Depot, PhraseSonore};
@@ -77,6 +77,34 @@ fn un_mot_a_trouver_est_masque_partout_ou_il_apparait() {
     // Trouvé à un endroit, encore à trouver à un autre : il reste caché aux deux.
     let trous = HashMap::from([(p(0, 1), Trou::Trouve), (p(1, 2), Trou::Attente)]);
     assert!(!lu(&morceaux(&phrases, &trous)).contains("plus"));
+}
+
+#[test]
+fn le_chat_cache_aussi_les_mots_des_coffres_qui_attendent() {
+    let phrases = decouper(TEXTE);
+    // « tour » à écrire, « s'élève » et « trois » en attente, « haute » déjà trouvé.
+    let trous = HashMap::from([
+        (p(0, 3), Trou::Actif),
+        (p(0, 4), Trou::Attente),
+        (p(1, 5), Trou::Attente),
+        (p(0, 2), Trou::Trouve),
+    ]);
+    assert_eq!(
+        jeu_tableau::phrase_du_chat(&phrases, &trous, 0).unwrap(),
+        "La plus haute _____ ….",
+        "un seul _____ : celui du coffre posé"
+    );
+    assert_eq!(
+        jeu_tableau::phrase_du_chat(&phrases, &trous, 1).unwrap(),
+        "Elle est plus haute que … tours Eiffel."
+    );
+    // Le mot à écrire, ou un mot en attente, est masqué où qu'il revienne.
+    let trous = HashMap::from([(p(0, 1), Trou::Actif), (p(0, 2), Trou::Attente)]);
+    assert_eq!(
+        jeu_tableau::phrase_du_chat(&phrases, &trous, 1).unwrap(),
+        "Elle est … … que trois tours Eiffel."
+    );
+    assert_eq!(jeu_tableau::phrase_du_chat(&phrases, &trous, 2), None);
 }
 
 #[test]
@@ -162,8 +190,26 @@ fn le_tableau_suit_la_seance_dans_la_base() {
     let compte =
         |morceaux: &[Morceau], genre: Genre| morceaux.iter().filter(|m| m.genre == genre).count();
 
+    // Dans le chat, à chaque coffre : un seul `_____`, et aucun mot encore à écrire, que la
+    // base dise déjà le coffre posé ou pas encore.
+    let chat_sans_reponse = |numero: i64, a_venir: &[&str]| {
+        let reference = depot.lire(numero).unwrap().unwrap();
+        let phrase = phrase_du_chat(&depot, &reference).unwrap().unwrap();
+        assert_eq!(phrase.matches("_____").count(), 1, "{phrase}");
+        let ecrits: Vec<String> = decouper(&phrase)
+            .into_iter()
+            .flat_map(|p| p.mots)
+            .map(|m| m.texte.to_lowercase())
+            .collect();
+        for mot in a_venir {
+            assert!(!ecrits.contains(&mot.to_lowercase()), "{mot} : {phrase}");
+        }
+    };
+    chat_sans_reponse(numeros[0], &mots);
+
     // Premier coffre posé : un trou jaune, les deux autres mots sont cachés eux aussi.
     depot.marquer_pose(numeros[0], instant(17)).unwrap();
+    chat_sans_reponse(numeros[0], &mots);
     let t = lire(numeros[0]);
     assert_eq!(compte(&t, Genre::TrouActif), 1);
     assert!(compte(&t, Genre::TrouAttente) >= 2);
@@ -190,7 +236,8 @@ fn le_tableau_suit_la_seance_dans_la_base() {
     assert_eq!(compte(&t, Genre::Trouve), usize::from(!encore_cache));
 
     // Toute la séance ouverte : le texte entier, sans trou.
-    for numero in &numeros[1..] {
+    for (rang, numero) in numeros.iter().enumerate().skip(1) {
+        chat_sans_reponse(*numero, &mots[rang..]);
         depot.marquer_pose(*numero, instant(17)).unwrap();
         depot
             .marquer_ouvert(*numero, instant(17) + TimeDelta::minutes(5))

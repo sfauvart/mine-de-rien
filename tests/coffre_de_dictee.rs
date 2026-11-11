@@ -16,8 +16,7 @@ use mine_de_rien::exercises::francais::dictee::{Position, candidats, decouper};
 use mine_de_rien::exercises::indices::{contient_la_reponse, indices};
 use mine_de_rien::games::coffre_du_soir::{Coffre, CoffreDuSoir, predicat_cle_a_jour};
 use mine_de_rien::games::dictee::{
-    self, commande_ecouteur, commandes_effacement, commandes_stockage, est_dictee,
-    predicat_ecouteur,
+    self, commande_ecouteur, commande_stockage, commandes_effacement, est_dictee, predicat_ecouteur,
 };
 use mine_de_rien::minecraft::texte::Style;
 use mine_de_rien::saisie::Source;
@@ -160,10 +159,8 @@ fn numeros_des_sons() {
 fn stockage_de_l_ecouteur_echappe() {
     let s = trou("Viens", 9);
     assert_eq!(
-        commandes_stockage(&s.exercice),
-        [
-            "data modify storage mine_de_rien:dictee phrase set value \"Il dit : \\\"_____\\\" \\\\ ici.\"",
-        ]
+        commande_stockage(dictee::phrase_a_trou(&s.exercice).unwrap()),
+        "data modify storage mine_de_rien:dictee phrase set value \"Il dit : \\\"_____\\\" \\\\ ici.\""
     );
     assert_eq!(
         commandes_effacement(),
@@ -172,7 +169,7 @@ fn stockage_de_l_ecouteur_echappe() {
             "data remove storage mine_de_rien:dictee phrase",
         ]
     );
-    assert!(commandes_stockage(&maths().exercice).is_empty());
+    assert_eq!(dictee::phrase_a_trou(&maths().exercice), None);
 }
 
 #[test]
@@ -587,4 +584,58 @@ fn les_trois_paliers_ne_donnent_jamais_le_mot() {
     assert_eq!(palier("mot")[1], "Il y en a 3 à écrire.");
     assert_eq!(palier("lettres")[2], "Première : « l ». Nombre : 7.");
     assert_eq!(palier("phrase")[0], "Réécoute, plus doucement cette fois.");
+}
+
+#[tokio::test]
+async fn le_chat_n_ecrit_pas_le_mot_d_un_coffre_qui_attend() {
+    use mine_de_rien::storage::sqlite::Demande;
+    let dossier = tempfile::tempdir().unwrap();
+    let depot = Rc::new(Depot::ouvrir(&dossier.path().join("mdr.sqlite")).unwrap());
+    // Deux coffres de la même séance, dans la même phrase : « plus », puis « tour ».
+    let plus = commun::trou_en_base(&depot, TEXTE, "plus");
+    let (phrases, numeros) = mine_de_rien::dictees::phrases_enregistrees(&depot, 1).unwrap();
+    let position = candidats(&phrases)
+        .into_iter()
+        .find(|p| phrases[p.phrase].mots[p.mot].texte == "tour")
+        .unwrap();
+    let mut tour = exercice_sonore(&phrases, position, numeros[position.phrase]).unwrap();
+    tour.donnees
+        .insert("dictee".to_owned(), serde_json::json!(1));
+    let demande = Demande {
+        source: Source::Dictee,
+        demande_par: "cli",
+        recompense: "minecraft:diamond",
+        recompense_nombre: 3,
+    };
+    let quand = commun::instant("2026-11-09T17:00:00+00:00");
+    let premier = depot.ajouter(&plus, demande, quand).unwrap();
+    depot.ajouter(&tour, demande, quand).unwrap();
+    let premier = depot.lire(premier).unwrap().unwrap();
+
+    let lecteur = Rc::new(Lecteur::new(
+        Rc::new(FausseDiffusion::new()),
+        Rc::new(VoixDeTest::default()),
+        depot.clone(),
+    ));
+    let jeu = Rc::new(FauxJeu::default());
+    let coffre = CoffreDuSoir::new(jeu.clone(), PSEUDO, 3, Some("Pixel"))
+        .unwrap()
+        .avec_lecteur(lecteur);
+    coffre.actualiser_atelier().await.unwrap();
+    jeu.vider();
+
+    let attendue = "Dans la ville de Dubaï, aux Émirats arabes unis, s'élève la _____ haute … \
+        jamais construite.";
+    // Dans le chat, à l'annonce.
+    coffre.annoncer(&premier).await.unwrap();
+    assert!(
+        jeu.textes().contains(&format!("Dictée : {attendue}")),
+        "{:?}",
+        jeu.textes()
+    );
+    assert!(jeu.textes().iter().all(|t| !t.contains("tour")));
+    // Et dans ce que l'Écouteur réaffiche, écrit à la pose.
+    jeu.vider();
+    let _ = coffre.poser(&premier).await;
+    assert!(jeu.commandes().contains(&commande_stockage(attendue)));
 }

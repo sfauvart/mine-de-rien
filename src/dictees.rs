@@ -19,7 +19,7 @@ use crate::exercises::base::{Exercice, normaliser};
 use crate::exercises::francais::dictee::{
     ErreurDictee, Phrase, Position, candidats, decouper, decouper_liste, exercice, phrase_de, tirer,
 };
-use crate::games::tableau::{Morceau, Trou, morceaux};
+use crate::games::tableau::{self, Morceau, Trou, morceaux};
 use crate::son::{ErreurSon, Pcm, encoder_ogg, lire_wav, wav_vers_ogg};
 use crate::storage::sqlite::{
     Demande, Depot, DicteeStockee, ErreurStockage, ExerciceStocke, PhraseSonore, Statut,
@@ -231,6 +231,11 @@ impl Lecteur {
         &self.diffusion
     }
 
+    /// La phrase d'un coffre telle que le chat l'écrit (`phrase_du_chat`).
+    pub fn phrase_du_chat(&self, s: &ExerciceStocke) -> Result<Option<String>, ErreurDictees> {
+        phrase_du_chat(&self.depot, s)
+    }
+
     /// Vrai si le jeu de l'enfant est relié au chat vocal.
     pub async fn relie(&self) -> Result<bool, ErreurDictees> {
         Ok(self.diffusion.relie().await?)
@@ -386,14 +391,29 @@ pub fn lire_jour(texte: &str, aujourdhui: NaiveDate) -> Result<NaiveDate, Erreur
     }
 }
 
-/// Le tableau de la dictée du coffre `reference` : le texte entier, où le coffre posé est le
-/// trou à remplir, les coffres en file des trous en attente, et les coffres ouverts de la
+fn indice(ex: &Exercice, cle: &str) -> Option<usize> {
+    ex.donnees
+        .get(cle)
+        .and_then(Value::as_u64)
+        .and_then(|n| usize::try_from(n).ok())
+}
+
+/// Le trou que demande un coffre de dictée.
+pub fn position_de(ex: &Exercice) -> Option<Position> {
+    Some(Position {
+        phrase: indice(ex, "phrase")?,
+        mot: indice(ex, "mot")?,
+    })
+}
+
+/// Les phrases d'une dictée et l'état de chacun de ses trous.
+type Trous = (Vec<Phrase>, HashMap<Position, Trou>);
+
+/// Les phrases de la dictée du coffre `reference` et l'état de ses trous : le coffre posé est
+/// le trou à remplir, les coffres en file des trous en attente, et les coffres ouverts de la
 /// même séance (créés au même instant) des mots trouvés. `None` si ce coffre n'est pas celui
 /// d'une dictée enregistrée.
-pub fn tableau(
-    depot: &Depot,
-    reference: &ExerciceStocke,
-) -> Result<Option<Vec<Morceau>>, ErreurDictees> {
+fn trous_de(depot: &Depot, reference: &ExerciceStocke) -> Result<Option<Trous>, ErreurDictees> {
     let Some(dictee) = reference
         .exercice
         .donnees
@@ -411,21 +431,39 @@ pub fn tableau(
             Statut::Ouvert if coffre.cree_le == reference.cree_le => Trou::Trouve,
             _ => continue,
         };
-        let indice = |cle: &str| {
-            coffre
-                .exercice
-                .donnees
-                .get(cle)
-                .and_then(Value::as_u64)
-                .and_then(|n| usize::try_from(n).ok())
-        };
-        if let (Some(phrase), Some(mot)) = (indice("phrase"), indice("mot")) {
-            let position = Position { phrase, mot };
+        if let Some(position) = position_de(&coffre.exercice) {
             // Un trou encore à trouver l'emporte sur le même mot déjà trouvé.
             if etat != Trou::Trouve || !trous.contains_key(&position) {
                 trous.insert(position, etat);
             }
         }
     }
-    Ok(Some(morceaux(&phrases, &trous)))
+    Ok(Some((phrases, trous)))
+}
+
+/// Le tableau de la dictée du coffre `reference` : le texte entier, avec ses trous. `None` si
+/// ce coffre n'est pas celui d'une dictée enregistrée.
+pub fn tableau(
+    depot: &Depot,
+    reference: &ExerciceStocke,
+) -> Result<Option<Vec<Morceau>>, ErreurDictees> {
+    Ok(trous_de(depot, reference)?.map(|(phrases, trous)| morceaux(&phrases, &trous)))
+}
+
+/// La phrase du coffre `reference` telle que le chat l'écrit : son mot en `_____`, et les mots
+/// que les coffres de la file demanderont masqués eux aussi (`tableau::phrase_du_chat`).
+/// `None` si ce coffre n'est pas celui d'une dictée enregistrée.
+pub fn phrase_du_chat(
+    depot: &Depot,
+    reference: &ExerciceStocke,
+) -> Result<Option<String>, ErreurDictees> {
+    let Some((phrases, mut trous)) = trous_de(depot, reference)? else {
+        return Ok(None);
+    };
+    let Some(position) = position_de(&reference.exercice) else {
+        return Ok(None);
+    };
+    // Le coffre de référence est celui qu'on présente, même si la base le dit encore en file.
+    trous.insert(position, Trou::Actif);
+    Ok(tableau::phrase_du_chat(&phrases, &trous, position.phrase))
 }
