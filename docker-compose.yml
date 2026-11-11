@@ -2,7 +2,7 @@ services:
   # Ponctuel : recopie le datapack de la version de l'agent dans data/datapacks, avant le
   # serveur. Code et datapack viennent de la même image, donc de la même version.
   datapack:
-    image: ghcr.io/sfauvart/mine-de-rien:0.1.2
+    image: ghcr.io/sfauvart/mine-de-rien:0.2.0
     command: ["mine-de-rien", "datapack", "/datapacks"]
     volumes:
       - ./data/datapacks:/datapacks
@@ -46,7 +46,7 @@ services:
     restart: unless-stopped
 
   agent:
-    image: ghcr.io/sfauvart/mine-de-rien:0.1.2
+    image: ghcr.io/sfauvart/mine-de-rien:0.2.0
     # Construire sa propre image depuis le clone, sans ghcr.io : docker compose build agent
     build:
       context: .
