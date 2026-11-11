@@ -196,6 +196,8 @@ struct FauxCoffre {
     actions: RefCell<Vec<String>>,
     /// Le nom que porte la clé de l'enfant en ce moment.
     nom_cle: RefCell<Option<String>>,
+    /// L'agent sait renvoyer le jeu de l'enfant vers le serveur.
+    transfert: Cell<bool>,
 }
 
 impl FauxCoffre {
@@ -210,6 +212,7 @@ impl FauxCoffre {
             verrou: Mutex::new(()),
             actions: RefCell::new(Vec::new()),
             nom_cle: RefCell::new(None),
+            transfert: Cell::new(false),
         })
     }
 
@@ -292,6 +295,14 @@ impl Coffre for FauxCoffre {
     async fn demander_de_se_reconnecter(&self) -> Result<(), ErreurCoffre> {
         self.note("reconnecter ?".to_owned());
         Ok(())
+    }
+
+    async fn recharger_les_sons(&self) -> Result<bool, ErreurCoffre> {
+        if self.transfert.get() {
+            self.note("transfert".to_owned());
+            // Le jeu de l'enfant quitte le serveur, puis revient seul.
+        }
+        Ok(self.transfert.get())
     }
 
     async fn nom_de_la_cle(&self) -> Result<Option<String>, ErreurCoffre> {
@@ -1359,4 +1370,38 @@ async fn le_tableau_de_la_dictee_suit_les_coffres() {
     assert_eq!(vus[8], "tableau effacé");
     // Le coffre de calcul suivant ne l'efface pas une seconde fois.
     assert_eq!(m.coffre.compte("tableau effacé"), 1);
+}
+
+#[tokio::test]
+async fn dictee_le_jeu_est_renvoye_vers_le_serveur_au_lieu_de_demander() {
+    // Pack écrit à 18 h 05, enfant connecté depuis 18 h 01 : il lui manque les sons.
+    let m = monde_de_dictee(Some(t0() + TimeDelta::minutes(5)));
+    let exercice = m.depot.lire(1).unwrap().unwrap().exercice;
+    m.depot.annuler(1).unwrap();
+    m.orch.tour().await.unwrap();
+    avancer(&m.horloge, TimeDelta::minutes(1));
+    m.coffre.en_ligne.set(true);
+    m.orch.tour().await.unwrap();
+    let demande = Demande {
+        source: Source::Dictee,
+        ..DEMANDE
+    };
+    let ident = m.depot.ajouter(&exercice, demande, t0()).unwrap();
+    m.coffre.transfert.set(true);
+
+    // 18 h 10 : l'agent renvoie son jeu vers le serveur, sans rien demander à personne.
+    avancer(&m.horloge, TimeDelta::minutes(9));
+    m.orch.tour().await.unwrap();
+    assert_eq!(m.coffre.actions(), ["transfert"]);
+    assert!(m.notifs.messages().is_empty());
+    assert_eq!(actif(&m.depot), None);
+
+    // Le jeu est revenu avant le tour suivant (l'agent ne l'a pas vu partir) : le coffre est
+    // posé et annoncé, sans second transfert.
+    avancer(&m.horloge, TimeDelta::seconds(3));
+    m.orch.tour().await.unwrap();
+    assert_eq!(actif(&m.depot), Some(ident));
+    assert_eq!(m.coffre.compte("transfert"), 1);
+    assert_eq!(m.coffre.compte(&format!("annoncer {ident}")), 1);
+    assert_eq!(m.coffre.compte("reconnecter ?"), 0);
 }

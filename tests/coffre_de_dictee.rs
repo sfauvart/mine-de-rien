@@ -437,3 +437,45 @@ fn les_trois_paliers_ne_donnent_jamais_le_mot() {
     assert_eq!(palier("lettres")[2], "Première : « l ». Nombre : 7.");
     assert_eq!(palier("phrase")[0], "Réécoute, plus doucement cette fois.");
 }
+
+#[tokio::test]
+async fn sans_adresse_du_jeu_pas_de_transfert() {
+    let jeu = Rc::new(FauxJeu::default());
+    let coffre = coffre(&jeu).await;
+    jeu.vider();
+    assert!(!coffre.recharger_les_sons().await.unwrap());
+    assert!(jeu.commandes().is_empty());
+    assert!(jeu.textes().is_empty());
+}
+
+#[test]
+fn la_commande_de_transfert_et_l_adresse_du_jeu() {
+    use mine_de_rien::config::Pack;
+    assert_eq!(
+        dictee::commande_transfert("192.168.1.20", 25565, "Steve"),
+        "transfer 192.168.1.20 25565 Steve"
+    );
+    let pack = |adresse: &str| Pack {
+        adresse_du_jeu: adresse.to_owned(),
+        ..Pack::default()
+    };
+    assert_eq!(pack("").transfert(), Ok(None));
+    assert_eq!(
+        pack("192.168.1.20").transfert(),
+        Ok(Some(("192.168.1.20".to_owned(), 25565)))
+    );
+    assert_eq!(
+        pack(" localhost:25567 ").transfert(),
+        Ok(Some(("localhost".to_owned(), 25567)))
+    );
+    // Rien qui puisse devenir une autre commande, ni un port impossible.
+    for faux in [
+        "maison 25565 @a",
+        "hote:port",
+        "hote:99999",
+        ":25565",
+        "a;b",
+    ] {
+        assert!(pack(faux).transfert().is_err(), "{faux}");
+    }
+}

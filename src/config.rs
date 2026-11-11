@@ -276,6 +276,11 @@ pub struct Pack {
     pub port: u16,
     /// Interface d'écoute : toutes par défaut, pour être joint depuis le poste de l'enfant.
     pub ecoute: String,
+    /// L'adresse que l'enfant tape pour rejoindre le serveur Minecraft, « 192.168.1.20 » ou
+    /// « 192.168.1.20:25566 ». Réglée, l'agent y renvoie le jeu de l'enfant quand il lui manque
+    /// les sons d'une dictée : le jeu se reconnecte seul. Vide : l'enfant le fait à la main.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub adresse_du_jeu: String,
 }
 
 impl Default for Pack {
@@ -283,7 +288,36 @@ impl Default for Pack {
         Self {
             port: 8765,
             ecoute: "0.0.0.0".to_owned(),
+            adresse_du_jeu: String::new(),
         }
+    }
+}
+
+impl Pack {
+    pub const PORT_DU_JEU: u16 = 25565;
+
+    /// L'hôte et le port de `adresse_du_jeu`. `Ok(None)` si elle n'est pas réglée ; `Err` si
+    /// elle ne se lit pas : un nom ou une adresse IPv4, puis éventuellement « :port ».
+    pub fn transfert(&self) -> Result<Option<(String, u16)>, String> {
+        let adresse = self.adresse_du_jeu.trim();
+        if adresse.is_empty() {
+            return Ok(None);
+        }
+        let illisible = || {
+            format!(
+                "[pack] adresse_du_jeu = « {adresse} » : attendu un nom ou une adresse, puis \
+                 éventuellement « :port » (ex. 192.168.1.20:25565)."
+            )
+        };
+        let (hote, port) = match adresse.rsplit_once(':') {
+            Some((hote, port)) => (hote, port.parse::<u16>().map_err(|_| illisible())?),
+            None => (adresse, Self::PORT_DU_JEU),
+        };
+        let permis = |c: char| c.is_ascii_alphanumeric() || matches!(c, '.' | '-');
+        if hote.is_empty() || !hote.chars().all(permis) {
+            return Err(illisible());
+        }
+        Ok(Some((hote.to_owned(), port)))
     }
 }
 

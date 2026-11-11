@@ -41,6 +41,9 @@
 //! l'enfant lit « C'est la bonne réponse ! » avec un tintement. Il attend donc ce message, au
 //! plus 3 secondes, avant d'ouvrir. Une réponse écrite exactement ouvre sans attendre.
 //!
+//! **Sons d'une dictée.** Voir `dictee.rs` : si le jeu de l'enfant n'a pas le pack du jour,
+//! l'agent l'y renvoie (`transfer`), ou lui demande de se reconnecter.
+//!
 //! **Détection**, toutes les 3 secondes quand l'enfant est connecté :
 //!
 //! ```text
@@ -323,6 +326,9 @@ pub trait Coffre {
     async fn demander_de_vider(&self) -> Result<(), ErreurCoffre>;
     /// Une dictée attend, mais le jeu de l'enfant n'a pas encore chargé ses sons.
     async fn demander_de_se_reconnecter(&self) -> Result<(), ErreurCoffre>;
+    /// Renvoie le jeu de l'enfant vers le serveur, pour qu'il se reconnecte seul et charge
+    /// les sons. `false` si ce n'est pas réglé ou si le serveur a refusé : à lui de le faire.
+    async fn recharger_les_sons(&self) -> Result<bool, ErreurCoffre>;
     async fn preuve_trouvee(&self, s: &ExerciceStocke) -> Result<bool, ErreurCoffre>;
     /// Le nom que porte la clé de l'enfant : ce qu'il a écrit sur l'enclume. `None` s'il n'y
     /// a rien à lire.
@@ -346,6 +352,8 @@ pub struct CoffreDuSoir {
     pub niveaux_offerts: i64,
     /// Nom de Pixel s'il écoute le chat : le mode d'emploi dit qu'on peut l'appeler.
     pub assistant: Option<String>,
+    /// L'adresse du serveur vue du jeu de l'enfant, si l'agent peut l'y renvoyer.
+    adresse_du_jeu: Option<(String, u16)>,
 }
 
 const GRIS: [(&str, Style<'static>); 1] = [("color", Style::Texte("gray"))];
@@ -367,7 +375,15 @@ impl CoffreDuSoir {
             pseudo: texte::verifier_pseudo(pseudo)?.to_owned(),
             niveaux_offerts,
             assistant: assistant.map(str::to_owned),
+            adresse_du_jeu: None,
         })
+    }
+
+    /// Avec l'adresse que l'enfant tape pour rejoindre le serveur : l'agent peut y renvoyer
+    /// son jeu (`transfer`), ce qui vaut une reconnexion sans geste.
+    pub fn avec_adresse_du_jeu(mut self, hote: &str, port: u16) -> Self {
+        self.adresse_du_jeu = Some((hote.to_owned(), port));
+        self
     }
 
     async fn mode_emploi(&self, dictee: bool) -> Result<(), ErreurCoffre> {
@@ -626,6 +642,20 @@ impl Coffre for CoffreDuSoir {
             .dire(&self.pseudo, dictee::RECONNEXION, &OR)
             .await?;
         Ok(())
+    }
+
+    async fn recharger_les_sons(&self) -> Result<bool, ErreurCoffre> {
+        let Some((hote, port)) = &self.adresse_du_jeu else {
+            return Ok(false);
+        };
+        self.jeu
+            .dire(&self.pseudo, dictee::RECHARGEMENT, &OR)
+            .await?;
+        let reponse = self
+            .jeu
+            .commande(&dictee::commande_transfert(hote, *port, &self.pseudo))
+            .await?;
+        Ok(strip(&reponse).starts_with("Transferring"))
     }
 
     async fn preuve_trouvee(&self, s: &ExerciceStocke) -> Result<bool, ErreurCoffre> {

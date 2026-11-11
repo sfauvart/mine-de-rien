@@ -31,6 +31,9 @@ services:
       # Facultatif pour le joueur : si l'agent est arrêté, le serveur reste jouable.
       RESOURCE_PACK: ${PACK_URL:-}
       RESOURCE_PACK_ENFORCE: "FALSE"
+      # Permet à l'agent de renvoyer le jeu de l'enfant vers ce serveur (commande « transfer »)
+      # pour qu'il recharge les sons d'une nouvelle dictée sans se déconnecter à la main.
+      ACCEPTS_TRANSFERS: "TRUE"
       # Aucun opérateur : un enfant opérateur peut lire la réponse ou se donner la récompense.
     ports:
       - "25565:25565"

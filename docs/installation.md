@@ -410,9 +410,19 @@ comptent, les accents si. Quand le mot est juste, le chat le dit (« C'est la bo
 réponse ! ») et le coffre s'ouvre. Un clic droit avec l'objet « Écouteur » relit la phrase. « Pixel,
 aide-moi » la relit lentement, puis donne le nombre de lettres, puis la première lettre.
 
-- **Après une nouvelle dictée, l'enfant doit se déconnecter puis se reconnecter** : son jeu
-  ne charge les sons qu'à la connexion. Tant qu'il ne l'a pas fait, le coffre attend et le
-  bot le signale.
+- **Après une nouvelle dictée, le jeu de l'enfant doit se reconnecter** : il ne charge les
+  sons qu'à la connexion. S'il ne joue pas à ce moment-là, il n'y a rien à faire. S'il
+  joue, l'agent le fait pour lui, à condition de lui dire l'adresse que l'enfant tape pour
+  rejoindre le serveur, dans `config.toml` :
+
+  ```toml
+  [pack]
+  adresse_du_jeu = "192.168.1.20:25565"
+  ```
+
+  L'enfant voit un écran de chargement de quelques secondes, puis la dictée commence. Sans
+  ce réglage, le coffre attend, et le bot demande à l'enfant de se déconnecter puis de se
+  reconnecter. Le `docker-compose.yml` autorise ce renvoi (`ACCEPTS_TRANSFERS`).
 - **Photo de la feuille** : possible avec `[llm]` (étape 4), légende `dictée vendredi`. À
   l'essai, le modèle a recopié « noirades » pour « noiraudes » sur une feuille nette : le
   texte tapé est plus sûr, et une photo demande une relecture lettre par lettre.

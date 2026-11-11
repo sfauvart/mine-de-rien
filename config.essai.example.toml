@@ -42,6 +42,9 @@ voix = "fr_FR-siwis-medium"
 # Le serveur d'essai annonce http://localhost:8765/mine-de-rien.zip au jeu.
 [pack]
 port = 8765
+# L'adresse tapée dans le jeu pour rejoindre le serveur d'essai : le jeu s'y reconnecte seul
+# quand il lui manque les sons d'une nouvelle dictée.
+adresse_du_jeu = "localhost:25566"
 
 [stockage]
 sqlite = "data/mine-de-rien-essai.sqlite"

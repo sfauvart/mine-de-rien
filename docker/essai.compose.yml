@@ -30,6 +30,9 @@ services:
       # service de pack, le serveur d'essai reste utilisable.
       RESOURCE_PACK: ${PACK_URL:-http://localhost:8765/mine-de-rien.zip}
       RESOURCE_PACK_ENFORCE: "FALSE"
+      # Permet à l'agent de renvoyer le jeu de l'enfant vers ce serveur (commande « transfer »)
+      # pour qu'il recharge les sons d'une nouvelle dictée sans se déconnecter à la main.
+      ACCEPTS_TRANSFERS: "TRUE"
     ports:
       - "25566:25565"
       - "25576:25575"
