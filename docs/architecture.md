@@ -8,7 +8,8 @@
    Microsoft obligatoire). Bedrock n'est pas pris en charge, voir plus bas.
 2. **Pont sans plugin pour commencer.** Commandes via RCON, chat et connexions lus dans
    `logs/latest.log`. Un plugin Paper viendra seulement si un jeu exige des événements fins
-   (ouverture de coffre, pose de bloc).
+   (ouverture de coffre, pose de bloc). Un premier plugin est prévu pour faire entendre la
+   voix en direct ([spec](specs/open/2026-11-voix-en-direct.md)).
 3. **Le LLM n'est jamais la source de vérité.** Générateurs déterministes par compétence,
    réponse calculée. Le LLM habille l'énoncé et lit les photos du cahier. Un modèle local de
    7 à 8 milliards de paramètres suffit alors.
