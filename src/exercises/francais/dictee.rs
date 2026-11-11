@@ -157,9 +157,20 @@ pub fn decouper(texte: &str) -> Vec<Phrase> {
 }
 
 /// Une liste de mots à apprendre, sans texte : chaque élément est lu seul.
+///
+/// Les éléments se séparent par une virgule, un point-virgule ou un retour à la ligne ; un
+/// élément peut alors tenir en plusieurs mots (« chaque année »). Une liste écrite sans aucun
+/// de ces séparateurs se coupe aux espaces : « tour seules personnes » fait trois mots, lus
+/// chacun leur tour, et non une phrase.
 pub fn decouper_liste(liste: &str) -> Vec<Phrase> {
-    liste
-        .split([',', ';', '\n'])
+    const SEPARATEURS: [char; 3] = [',', ';', '\n'];
+    let elements: Vec<&str> = if liste.trim().contains(SEPARATEURS) {
+        liste.split(SEPARATEURS).collect()
+    } else {
+        liste.split_whitespace().collect()
+    };
+    elements
+        .into_iter()
         .filter_map(|element| phrase(&normaliser_texte(element)))
         .collect()
 }
@@ -207,7 +218,8 @@ pub fn imposes_absents(phrases: &[Phrase], imposes: &[String]) -> Vec<String> {
         .collect()
 }
 
-/// Tire au plus `n` trous, sans remise.
+/// Tire au plus `n` trous, sans remise, et les rend dans l'ordre du texte : l'enfant
+/// retrouve les mots dans l'ordre où il les a lus.
 ///
 /// Les mots imposés sortent d'abord, puis le hasard, selon `poids` (1 pour une position
 /// absente). Un poids nul écarte la position, même imposée : c'est ainsi qu'un mot acquis ou
@@ -275,6 +287,8 @@ pub fn tirer(
         phrases_prises.insert(position.phrase);
         tires.push(position);
     }
+    // Le hasard choisit les mots, pas leur ordre.
+    tires.sort();
     Ok(tires)
 }
 

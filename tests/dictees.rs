@@ -536,7 +536,7 @@ async fn mots_imposes_et_liste_des_dictees() {
     assert!(m.depot.lire_dictee(1).unwrap().unwrap().imposes.is_empty());
     assert_eq!(
         m.dit("/dictee mots 1 plus, trois personnes").await,
-        "Dictée n°1 : ces mots sortiront en premier : plus, trois, personnes."
+        "Dictée n°1 : ces mots sortiront en priorité : plus, trois, personnes."
     );
     assert_eq!(
         m.dit("/dictee").await,
@@ -585,12 +585,20 @@ async fn seance_a_la_demande() {
         assert_eq!(d["son"], numero_son(phrase, false));
         assert_eq!(d["son_lent"], numero_son(phrase, true));
     }
-    // Les trois mots imposés d'abord.
-    let premiers: BTreeSet<&str> = coffres[..3]
+    // Les trois mots imposés en sont, et les coffres suivent l'ordre du texte.
+    let reponses: BTreeSet<&str> = coffres
         .iter()
         .map(|c| c.exercice.reponse.as_str())
         .collect();
-    assert_eq!(premiers, BTreeSet::from(["plus", "trois", "personnes"]));
+    assert!(reponses.is_superset(&BTreeSet::from(["plus", "trois", "personnes"])));
+    let places: Vec<(u64, u64)> = coffres
+        .iter()
+        .map(|c| {
+            let d = &c.exercice.donnees;
+            (d["phrase"].as_u64().unwrap(), d["mot"].as_u64().unwrap())
+        })
+        .collect();
+    assert!(places.is_sorted(), "{places:?}");
     assert!(m.dit("/dictee seance 7").await.contains("n'existe pas"));
 }
 

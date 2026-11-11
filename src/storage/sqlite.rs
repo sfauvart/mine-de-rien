@@ -267,7 +267,7 @@ pub struct DicteeStockee {
     /// Le jour de la dictée à l'école.
     pub jour: NaiveDate,
     pub texte: String,
-    /// Les mots que le parent veut voir sortir en premier.
+    /// Les mots que le parent veut voir sortir en priorité.
     pub imposes: Vec<String>,
     pub annulee: bool,
     pub demande_par: String,

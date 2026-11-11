@@ -354,14 +354,15 @@ fn mots_imposes() {
         )
         .unwrap();
         let mots: Vec<&str> = tires.iter().map(|&p| mot(&phrases, p)).collect();
-        // Les trois imposés sortent d'abord, le quatrième est tiré au hasard.
-        let premiers: HashSet<&str> = mots[..3].iter().copied().collect();
-        assert_eq!(
-            premiers,
-            HashSet::from(["plus", "trois", "personnes"]),
+        // Les trois imposés sortent tous, le quatrième est tiré au hasard ; le tout dans
+        // l'ordre du texte.
+        let tous: HashSet<&str> = mots.iter().copied().collect();
+        assert_eq!(tous.len(), 4, "{mots:?}");
+        assert!(
+            tous.is_superset(&HashSet::from(["plus", "trois", "personnes"])),
             "{mots:?}"
         );
-        assert!(!premiers.contains(mots[3]));
+        assert!(tires.is_sorted(), "{tires:?}");
     }
     // Moins de coffres que de mots imposés : seulement des imposés.
     let deux = tirer(&phrases, 2, &mut Alea::graine(1), &sans_poids(), &imposes).unwrap();
@@ -457,6 +458,44 @@ fn liste_de_mots_sans_texte() {
         ("Dictée : _____", "plus")
     );
     assert_eq!(ex.donnees["a_trou"], TROU);
+}
+
+#[test]
+fn liste_sans_virgule_coupee_aux_espaces() {
+    let textes = |liste: &str| -> Vec<String> {
+        decouper_liste(liste).into_iter().map(|p| p.texte).collect()
+    };
+    assert_eq!(
+        textes(" tour  seules personnes "),
+        ["tour", "seules", "personnes"]
+    );
+    // Dès qu'un séparateur est là, un élément garde ses espaces.
+    assert_eq!(textes("tout à coup, tour"), ["tout à coup", "tour"]);
+    assert_eq!(textes("tout à coup,"), ["tout à coup"]);
+}
+
+#[test]
+fn trous_tires_dans_l_ordre_du_texte() {
+    let phrases = decouper("Le renard traverse la grande forêt. Il cherche une tanière profonde.");
+    for graine in 0..200 {
+        let tires = tirer(&phrases, 4, &mut Alea::graine(graine), &HashMap::new(), &[]).unwrap();
+        assert_eq!(tires.len(), 4);
+        assert!(tires.is_sorted(), "graine {graine} : {tires:?}");
+    }
+    // Un mot imposé sort toujours, mais à sa place dans le texte.
+    let imposes = ["profonde".to_owned()];
+    for graine in 0..200 {
+        let tires = tirer(
+            &phrases,
+            2,
+            &mut Alea::graine(graine),
+            &HashMap::new(),
+            &imposes,
+        )
+        .unwrap();
+        assert!(tires.is_sorted(), "graine {graine} : {tires:?}");
+        assert!(tires.contains(&Position { phrase: 1, mot: 4 }), "{tires:?}");
+    }
 }
 
 #[test]

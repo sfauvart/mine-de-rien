@@ -600,7 +600,7 @@ pub const AIDE_DICTEE: &str = "\n\
     Photo de la feuille, « dictée vendredi » en légende\n\
     /dictee : les dictées en cours\n\
     /dictee seance 3 : une séance de coffres tout de suite, pour la dictée n°3\n\
-    /dictee mots 3 plus trois : les mots à faire sortir en premier\n\
+    /dictee mots 3 plus trois : les mots à faire sortir en priorité\n\
     /dictee annuler 3 : retire la dictée n°3";
 pub const DICTEES_ABSENTES: &str = "Les dictées ne sont pas configurées : il faut les sections \
     [voix] de config.toml, avec dossier_du_jeu (docs/installation.md).";
@@ -1243,7 +1243,7 @@ impl CommandesParents {
             format!("Dictée n°{} : plus aucun mot imposé.", dictee.id)
         } else {
             format!(
-                "Dictée n°{} : ces mots sortiront en premier : {}.",
+                "Dictée n°{} : ces mots sortiront en priorité : {}.",
                 dictee.id,
                 imposes.join(", ")
             )
