@@ -39,7 +39,7 @@ use crate::adapters::voix::base::Voix;
 use crate::alea::Alea;
 use crate::config::Coffre as ConfigCoffre;
 use crate::dictees::{self, ErreurDictees, Preparation, ecrire_jour, lire_jour};
-use crate::exercises::base::{Exercice, normaliser};
+use crate::exercises::base::{Exercice, meme_cle, normaliser};
 use crate::exercises::francais::dictee::imposes_absents;
 use crate::games::atelier::{ErreurAtelier, pos};
 use crate::games::coffre_du_soir::{
@@ -197,12 +197,13 @@ impl Orchestrateur {
         if let Some(nouveau) = nom
             && precedent.as_deref() != Some(nouveau.as_str())
         {
-            self.depot.noter_tentative(
-                actif.id,
-                &nouveau,
-                nouveau == actif.exercice.reponse,
-                (self.horloge)(),
-            )?;
+            let juste = meme_cle(&nouveau, &actif.exercice.reponse);
+            self.depot
+                .noter_tentative(actif.id, &nouveau, juste, (self.horloge)())?;
+            if juste {
+                // Le verrou ne connaît que le nom exact : il prend celui que l'enfant a écrit.
+                self.coffre.accepter_la_cle(&nouveau).await?;
+            }
             *self.cle_vue.borrow_mut() = Some((actif.id, Some(nouveau)));
         }
         Ok(())

@@ -297,6 +297,11 @@ impl Coffre for FauxCoffre {
         Ok(self.nom_cle.borrow().clone())
     }
 
+    async fn accepter_la_cle(&self, nom: &str) -> Result<(), ErreurCoffre> {
+        self.note(format!("clé juste {nom}"));
+        Ok(())
+    }
+
     async fn preuve_trouvee(&self, _: &ExerciceStocke) -> Result<bool, ErreurCoffre> {
         Ok(self.preuve.get())
     }
@@ -1099,7 +1104,7 @@ async fn un_mot_de_dictee_rate_garde_sa_graphie_et_ne_va_pas_au_journal() {
     m.orch.tour().await.unwrap();
     m.coffre.en_ligne.set(true);
     m.orch.tour().await.unwrap();
-    for graphie in ["plu", "pluss", "Plus", "plus"] {
+    for graphie in ["plu", "pluss", "Plus", " pl us", "plus"] {
         cle(&m, Some(graphie));
         m.orch.tour().await.unwrap();
     }
@@ -1108,17 +1113,29 @@ async fn un_mot_de_dictee_rate_garde_sa_graphie_et_ne_va_pas_au_journal() {
         [
             ("plu".to_owned(), false),
             ("pluss".to_owned(), false),
-            // La comparaison est exacte, comme celle du verrou : la majuscule compte.
-            ("Plus".to_owned(), false),
+            // Ni la majuscule ni les espaces ne comptent.
+            ("Plus".to_owned(), true),
+            (" pl us".to_owned(), true),
             ("plus".to_owned(), true),
         ]
+    );
+    // Le verrou ne connaît qu'un nom exact : il prend chaque fois celui que l'enfant a écrit.
+    let acceptees: Vec<String> = m
+        .coffre
+        .actions()
+        .into_iter()
+        .filter(|a| a.starts_with("clé juste"))
+        .collect();
+    assert_eq!(
+        acceptees,
+        ["clé juste Plus", "clé juste  pl us", "clé juste plus"]
     );
     m.coffre.preuve.set(true);
     m.orch.tour().await.unwrap();
     assert!(
         m.notifs
             .dernier()
-            .ends_with("→ plus). Essais : plu, pluss, Plus."),
+            .ends_with("→ plus). Essais : plu, pluss."),
         "{}",
         m.notifs.dernier()
     );
@@ -1126,7 +1143,8 @@ async fn un_mot_de_dictee_rate_garde_sa_graphie_et_ne_va_pas_au_journal() {
     let journal = mine_de_rien::journal::captures().join("\n");
     assert!(!journal.contains("pluss"), "{journal}");
     // Ni dans le jeu : le faux coffre n'a reçu aucun texte à dire.
-    assert!(!m.coffre.actions().iter().any(|a| a.contains("plu")));
+    assert!(!m.coffre.actions().iter().any(|a| a.contains("pluss")));
+    assert!(!m.coffre.actions().iter().any(|a| a.ends_with("plu")));
 }
 
 /// Un monde sans coffre en file, avec une dictée de trois phrases confirmée la veille pour

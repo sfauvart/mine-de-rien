@@ -339,6 +339,39 @@ async fn rangement_et_retrait_rendent_l_ecouteur_muet() {
 }
 
 #[tokio::test]
+async fn une_cle_juste_a_la_casse_pres_devient_le_verrou() {
+    let jeu = Rc::new(FauxJeu::default());
+    let coffre = coffre(&jeu).await;
+    coffre.accepter_la_cle(" L'Homme").await.unwrap();
+    let commandes = jeu.commandes();
+    assert!(
+        commandes
+            .iter()
+            .any(|c| c
+                .ends_with(r#"lock set value {components:{"minecraft:custom_name":" L'Homme"}}"#)),
+        "{commandes:?}"
+    );
+    assert_eq!(
+        jeu.textes(),
+        [mine_de_rien::games::coffre_du_soir::CLE_JUSTE]
+    );
+}
+
+#[test]
+fn ni_la_casse_ni_les_espaces_ne_comptent_mais_les_accents_si() {
+    use mine_de_rien::exercises::base::meme_cle;
+    for ecrit in ["Dubaï", "dubaï", " DUBAÏ ", "du baï"] {
+        assert!(meme_cle(ecrit, "Dubaï"), "{ecrit}");
+    }
+    assert!(meme_cle("Élève", "élève"));
+    for ecrit in ["dubai", "duba", "", "dubaïs"] {
+        assert!(!meme_cle(ecrit, "Dubaï"), "{ecrit}");
+    }
+    assert!(!meme_cle("a", "à"));
+    assert!(meme_cle("29 ", "29"));
+}
+
+#[tokio::test]
 async fn message_de_reconnexion() {
     let jeu = Rc::new(FauxJeu::default());
     let coffre = coffre(&jeu).await;
