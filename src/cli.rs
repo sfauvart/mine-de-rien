@@ -30,7 +30,7 @@ use crate::orchestrateur::{
 use crate::saisie::Source;
 use crate::storage::sqlite::Demande;
 use crate::storage::sqlite::{Depot, ErreurStockage, maintenant};
-use crate::{VERSION, datapack, dictees, pack, photo, service_pack, son};
+use crate::{VERSION, datapack, dictees, livraison, pack, photo, service_pack, son};
 
 #[derive(Parser)]
 #[command(
@@ -117,6 +117,19 @@ enum Action {
         #[arg(long)]
         source: Option<PathBuf>,
     },
+    /// livre au serveur ce qui vient avec cette version : le datapack, le plugin de la voix
+    /// et les réglages du chat vocal, sans config
+    Livrer {
+        /// reçoit le sous-dossier mine_de_rien du datapack
+        #[arg(long)]
+        datapack: PathBuf,
+        /// reçoit mine-de-rien-voix.jar et voicechat/voicechat-server.properties
+        #[arg(long)]
+        plugin: PathBuf,
+        /// plugin à recopier, à la place de celui de l'image
+        #[arg(long, default_value = livraison::PLUGIN_DE_L_IMAGE)]
+        source_plugin: PathBuf,
+    },
 }
 
 fn erreur(message: impl std::fmt::Display) -> ExitCode {
@@ -132,6 +145,25 @@ pub fn main() -> ExitCode {
         return match datapack::recopier(dossier, source.as_deref()) {
             Ok(cible) => {
                 println!("Datapack recopié dans {}", cible.display());
+                ExitCode::SUCCESS
+            }
+            Err(e) => erreur(e),
+        };
+    }
+
+    if let Some(Action::Livrer {
+        datapack,
+        plugin,
+        source_plugin,
+    }) = &arguments.action
+    {
+        match datapack::recopier(datapack, None) {
+            Ok(cible) => println!("Datapack recopié dans {}", cible.display()),
+            Err(e) => return erreur(e),
+        }
+        return match livraison::recopier_plugin(plugin, source_plugin) {
+            Ok(cible) => {
+                println!("Plugin recopié dans {}", cible.display());
                 ExitCode::SUCCESS
             }
             Err(e) => erreur(e),
@@ -732,5 +764,6 @@ fn executer(action: Option<Action>, config: &Config) -> ExitCode {
         },
         Some(Action::ServirPack) => terminer(attendre(servir_pack(config))),
         Some(Action::Datapack { .. }) => erreur("le datapack se recopie sans configuration"),
+        Some(Action::Livrer { .. }) => erreur("la livraison se fait sans configuration"),
     }
 }

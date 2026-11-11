@@ -13,7 +13,8 @@ Il faut :
 ## 1. Récupérer les fichiers
 
 Trois fichiers suffisent. Docker téléchargera le reste : l'image de l'agent
-(`ghcr.io/sfauvart/mine-de-rien`, avec le datapack) et celle du serveur Minecraft.
+(`ghcr.io/sfauvart/mine-de-rien`, avec le datapack et le plugin de la voix) et celle du
+serveur Minecraft.
 
 Choisir la dernière version dans la liste https://github.com/sfauvart/mine-de-rien/tags
 (par exemple `v0.2.0`, à écrire sans le `v` ci-dessous), puis :
@@ -140,8 +141,15 @@ docker compose up -d minecraft
 docker compose logs -f minecraft    # attendre « Done », puis Ctrl+C
 ```
 
-Avant le serveur, un petit service `datapack` recopie le datapack de Mine de rien dans
-`data/datapacks`, puis s'arrête : c'est normal qu'il apparaisse « Exited (0) ».
+Avant le serveur, un petit service `livraison` recopie ce qui vient avec la version de
+l'agent, puis s'arrête : c'est normal qu'il apparaisse « Exited (0) ». Il dépose le datapack
+dans `data/datapacks`, et dans `data/plugins` le plugin de la voix (`mine-de-rien-voix.jar`)
+avec les réglages du chat vocal. Le serveur télécharge de son côté le plugin
+**Simple Voice Chat** sur Modrinth, comme il télécharge Paper.
+
+Le chat vocal ouvre un second port, **24454 en UDP**, entre le jeu de l'enfant et le
+serveur. Comme le 25565, il ne se redirige jamais sur la box. Avec un pare-feu sur le PC :
+`sudo ufw allow 24454/udp`.
 
 Ajouter l'enfant à la liste blanche, déjà active mais vide :
 
@@ -243,8 +251,14 @@ coffre ni creuser dessous. Il repasse en survie en s'éloignant de quelques bloc
 ## 8. Régler le lanceur de l'enfant
 
 Créer une installation (lanceur officiel) ou une instance (XMCL) **exactement dans la
-version de `MC_VERSION`**, sans loader, puis ajouter le serveur avec l'adresse IP locale
-du PC. Détails et dépannage : [rejoindre-le-serveur.md](rejoindre-le-serveur.md).
+version de `MC_VERSION`**, puis ajouter le serveur avec l'adresse IP locale du PC. Détails
+et dépannage : [rejoindre-le-serveur.md](rejoindre-le-serveur.md).
+
+Sans loader, les coffres de calcul marchent. **Pour les dictées, il faut que l'enfant
+entende** : son instance a besoin de Fabric et du mod Simple Voice Chat, dans la version
+du plugin du serveur. C'est dix minutes, une fois, décrites geste par geste dans
+[rejoindre-le-serveur.md](rejoindre-le-serveur.md#le-chat-vocal) : l'installation, l'étape
+du micro à passer, le volume « Mine de rien ».
 
 ## 9. Premier coffre
 
@@ -368,9 +382,9 @@ est corrigée en 3 secondes.** Pour garder par exemple un serveur paisible en pe
 
 ## 13. Préparer une dictée
 
-Il faut les sections `[voix]` et `[pack]` de l'étape 4, et le réglage « Packs de ressources
-du serveur : Activés » sur le poste de l'enfant
-([rejoindre-le-serveur.md](rejoindre-le-serveur.md#le-pack-de-sons-des-dictées)).
+Il faut les sections `[voix]` (avec `dossier_du_jeu = "/sons"`) et `[pack]` de l'étape 4,
+et le chat vocal dans le jeu de l'enfant
+([rejoindre-le-serveur.md](rejoindre-le-serveur.md#le-chat-vocal)).
 
 Quand la maîtresse donne le texte à préparer, l'envoyer au bot avec le jour de la dictée :
 
@@ -410,19 +424,10 @@ comptent, les accents si. Quand le mot est juste, le chat le dit (« C'est la bo
 réponse ! ») et le coffre s'ouvre. Un clic droit avec l'objet « Écouteur » relit la phrase. « Pixel,
 aide-moi » la relit lentement, puis donne le nombre de lettres, puis la première lettre.
 
-- **Après une nouvelle dictée, le jeu de l'enfant doit se reconnecter** : il ne charge les
-  sons qu'à la connexion. S'il ne joue pas à ce moment-là, il n'y a rien à faire. S'il
-  joue, l'agent le fait pour lui, à condition de lui dire l'adresse que l'enfant tape pour
-  rejoindre le serveur, dans `config.toml` :
-
-  ```toml
-  [pack]
-  adresse_du_jeu = "192.168.1.20:25565"
-  ```
-
-  L'enfant voit un écran de chargement de quelques secondes, puis la dictée commence. Sans
-  ce réglage, le coffre attend, et le bot demande à l'enfant de se déconnecter puis de se
-  reconnecter. Le `docker-compose.yml` autorise ce renvoi (`ACCEPTS_TRANSFERS`).
+- **L'enfant reste connecté.** La phrase lui arrive par le chat vocal, dans la seconde,
+  sans écran de chargement. Si son jeu n'a pas le chat vocal, aucun coffre de dictée n'est
+  posé : il lit « Demande à un parent d'installer le chat vocal », les coffres de calcul
+  continuent, et le bot prévient les parents une fois par jour.
 - **Photo de la feuille** : possible avec `[llm]` (étape 4), légende `dictée vendredi`. À
   l'essai, le modèle a recopié « noirades » pour « noiraudes » sur une feuille nette : le
   texte tapé est plus sûr, et une photo demande une relecture lettre par lettre.
@@ -445,7 +450,8 @@ Le monde, la base des coffres, `.env` et `config.toml` sont conservés.
 
 3. Comparer `config.toml` à `config.example.toml` de la même version, pour une section
    nouvelle à recopier.
-4. Télécharger les images et redémarrer. Le datapack suit l'agent :
+4. Télécharger les images et redémarrer. Le datapack et le plugin de la voix suivent
+   l'agent :
 
    ```bash
    docker compose pull
@@ -455,14 +461,20 @@ Le monde, la base des coffres, `.env` et `config.toml` sont conservés.
 ## En cas de souci
 
 ```bash
-docker compose ps -a               # minecraft et agent tournent, datapack est « Exited (0) »
+docker compose ps -a               # minecraft et agent tournent, livraison est « Exited (0) »
 docker compose logs --tail 50 agent
 docker compose logs --tail 50 minecraft
 ```
 
 - **La zone de l'atelier ne passe plus en mode aventure** : vérifier que
-  `data/datapacks/mine_de_rien` existe et que `docker compose logs datapack` affiche
+  `data/datapacks/mine_de_rien` existe et que `docker compose logs livraison` affiche
   « Datapack recopié ». Dans le log du serveur, chercher `Copying datapack`.
+- **L'enfant n'entend pas la dictée**, ou le bot dit que son jeu n'est pas relié au chat
+  vocal : `docker compose exec minecraft rcon-cli "mdrvoix etat <pseudo>"` doit répondre
+  `relié` quand il est en jeu. `sans chat vocal` : le mod manque, n'est pas dans la version
+  du plugin, ou le port 24454/udp est fermé. Une réponse « Unknown command » : le plugin
+  n'est pas chargé, voir `docker compose logs livraison` (« Plugin recopié ») et chercher
+  `mine-de-rien-voix` et `voicechat` dans le log du serveur.
 - **Une image construite en local reste en place** : une image construite par
   `docker compose build agent` porte le même nom que l'image publiée, et `up` la garde.
   `docker compose pull` remet l'image publiée.

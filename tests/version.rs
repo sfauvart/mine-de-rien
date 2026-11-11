@@ -1,6 +1,7 @@
 //! La version n'a qu'une source : `Cargo.toml`. C'est elle qu'affiche `mine-de-rien --version`,
 //! et les images citées dans `docker-compose.yml` doivent porter le même numéro : ce fichier
-//! est celui que les installations téléchargent depuis le tag.
+//! est celui que les installations téléchargent depuis le tag. Le plugin Paper livré dans
+//! l'image (`plugin/pom.xml`) porte ce numéro lui aussi.
 //!
 //! À la publication, le workflow lance ce test avec `MDR_TAG` (le tag git poussé) : un tag
 //! qui ne correspond pas à la version déclarée ne publie rien.
@@ -15,6 +16,25 @@ static TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^v([0-9]+\.[0-9]+\.[
 static IMAGE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?m)^\s*image:\s*["']?ghcr\.io/sfauvart/mine-de-rien(?::([^\s"']+))?"#).unwrap()
 });
+
+static VERSION_DU_PLUGIN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"<artifactId>mine-de-rien-voix</artifactId>\s*(?:<!--.*?-->\s*)*<version>([^<]+)</version>",
+    )
+    .unwrap()
+});
+
+/// La version que déclare le plugin, ou `None` si son pom ne se lit pas.
+fn version_du_plugin(pom: &str) -> Option<&str> {
+    VERSION_DU_PLUGIN
+        .captures(pom)
+        .and_then(|m| m.get(1))
+        .map(|v| v.as_str())
+}
+
+fn pom_du_depot() -> String {
+    std::fs::read_to_string(commun::racine().join("plugin/pom.xml")).unwrap()
+}
 
 /// Liste des écarts entre le tag et les versions déclarées ; vide si tout concorde.
 fn ecarts(tag: &str, version_du_paquet: &str, compose: &str) -> Vec<String> {
@@ -79,6 +99,29 @@ fn le_tag_publie_est_celui_de_la_version() {
         ecarts(&tag, mine_de_rien::VERSION, &compose_du_depot()),
         Vec::<String>::new(),
         "le tag {tag} ne publie rien tant que ces écarts restent"
+    );
+    assert_eq!(
+        version_du_plugin(&pom_du_depot()).map(|v| format!("v{v}")),
+        Some(tag.clone()),
+        "plugin/pom.xml n'annonce pas la version du tag {tag}"
+    );
+}
+
+#[test]
+fn le_plugin_porte_la_version_du_paquet() {
+    assert_eq!(
+        version_du_plugin(&pom_du_depot()),
+        Some(mine_de_rien::VERSION),
+        "plugin/pom.xml et Cargo.toml doivent annoncer la même version"
+    );
+    // La version d'une dépendance ne compte pas, ni un pom sans version.
+    let autre = "<artifactId>paper-api</artifactId>\n<version>26.3</version>";
+    assert_eq!(version_du_plugin(autre), None);
+    assert_eq!(
+        version_du_plugin(
+            "<artifactId>mine-de-rien-voix</artifactId>\n  <!-- note -->\n  <version>1.2.3</version>"
+        ),
+        Some("1.2.3")
     );
 }
 

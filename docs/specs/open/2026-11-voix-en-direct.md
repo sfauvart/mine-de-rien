@@ -138,7 +138,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 
 - [x] **Phase 1 : Le serveur dit une phrase au seul enfant**
 - [x] **Phase 2 : La dictée passe par la voix en direct**
-- [ ] **Phase 3 : Le plugin est livré avec l'image**
+- [x] **Phase 3 : Le plugin est livré avec l'image**
 - [ ] **Phase 4 : Le pack de sons disparaît**
 - [ ] **Phase 5 : Pixel et les annonces se font entendre**
 
@@ -318,6 +318,22 @@ Le compose de production et l'image publiée (`docker/agent.Dockerfile`,
 - Le guide d'installation explique, geste par geste : le mod dans le jeu de l'enfant,
   l'étape du micro à passer, le volume « Mine de rien », épingler `MC_VERSION`, et ce qui
   se passe quand Minecraft sort une version que le mod ne couvre pas encore.
+
+**Précisé en codant.**
+
+- La sous-commande est `mine-de-rien livrer --datapack /datapacks --plugin /plugins`, et le
+  service ponctuel s'appelle `livraison` (il s'appelait `datapack`). Le `.jar` est dans
+  l'image sous `/usr/local/share/mine-de-rien/` : l'embarquer dans le binaire ferait
+  dépendre `cargo build` d'une construction Java.
+- `livrer` écrit aussi `data/plugins/voicechat/voicechat-server.properties` (port 24454,
+  groupes désactivés), **à la première installation seulement** : le parent peut ensuite
+  y régler `voice_host` sans qu'une mise à jour l'écrase.
+- Le dossier partagé est `data/sons`, monté `/sons` chez l'agent (écriture) et chez le
+  serveur (lecture seule) ; `[voix] dossier_du_jeu = "/sons"`.
+- Vérifié le 2026-11-11 : images amd64 (10,3 Mo) et arm64 (8,0 Mo) construites sans
+  émulation, une architecture à la fois (le Docker du poste ne sait pas charger une image à
+  deux architectures) ; compose de production sur un dossier vide : les deux plugins se
+  chargent, `mdrvoix etat` répond `absent` par RCON, le chat vocal écoute sur 24454.
 
 **Vérification automatique.**
 

@@ -10,6 +10,7 @@ pub mod diffusion;
 pub mod exercises;
 pub mod games;
 pub mod journal;
+pub mod livraison;
 pub mod minecraft;
 pub mod orchestrateur;
 pub mod pack;

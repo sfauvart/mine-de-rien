@@ -145,13 +145,11 @@ de dictée lues à voix haute, rien d'autre.
 
 ## Le chat vocal
 
-*Pour l'instant sur le serveur d'essai seulement (`docker/essai.compose.yml`) : le vrai
-serveur fait encore entendre les dictées par le pack de sons ci-dessus.*
-
 La voix de Mine de rien arrive dans le jeu par un chat vocal, le mod **Simple Voice Chat** :
 le serveur dit une phrase, le joueur l'entend dans la seconde, sans écran de chargement.
 Seul le joueur désigné l'entend. Il faut le mod dans le jeu, dans la même version que le
-plugin du serveur : **2.6.27**.
+plugin du serveur : **2.6.27**. Sans lui, le jeu marche, les coffres de calcul aussi, mais
+aucun coffre de dictée n'est posé.
 
 ### Installer Fabric et le mod dans XMCL
 
@@ -196,23 +194,44 @@ n'en a pas besoin pour entendre.
 
 ### Réseau
 
-Le chat vocal passe par un port **UDP** entre le jeu et le serveur : **24464** pour le
-serveur d'essai. Si le jeu tourne sur un autre ordinateur que le serveur, ouvrir ce port
-comme le 25565 (voir « Pare-feu » plus bas), en UDP :
+Le chat vocal passe par un port **UDP** entre le jeu et le serveur : **24454** pour le
+vrai serveur, 24464 pour le serveur d'essai. Si le jeu tourne sur un autre ordinateur que
+le serveur, ouvrir ce port comme le 25565 (voir « Pare-feu » plus bas), en UDP :
 
 ```bash
-sudo ufw allow 24464/udp
+sudo ufw allow 24454/udp
 ```
 
 Ce port ne se redirige jamais sur la box, comme les autres.
+
+Le jeu joint le chat vocal à l'adresse qu'il a tapée pour rejoindre le serveur. Si cela ne
+convient pas (adresses différentes pour le jeu et pour la voix), la donner dans
+`data/plugins/voicechat/voicechat-server.properties`, clé `voice_host`, puis redémarrer le
+serveur. Ce fichier est écrit à la première installation et n'est plus touché ensuite.
+
+### Quand Minecraft change de version
+
+Le mod du jeu, le plugin du serveur et Minecraft vont ensemble. Trois règles :
+
+- **Garder `MC_VERSION` épinglée** dans `.env` (par exemple `26.3`), jamais `LATEST` : sinon
+  le serveur passe seul à la version suivante, et le jeu de l'enfant ne s'y connecte plus.
+- **Dans le lanceur, ne pas laisser l'instance se mettre à jour seule**, ni le mod.
+- **Quand une nouvelle version de Minecraft sort**, le mod met parfois quelques jours à
+  suivre. Attendre qu'une version de Mine de rien annonce la nouvelle version de Minecraft
+  (elle épingle le plugin du chat vocal qui va avec), puis mettre à jour dans l'ordre : le
+  serveur ([installation.md](installation.md#mettre-à-jour)), `MC_VERSION`, l'instance du
+  jeu, le mod dans la version indiquée ici. Tant qu'on ne touche à rien, tout continue de
+  marcher sur l'ancienne version.
 
 ### Vérifier
 
 Le serveur dit si le jeu d'un joueur est relié :
 
 ```bash
-docker compose -f docker/essai.compose.yml exec minecraft rcon-cli "mdrvoix etat <pseudo>"
+docker compose exec minecraft rcon-cli "mdrvoix etat <pseudo>"
 ```
+
+(Serveur d'essai : ajouter `-f docker/essai.compose.yml` après `docker compose`.)
 
 | Réponse | Sens |
 |---|---|
@@ -220,11 +239,15 @@ docker compose -f docker/essai.compose.yml exec minecraft rcon-cli "mdrvoix etat
 | `sans chat vocal` | le joueur est en jeu, mais sans le mod, dans une autre version du mod, ou le port UDP est fermé |
 | `absent` | le joueur n'est pas connecté |
 
-Puis lui faire dire une phrase (il faut la voix du compose d'essai, `--profile voix`) :
+Puis lui faire dire une phrase. Il faut la voix (`--profile voix`) et `[voix]` dans
+`config.toml`, avec `dossier_du_jeu` :
 
 ```bash
-cargo run -- --config config.essai.toml parler "Bonjour, je suis Pixel."
+docker compose exec agent mine-de-rien --config /app/config.toml parler "Bonjour, je suis Pixel."
 ```
+
+Depuis un clone du dépôt, sur le serveur d'essai :
+`cargo run -- --config config.essai.toml parler "Bonjour, je suis Pixel."`
 
 ## Si la connexion échoue
 

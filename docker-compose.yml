@@ -1,11 +1,13 @@
 services:
-  # Ponctuel : recopie le datapack de la version de l'agent dans data/datapacks, avant le
-  # serveur. Code et datapack viennent de la même image, donc de la même version.
-  datapack:
+  # Ponctuel : livre au serveur, avant son démarrage, ce qui vient avec la version de
+  # l'agent : le datapack dans data/datapacks, le plugin de la voix et les réglages du chat
+  # vocal dans data/plugins. Tout vient de la même image, donc de la même version.
+  livraison:
     image: ghcr.io/sfauvart/mine-de-rien:0.2.0
-    command: ["mine-de-rien", "datapack", "/datapacks"]
+    command: ["mine-de-rien", "livrer", "--datapack", "/datapacks", "--plugin", "/plugins"]
     volumes:
       - ./data/datapacks:/datapacks
+      - ./data/plugins:/plugins
 
   minecraft:
     image: itzg/minecraft-server:2026.10.1-java25
@@ -34,14 +36,27 @@ services:
       # Permet à l'agent de renvoyer le jeu de l'enfant vers ce serveur (commande « transfer »)
       # pour qu'il recharge les sons d'une nouvelle dictée sans se déconnecter à la main.
       ACCEPTS_TRANSFERS: "TRUE"
+      # Le chat vocal (Simple Voice Chat), par lequel l'enfant entend la voix. Version
+      # épinglée : le mod de son jeu doit porter la même (docs/rejoindre-le-serveur.md).
+      # Téléchargé sur Modrinth au démarrage du serveur, comme Paper.
+      MODRINTH_PROJECTS: "simple-voice-chat:bukkit-2.6.27"
+      # Où le plugin de Mine de rien lit les sons que l'agent dépose.
+      MDR_VOIX_DOSSIER: /sons
       # Aucun opérateur : un enfant opérateur peut lire la réponse ou se donner la récompense.
     ports:
       - "25565:25565"
+      # Le chat vocal, entre le jeu de l'enfant et le serveur. Jamais redirigé sur la box.
+      - "24454:24454/udp"
     volumes:
       - ./data/minecraft:/data
       - ./data/datapacks:/datapacks:ro
+      # Le plugin de la voix et les réglages du chat vocal, recopiés dans plugins/ à chaque
+      # démarrage du serveur.
+      - ./data/plugins:/plugins:ro
+      # Les sons à faire entendre : écrits par l'agent, seulement lus par le serveur.
+      - ./data/sons:/sons:ro
     depends_on:
-      datapack:
+      livraison:
         condition: service_completed_successfully
     restart: unless-stopped
 
@@ -59,6 +74,7 @@ services:
       - ./config.toml:/app/config.toml:ro
       - ./data/agent:/data
       - ./data/minecraft:/minecraft:ro   # lecture du log serveur
+      - ./data/sons:/sons                # [voix] dossier_du_jeu : ce que le chat vocal joue
     depends_on:
       - minecraft
     # « sans-sortie » : pour joindre la voix quand le profil voix est lancé.
