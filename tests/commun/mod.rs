@@ -201,12 +201,22 @@ pub fn conclure<T: serde::Serialize, E: std::fmt::Display>(
     rejeu.verifier_fin();
 }
 
-/// Une diffusion qui ne joue rien : elle note ce qu'on lui a fait dire.
+/// Une diffusion qui ne joue rien : elle note ce qu'on lui a fait dire, garder et désigner.
 pub struct FausseDiffusion {
+    /// Les sons dits à la volée.
     pub dits: std::cell::RefCell<Vec<mine_de_rien::son::Pcm>>,
     pub coupures: std::cell::Cell<usize>,
     /// Ce que répond `relie` : le jeu de l'enfant a le chat vocal, ou non.
     pub reliee: std::cell::Cell<bool>,
+    /// Les sons gardés dans le dossier partagé, par nom.
+    pub gardes: std::cell::RefCell<std::collections::BTreeMap<String, mine_de_rien::son::Pcm>>,
+    /// Le son désigné à l'Écouteur.
+    pub designe: std::cell::RefCell<Option<String>>,
+    /// Tout ce qui a été demandé, dans l'ordre : « garder phrase-2.pcm », « redire … »,
+    /// « désigner … », « désigner rien », « oublier … », « dire », « couper ».
+    pub actions: std::cell::RefCell<Vec<String>>,
+    /// Le serveur refuse de jouer : `dire` et `redire` échouent.
+    pub en_panne: std::cell::Cell<bool>,
 }
 
 impl FausseDiffusion {
@@ -215,6 +225,28 @@ impl FausseDiffusion {
             dits: std::cell::RefCell::new(Vec::new()),
             coupures: std::cell::Cell::new(0),
             reliee: std::cell::Cell::new(true),
+            gardes: std::cell::RefCell::new(std::collections::BTreeMap::new()),
+            designe: std::cell::RefCell::new(None),
+            actions: std::cell::RefCell::new(Vec::new()),
+            en_panne: std::cell::Cell::new(false),
+        }
+    }
+
+    pub fn actions(&self) -> Vec<String> {
+        self.actions.borrow().clone()
+    }
+
+    fn note(&self, action: String) {
+        self.actions.borrow_mut().push(action);
+    }
+
+    fn panne(&self) -> Result<(), mine_de_rien::diffusion::ErreurDiffusion> {
+        if self.en_panne.get() {
+            Err(mine_de_rien::diffusion::ErreurDiffusion(
+                "Le serveur n'a pas joué le son : refusé : sans chat vocal".to_owned(),
+            ))
+        } else {
+            Ok(())
         }
     }
 }
@@ -231,11 +263,14 @@ impl mine_de_rien::diffusion::Diffusion for FausseDiffusion {
         &self,
         son: &mine_de_rien::son::Pcm,
     ) -> Result<(), mine_de_rien::diffusion::ErreurDiffusion> {
+        self.panne()?;
+        self.note("dire".to_owned());
         self.dits.borrow_mut().push(son.clone());
         Ok(())
     }
 
     async fn couper(&self) -> Result<(), mine_de_rien::diffusion::ErreurDiffusion> {
+        self.note("couper".to_owned());
         self.dits.borrow_mut().clear();
         self.coupures.set(self.coupures.get() + 1);
         Ok(())
@@ -244,4 +279,129 @@ impl mine_de_rien::diffusion::Diffusion for FausseDiffusion {
     async fn relie(&self) -> Result<bool, mine_de_rien::diffusion::ErreurDiffusion> {
         Ok(self.reliee.get())
     }
+
+    async fn garder(
+        &self,
+        nom: &str,
+        son: &mine_de_rien::son::Pcm,
+    ) -> Result<(), mine_de_rien::diffusion::ErreurDiffusion> {
+        mine_de_rien::diffusion::verifier_fichier(nom)?;
+        self.note(format!("garder {nom}"));
+        self.gardes.borrow_mut().insert(nom.to_owned(), son.clone());
+        Ok(())
+    }
+
+    async fn garde(&self, nom: &str) -> bool {
+        self.gardes.borrow().contains_key(nom)
+    }
+
+    async fn redire(&self, nom: &str) -> Result<(), mine_de_rien::diffusion::ErreurDiffusion> {
+        self.panne()?;
+        assert!(
+            self.gardes.borrow().contains_key(nom),
+            "{nom} n'est pas gardé"
+        );
+        self.note(format!("redire {nom}"));
+        Ok(())
+    }
+
+    async fn designer(
+        &self,
+        nom: Option<&str>,
+    ) -> Result<(), mine_de_rien::diffusion::ErreurDiffusion> {
+        self.note(format!("désigner {}", nom.unwrap_or("rien")));
+        *self.designe.borrow_mut() = nom.map(str::to_owned);
+        Ok(())
+    }
+
+    async fn oublier(&self, nom: &str) -> Result<(), mine_de_rien::diffusion::ErreurDiffusion> {
+        self.note(format!("oublier {nom}"));
+        self.gardes.borrow_mut().remove(nom);
+        Ok(())
+    }
+}
+
+/// Un WAV PCM 16 bits mono à 22 050 Hz, de `trames` échantillons.
+pub fn wav(trames: usize) -> Vec<u8> {
+    let donnees: Vec<u8> = (0..trames)
+        .flat_map(|i| (((i % 100) as i16 - 50) * 200).to_le_bytes())
+        .collect();
+    let mut w = Vec::new();
+    w.extend_from_slice(b"RIFF");
+    w.extend_from_slice(&(36 + donnees.len() as u32).to_le_bytes());
+    w.extend_from_slice(b"WAVEfmt ");
+    w.extend_from_slice(&16u32.to_le_bytes());
+    w.extend_from_slice(&1u16.to_le_bytes());
+    w.extend_from_slice(&1u16.to_le_bytes());
+    w.extend_from_slice(&22_050u32.to_le_bytes());
+    w.extend_from_slice(&44_100u32.to_le_bytes());
+    w.extend_from_slice(&2u16.to_le_bytes());
+    w.extend_from_slice(&16u16.to_le_bytes());
+    w.extend_from_slice(b"data");
+    w.extend_from_slice(&(donnees.len() as u32).to_le_bytes());
+    w.extend_from_slice(&donnees);
+    w
+}
+
+/// Une voix qui note ce qu'on lui fait lire, et rend un son deux fois plus long à vitesse lente.
+#[derive(Default)]
+pub struct VoixDeTest {
+    pub en_panne: std::cell::Cell<bool>,
+    pub lus: std::cell::RefCell<Vec<(String, bool)>>,
+}
+
+#[async_trait::async_trait(?Send)]
+impl mine_de_rien::adapters::voix::base::Voix for VoixDeTest {
+    async fn dire(
+        &self,
+        texte: &str,
+        lent: bool,
+    ) -> Result<Vec<u8>, mine_de_rien::adapters::voix::base::ErreurVoix> {
+        if self.en_panne.get() {
+            return Err(mine_de_rien::adapters::voix::base::ErreurVoix(
+                "La voix locale est injoignable (essai).".to_owned(),
+            ));
+        }
+        self.lus.borrow_mut().push((texte.to_owned(), lent));
+        Ok(wav(if lent { 4_410 } else { 2_205 }))
+    }
+}
+
+/// Enregistre `texte` comme une dictée confirmée et rend l'exercice du trou `mot`, tel qu'une
+/// séance le mettrait en file : avec les numéros des sons de sa phrase et celui de la dictée.
+pub fn trou_en_base(
+    depot: &mine_de_rien::storage::sqlite::Depot,
+    texte: &str,
+    mot: &str,
+) -> mine_de_rien::exercises::base::Exercice {
+    use mine_de_rien::exercises::francais::dictee::{candidats, decouper};
+    let sonores: Vec<mine_de_rien::storage::sqlite::PhraseSonore> = decouper(texte)
+        .iter()
+        .map(|p| mine_de_rien::storage::sqlite::PhraseSonore {
+            texte: p.texte.clone(),
+            son: b"OggS".to_vec(),
+            son_lent: b"OggS".to_vec(),
+        })
+        .collect();
+    let jour = chrono::NaiveDate::from_ymd_opt(2026, 11, 13).unwrap();
+    let dictee = depot
+        .ajouter_dictee(
+            jour,
+            texte,
+            &sonores,
+            "111",
+            instant("2026-11-08T18:00:00+00:00"),
+        )
+        .unwrap();
+    let (phrases, numeros) = mine_de_rien::dictees::phrases_enregistrees(depot, dictee).unwrap();
+    let position = candidats(&phrases)
+        .into_iter()
+        .find(|p| phrases[p.phrase].mots[p.mot].texte == mot)
+        .unwrap_or_else(|| panic!("{mot} absent"));
+    let mut ex =
+        mine_de_rien::dictees::exercice_sonore(&phrases, position, numeros[position.phrase])
+            .unwrap();
+    ex.donnees
+        .insert("dictee".to_owned(), serde_json::json!(dictee));
+    ex
 }

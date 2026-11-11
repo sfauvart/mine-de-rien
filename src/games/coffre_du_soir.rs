@@ -41,8 +41,8 @@
 //! l'enfant lit « C'est la bonne réponse ! » avec un tintement. Il attend donc ce message, au
 //! plus 3 secondes, avant d'ouvrir. Une réponse écrite exactement ouvre sans attendre.
 //!
-//! **Sons d'une dictée.** Voir `dictee.rs` : si le jeu de l'enfant n'a pas le pack du jour,
-//! l'agent l'y renvoie (`transfer`), ou lui demande de se reconnecter.
+//! **Phrase d'une dictée.** Voir `dictee.rs` : elle s'entend par le chat vocal. Une voix en
+//! panne ne casse pas le coffre : la phrase à trou reste écrite dans le chat.
 //!
 //! **Détection**, toutes les 3 secondes quand l'enfant est connecté :
 //!
@@ -87,9 +87,12 @@ use tokio::sync::Mutex;
 
 use crate::adapters::game::base::AdaptateurJeu;
 use crate::adapters::game::rcon::ErreurRcon;
+use crate::dictees::Lecteur;
+use crate::exercises::base::Exercice;
 use crate::games::atelier::{Atelier, PAS_CONSTRUIT, lire_atelier, pos};
 use crate::games::dictee;
 use crate::games::tableau::{self, Morceau};
+use crate::journal;
 use crate::minecraft::texte::{self, LONGUEUR_MAX, PseudoInvalide, Style};
 use crate::storage::sqlite::ExerciceStocke;
 use crate::util::{json_python, repr, strip};
@@ -324,11 +327,12 @@ pub trait Coffre {
     async fn equiper(&self) -> Result<(), ErreurCoffre>;
     async fn rappeler(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre>;
     async fn demander_de_vider(&self) -> Result<(), ErreurCoffre>;
-    /// Une dictée attend, mais le jeu de l'enfant n'a pas encore chargé ses sons.
-    async fn demander_de_se_reconnecter(&self) -> Result<(), ErreurCoffre>;
-    /// Renvoie le jeu de l'enfant vers le serveur, pour qu'il se reconnecte seul et charge
-    /// les sons. `false` si ce n'est pas réglé ou si le serveur a refusé : à lui de le faire.
-    async fn recharger_les_sons(&self) -> Result<bool, ErreurCoffre>;
+    /// Vrai si le jeu de l'enfant est relié au chat vocal : il entendrait une dictée.
+    async fn chat_vocal_relie(&self) -> Result<bool, ErreurCoffre>;
+    /// Avant la pose d'un coffre de dictée : les sons de sa phrase sont prêts à être joués.
+    async fn preparer_la_dictee(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre>;
+    /// Une dictée attend, mais le jeu de l'enfant n'a pas le chat vocal.
+    async fn demander_le_chat_vocal(&self) -> Result<(), ErreurCoffre>;
     async fn preuve_trouvee(&self, s: &ExerciceStocke) -> Result<bool, ErreurCoffre>;
     /// Le nom que porte la clé de l'enfant : ce qu'il a écrit sur l'enclume. `None` s'il n'y
     /// a rien à lire.
@@ -352,8 +356,8 @@ pub struct CoffreDuSoir {
     pub niveaux_offerts: i64,
     /// Nom de Pixel s'il écoute le chat : le mode d'emploi dit qu'on peut l'appeler.
     pub assistant: Option<String>,
-    /// L'adresse du serveur vue du jeu de l'enfant, si l'agent peut l'y renvoyer.
-    adresse_du_jeu: Option<(String, u16)>,
+    /// Ce qui fait entendre la phrase d'une dictée ; sans lui, les dictées sont muettes.
+    lecteur: Option<Rc<Lecteur>>,
 }
 
 const GRIS: [(&str, Style<'static>); 1] = [("color", Style::Texte("gray"))];
@@ -375,15 +379,24 @@ impl CoffreDuSoir {
             pseudo: texte::verifier_pseudo(pseudo)?.to_owned(),
             niveaux_offerts,
             assistant: assistant.map(str::to_owned),
-            adresse_du_jeu: None,
+            lecteur: None,
         })
     }
 
-    /// Avec l'adresse que l'enfant tape pour rejoindre le serveur : l'agent peut y renvoyer
-    /// son jeu (`transfer`), ce qui vaut une reconnexion sans geste.
-    pub fn avec_adresse_du_jeu(mut self, hote: &str, port: u16) -> Self {
-        self.adresse_du_jeu = Some((hote.to_owned(), port));
+    /// Avec de quoi lire les phrases de dictée à l'enfant, par le chat vocal.
+    pub fn avec_lecteur(mut self, lecteur: Rc<Lecteur>) -> Self {
+        self.lecteur = Some(lecteur);
         self
+    }
+
+    /// Le coffre de dictée n'est plus à faire : l'Écouteur redevient muet, les sons de la
+    /// phrase sont effacés. Un échec n'empêche pas de ranger le coffre.
+    async fn oublier_la_phrase(&self, ex: &Exercice) {
+        if let Some(lecteur) = &self.lecteur
+            && let Err(e) = lecteur.oublier(ex).await
+        {
+            journal::avertissement(format!("phrase de dictée non oubliée : {e}"));
+        }
     }
 
     async fn mode_emploi(&self, dictee: bool) -> Result<(), ErreurCoffre> {
@@ -447,14 +460,15 @@ impl CoffreDuSoir {
     }
 
     /// Coffre annulé : retiré du jeu. Appelé depuis /annuler, hors de la boucle. `dictee` :
-    /// le coffre retiré était une dictée, l'Écouteur redevient muet.
-    pub async fn retirer(&self, dictee: bool) -> Result<(), ErreurCoffre> {
+    /// l'exercice du coffre retiré si c'était une dictée, l'Écouteur redevient muet.
+    pub async fn retirer(&self, dictee: Option<&Exercice>) -> Result<(), ErreurCoffre> {
         self.actualiser_atelier().await?;
         self.executer(&commandes_retrait(&self.verifier_atelier()?))
             .await?;
-        if dictee {
+        if let Some(ex) = dictee {
             self.executer(&dictee::commandes_effacement()).await?;
             self.effacer_tableau().await?;
+            self.oublier_la_phrase(ex).await;
         }
         Ok(())
     }
@@ -507,10 +521,16 @@ impl CoffreDuSoir {
                 .await?;
         }
         self.mode_emploi(true).await?;
-        if let Some(numero) = dictee::son(&s.exercice) {
-            let commande =
-                dictee::commande_lecture(&self.pseudo, numero).map_err(ErreurRcon::from)?;
-            self.jeu.commande(&commande).await?;
+        // Une voix en panne ne casse pas le coffre : la phrase à trou est dans le chat.
+        if let Some(lecteur) = &self.lecteur {
+            // Redit à chaque présentation : un serveur redémarré a oublié la phrase désignée.
+            let lue = match lecteur.designer(&s.exercice).await {
+                Ok(()) => lecteur.dire(&s.exercice, false).await,
+                Err(e) => Err(e),
+            };
+            if let Err(e) = lue {
+                journal::avertissement(format!("phrase de dictée non lue : {e}"));
+            }
         }
         Ok(())
     }
@@ -567,7 +587,7 @@ impl Coffre for CoffreDuSoir {
             )));
         }
         if dictee::est_dictee(&s.exercice) {
-            // Ce que l'Écouteur relira, sans attendre l'agent.
+            // Ce que l'Écouteur réaffichera, sans attendre l'agent.
             self.executer(&dictee::commandes_stockage(&s.exercice))
                 .await?;
         }
@@ -637,25 +657,33 @@ impl Coffre for CoffreDuSoir {
         Ok(())
     }
 
-    async fn demander_de_se_reconnecter(&self) -> Result<(), ErreurCoffre> {
-        self.jeu
-            .dire(&self.pseudo, dictee::RECONNEXION, &OR)
-            .await?;
-        Ok(())
-    }
-
-    async fn recharger_les_sons(&self) -> Result<bool, ErreurCoffre> {
-        let Some((hote, port)) = &self.adresse_du_jeu else {
+    async fn chat_vocal_relie(&self) -> Result<bool, ErreurCoffre> {
+        let Some(lecteur) = &self.lecteur else {
             return Ok(false);
         };
+        lecteur
+            .relie()
+            .await
+            .map_err(|e| ErreurCoffre::Coffre(format!("chat vocal : {e}")))
+    }
+
+    async fn preparer_la_dictee(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre> {
+        let Some(lecteur) = &self.lecteur else {
+            return Err(ErreurCoffre::Coffre(
+                "les dictées demandent [voix] dossier_du_jeu dans la configuration".to_owned(),
+            ));
+        };
+        lecteur
+            .preparer(&s.exercice)
+            .await
+            .map_err(|e| ErreurCoffre::Coffre(format!("phrase de dictée : {e}")))
+    }
+
+    async fn demander_le_chat_vocal(&self) -> Result<(), ErreurCoffre> {
         self.jeu
-            .dire(&self.pseudo, dictee::RECHARGEMENT, &OR)
+            .dire(&self.pseudo, dictee::SANS_CHAT_VOCAL, &OR)
             .await?;
-        let reponse = self
-            .jeu
-            .commande(&dictee::commande_transfert(hote, *port, &self.pseudo))
-            .await?;
-        Ok(strip(&reponse).starts_with("Transferring"))
+        Ok(())
     }
 
     async fn preuve_trouvee(&self, s: &ExerciceStocke) -> Result<bool, ErreurCoffre> {
@@ -716,9 +744,14 @@ impl Coffre for CoffreDuSoir {
     async fn ranger(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre> {
         let mut commandes = commandes_rangement(&self.verifier_atelier()?, &self.pseudo, s.id)
             .map_err(ErreurRcon::from)?;
-        if dictee::est_dictee(&s.exercice) {
+        let est_dictee = dictee::est_dictee(&s.exercice);
+        if est_dictee {
             commandes.extend(dictee::commandes_effacement());
         }
-        self.executer(&commandes).await
+        self.executer(&commandes).await?;
+        if est_dictee {
+            self.oublier_la_phrase(&s.exercice).await;
+        }
+        Ok(())
     }
 }

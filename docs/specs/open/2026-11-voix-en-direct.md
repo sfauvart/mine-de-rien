@@ -137,7 +137,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 **Branche** : `feat/voix-en-direct`.
 
 - [x] **Phase 1 : Le serveur dit une phrase au seul enfant**
-- [ ] **Phase 2 : La dictée passe par la voix en direct**
+- [x] **Phase 2 : La dictée passe par la voix en direct**
 - [ ] **Phase 3 : Le plugin est livré avec l'image**
 - [ ] **Phase 4 : Le pack de sons disparaît**
 - [ ] **Phase 5 : Pixel et les annonces se font entendre**
@@ -254,8 +254,26 @@ moyen de dire un son tout de suite. Suivre `/nouveau-jeu`.
 - La condition de pose devient « le jeu de l'enfant est relié au chat vocal »
   (`mdrvoix etat`), à la place de « connecté après le pack ». Sinon : pas de coffre de
   dictée, message à l'enfant, notification aux parents une fois par jour.
-- Le pack n'est plus construit ni attendu par le chemin de la dictée ; son code reste en
-  place, mort, jusqu'à la phase 4.
+- Le pack n'est plus attendu par le chemin de la dictée ; son code reste en place jusqu'à
+  la phase 4, et il est encore réécrit à chaque dictée confirmée, sans que rien ne le lise.
+
+**Précisé en codant.**
+
+- Le lien au chat vocal se fait quelques secondes après la connexion. L'agent attend donc
+  20 secondes avant de conclure qu'il manque : pendant ce délai la dictée attend, et le
+  rappel d'un coffre déjà posé aussi.
+- Enfant absent : la dictée n'est pas posée, elle attend son retour, ses sons prêts, et
+  garde sa place dans la file. (Avec le pack, elle était posée en son absence.)
+- Un coffre de dictée déjà posé devant un enfant sans chat vocal reste actif : le rappel
+  part écrit, l'enfant et les parents sont prévenus, et la file attend derrière lui. Le
+  parent peut l'annuler.
+- Voix en panne (Piper ne répond pas) : la dictée attend, les coffres de calcul continuent,
+  les parents sont prévenus une fois par jour ; rien n'est demandé à l'enfant.
+- Les sons d'une phrase (`phrase-N.pcm`, normal et lent) sont effacés à l'ouverture ou à
+  l'annulation du coffre. Le plugin oublie la phrase désignée quand le serveur redémarre :
+  l'agent la redésigne à chaque annonce et à chaque rappel.
+- Le plugin reconnaît l'Écouteur à son type et à la marque `mdr_ecouteur` de ses données.
+  Un clic maintenu ne relance pas la phrase plus d'une fois par seconde.
 
 **Vérification automatique.**
 
@@ -265,7 +283,9 @@ moyen de dire un son tout de suite. Suivre `/nouveau-jeu`.
   fois dans la journée ; plus aucun `playsound mine_de_rien:` dans les commandes envoyées.
 - Tests `oracle_python` : aucun fichier d'oracle ne change.
 - `/essai-en-jeu`, sans joueur : `dictee-essai` puis `lancer` ; le dossier partagé contient
-  les sons de la phrase ; le coffre attend, faute de joueur relié.
+  les sons de la phrase ; le coffre attend, faute de joueur relié. (Le 2026-11-11, non joué
+  tel quel : le monde d'essai portait un coffre actif du parent. Vérifiés à la place :
+  `mdrvoix phrase` par RCON, avec et sans fichier, et le démarrage de `lancer`.)
 
 **Vérification en jeu.** Sur le serveur d'essai, connecté avec le mod : envoyer une
 dictée **en restant connecté** (`dictee-essai`, ou Telegram : `/dictee vendredi <texte>`,
@@ -380,4 +400,9 @@ sont-ils lus correctement. Noter l'avis de l'enfant dans « Retours de jeu ».
 
 ## Retours de jeu
 
-*(à remplir au fil des phases.)*
+- **Phase 1, 2026-11-11.** Le parent a installé Fabric et le mod, s'est connecté au serveur
+  d'essai et a lancé `parler` : « ça fonctionne, j'ai bien la voix qui arrive dans le jeu ».
+  Délai, qualité, assistant du micro et icône du mod : pas de remarque à ce stade. Le
+  journal du jeu n'a pas été relu pour les connexions sortantes.
+
+*(à compléter au fil des phases.)*

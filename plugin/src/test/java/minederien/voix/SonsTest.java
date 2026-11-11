@@ -81,9 +81,14 @@ class SonsTest {
         Files.write(racine.resolve("dehors.pcm"), pcm(10));
         Sons sons = new Sons(dossier);
         assertThrows(Sons.Refus.class, () -> sons.lire("../dehors.pcm"));
+        assertFalse(sons.existe("../dehors.pcm"));
+        Files.write(dossier.resolve("dedans.pcm"), pcm(10));
+        assertTrue(sons.existe("dedans.pcm"));
+        assertFalse(sons.existe("absent.pcm"));
         // Un lien symbolique au bon nom n'est pas suivi.
         Files.createSymbolicLink(dossier.resolve("lien.pcm"), racine.resolve("dehors.pcm"));
         assertThrows(Sons.Refus.class, () -> sons.lire("lien.pcm"));
+        assertFalse(sons.existe("lien.pcm"));
         // Un dossier au bon nom non plus.
         Files.createDirectory(dossier.resolve("dossier.pcm"));
         assertThrows(Sons.Refus.class, () -> sons.lire("dossier.pcm"));

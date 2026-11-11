@@ -9,6 +9,11 @@
 //!    l'ouverture du précédent, et seulement quand le coffre est vide ;
 //! 4. la difficulté suit les coffres : paisible tant qu'il en reste un à faire (`games/paisible.rs`).
 //!
+//! Un coffre de dictée se lit à voix haute : il n'est posé que si l'enfant est là et son jeu
+//! relié au chat vocal. Absent, la dictée attend son retour. Présent sans chat vocal, elle
+//! attend aussi, et le premier coffre qui n'est pas une dictée passe devant. Le lien se fait quelques secondes après la connexion : avant de conclure qu'il
+//! manque, la boucle attend `DELAI_CHAT_VOCAL`.
+//!
 //! La position de l'atelier est relue dans le monde à chaque tour. S'il n'y en a pas, aucun coffre
 //! n'est posé, et l'enfant n'est pas envoyé vers un coffre inaccessible : les parents sont prévenus
 //! une fois, et la boucle réessaie à chaque tour.
@@ -58,6 +63,8 @@ use crate::{journal, photo};
 
 pub const INTERVALLE: Duration = Duration::from_secs(3);
 pub const DELAI_SUIVANT: TimeDelta = TimeDelta::seconds(10);
+/// Le temps laissé au jeu de l'enfant, après sa connexion, pour se relier au chat vocal.
+pub const DELAI_CHAT_VOCAL: TimeDelta = TimeDelta::seconds(20);
 
 /// Ce qui interrompt un tour de surveillance ; la boucle le journalise et repart.
 #[derive(Debug, thiserror::Error)]
@@ -79,14 +86,18 @@ pub struct Orchestrateur {
     en_ligne: Cell<bool>,
     vider_demande: Cell<bool>,
     atelier_signale: RefCell<Option<String>>,
-    /// Le pack de sons des dictées, s'il y en a un : le jeu ne le charge qu'à la connexion.
-    pack: Option<PathBuf>,
-    /// Début de la connexion en cours de l'enfant ; `None` s'il est absent, ou s'il était déjà
-    /// là quand l'agent a démarré (on ne sait pas depuis quand).
+    /// Début de la connexion en cours de l'enfant, telle que l'agent l'a vue ; `None` s'il
+    /// est absent.
     connecte_depuis: Cell<Option<DateTime<Utc>>>,
-    premier_tour: Cell<bool>,
-    /// Le coffre de dictée pour lequel la reconnexion a déjà été demandée.
-    reconnexion_demandee: Cell<Option<i64>>,
+    /// Le jour où le chat vocal manquant a été signalé, à l'enfant et aux parents.
+    chat_vocal_signale: Cell<Option<NaiveDate>>,
+    /// Le jour où une voix en panne a été signalée aux parents.
+    voix_signalee: Cell<Option<NaiveDate>>,
+    /// L'enfant vient de se connecter devant un coffre de dictée : le rappel attend que son
+    /// jeu soit relié au chat vocal, pour que la phrase s'entende.
+    rappel_en_attente: Cell<bool>,
+    /// Le fuseau de la maison, pour compter « une fois par jour » ; UTC s'il n'est pas réglé.
+    fuseau: Cell<Tz>,
     /// Le dernier nom lu sur la clé, pour le coffre actif : un nom nouveau est un essai.
     cle_vue: RefCell<Option<(i64, Option<String>)>>,
     /// Les séances de dictée quotidiennes, si elles sont réglées.
@@ -118,10 +129,11 @@ impl Orchestrateur {
             en_ligne: Cell::new(false),
             vider_demande: Cell::new(false),
             atelier_signale: RefCell::new(None),
-            pack: None,
             connecte_depuis: Cell::new(None),
-            premier_tour: Cell::new(true),
-            reconnexion_demandee: Cell::new(None),
+            chat_vocal_signale: Cell::new(None),
+            voix_signalee: Cell::new(None),
+            rappel_en_attente: Cell::new(false),
+            fuseau: Cell::new(chrono_tz::UTC),
             cle_vue: RefCell::new(None),
             seances: None,
         }
@@ -136,6 +148,7 @@ impl Orchestrateur {
         recompense: ConfigCoffre,
         alea: Alea,
     ) -> Self {
+        self.fuseau.set(fuseau);
         self.seances = Some(Seances {
             coffres,
             fuseau,
@@ -224,31 +237,6 @@ impl Orchestrateur {
         Ok(())
     }
 
-    /// Avec un pack de sons : un coffre de dictée attend que le jeu de l'enfant l'ait chargé.
-    pub fn avec_pack(mut self, pack: &Path) -> Self {
-        self.pack = Some(pack.to_path_buf());
-        self
-    }
-
-    /// Le jeu de l'enfant a-t-il les sons du pack actuel ? Il ne le charge qu'en se
-    /// connectant : il faut qu'il se soit connecté après la dernière écriture du pack.
-    fn sons_charges(&self) -> bool {
-        let Some(pack) = &self.pack else {
-            return true;
-        };
-        if !self.en_ligne.get() {
-            // Il se connectera plus tard, donc après.
-            return true;
-        }
-        let ecrit_le = std::fs::metadata(pack)
-            .and_then(|m| m.modified())
-            .map(DateTime::<Utc>::from);
-        match (self.connecte_depuis.get(), ecrit_le) {
-            (Some(depuis), Ok(ecrit_le)) => depuis > ecrit_le,
-            _ => false,
-        }
-    }
-
     pub async fn tour(&self) -> Result<(), ErreurTour> {
         let coffre = Rc::clone(&self.coffre);
         let _verrou = coffre.verrou().lock().await;
@@ -261,10 +249,11 @@ impl Orchestrateur {
         self.en_ligne.set(en_ligne);
         if !en_ligne {
             self.connecte_depuis.set(None);
-        } else if vient_de_se_connecter && !self.premier_tour.get() {
+            self.rappel_en_attente.set(false);
+        } else if vient_de_se_connecter {
+            // Déjà là au démarrage de l'agent, il est traité comme s'il arrivait.
             self.connecte_depuis.set(Some((self.horloge)()));
         }
-        self.premier_tour.set(false);
         if vient_de_se_connecter {
             self.seance_du_jour().await?;
         }
@@ -355,13 +344,118 @@ impl Orchestrateur {
                 .await;
             return Ok(());
         }
-        if vient_de_se_connecter {
-            if dictee::est_dictee(&actif.exercice) {
-                self.dessiner_tableau(actif.id).await?;
+        if !dictee::est_dictee(&actif.exercice) {
+            if vient_de_se_connecter {
+                self.coffre.rappeler(actif).await?;
             }
-            self.coffre.rappeler(actif).await?;
+            return Ok(());
+        }
+        if vient_de_se_connecter {
+            self.dessiner_tableau(actif.id).await?;
+            self.rappel_en_attente.set(true);
+        }
+        if self.rappel_en_attente.get() && self.en_ligne.get() {
+            // Le rappel lit la phrase : il attend que le jeu de l'enfant puisse l'entendre.
+            let relie = self.coffre.chat_vocal_relie().await?;
+            if relie || !self.chat_vocal_attendu() {
+                self.rappel_en_attente.set(false);
+                self.sons_de_la_dictee(actif).await?;
+                self.coffre.rappeler(actif).await?;
+                if !relie {
+                    self.signaler_le_chat_vocal(actif.id).await?;
+                }
+            }
         }
         Ok(())
+    }
+
+    /// Le jour qu'il est à la maison.
+    fn aujourdhui(&self) -> NaiveDate {
+        jour_local((self.horloge)(), self.fuseau.get())
+    }
+
+    /// Vrai tant que le jeu de l'enfant, tout juste connecté, peut encore être en train de se
+    /// relier au chat vocal.
+    fn chat_vocal_attendu(&self) -> bool {
+        self.connecte_depuis
+            .get()
+            .is_some_and(|depuis| (self.horloge)() - depuis < DELAI_CHAT_VOCAL)
+    }
+
+    /// Prépare les sons de la phrase d'un coffre de dictée. `false` si la voix ne répond pas :
+    /// les parents sont prévenus une fois par jour, et rien ne s'arrête.
+    async fn sons_de_la_dictee(&self, s: &ExerciceStocke) -> Result<bool, ErreurTour> {
+        match self.coffre.preparer_la_dictee(s).await {
+            Ok(()) => Ok(true),
+            Err(ErreurCoffre::Coffre(raison)) => {
+                let aujourdhui = self.aujourdhui();
+                if self.voix_signalee.get() != Some(aujourdhui) {
+                    self.voix_signalee.set(Some(aujourdhui));
+                    self.notificateur
+                        .notifier(&format!(
+                            "Coffre n°{} : la phrase de la dictée ne peut pas être lue ({raison}). \
+                             Les coffres de dictée attendent, les autres continuent.",
+                            s.id
+                        ))
+                        .await;
+                }
+                Ok(false)
+            }
+            Err(autre) => Err(autre.into()),
+        }
+    }
+
+    /// Le jeu de l'enfant n'a pas le chat vocal : il le lit, et les parents sont prévenus, une
+    /// fois par jour.
+    async fn signaler_le_chat_vocal(&self, coffre: i64) -> Result<(), ErreurTour> {
+        let aujourdhui = self.aujourdhui();
+        if self.chat_vocal_signale.get() == Some(aujourdhui) {
+            return Ok(());
+        }
+        self.chat_vocal_signale.set(Some(aujourdhui));
+        self.coffre.demander_le_chat_vocal().await?;
+        self.notificateur
+            .notifier(&format!(
+                "Coffre n°{coffre} : le jeu de l'enfant n'est pas relié au chat vocal, il \
+                 n'entendrait pas la dictée (mod Simple Voice Chat, voir \
+                 docs/rejoindre-le-serveur.md). Les coffres de dictée attendent, les autres \
+                 continuent."
+            ))
+            .await;
+        Ok(())
+    }
+
+    /// Le coffre à poser maintenant : le premier de la file, sauf si c'est une dictée que
+    /// l'enfant ne pourrait pas entendre ; alors le premier coffre qui n'en est pas une.
+    /// `None` : rien à poser à ce tour.
+    async fn choisir_suivant(
+        &self,
+        premier: ExerciceStocke,
+    ) -> Result<Option<ExerciceStocke>, ErreurTour> {
+        if !dictee::est_dictee(&premier.exercice) {
+            return Ok(Some(premier));
+        }
+        let prete = self.sons_de_la_dictee(&premier).await?;
+        if prete {
+            // Absent, on ne sait pas si son jeu a le chat vocal : la dictée attend son retour,
+            // ses sons prêts, et garde sa place dans la file.
+            if !self.en_ligne.get() {
+                return Ok(None);
+            }
+            if self.coffre.chat_vocal_relie().await? {
+                return Ok(Some(premier));
+            }
+            // Tout juste connecté, son jeu est peut-être encore en train de se relier.
+            if self.chat_vocal_attendu() {
+                return Ok(None);
+            }
+            self.signaler_le_chat_vocal(premier.id).await?;
+        }
+        Ok(self
+            .depot
+            .en_file()?
+            .into_iter()
+            .find(|s| !dictee::est_dictee(&s.exercice)))
     }
 
     async fn poser_suivant(&self) -> Result<(), ErreurTour> {
@@ -386,26 +480,9 @@ impl Orchestrateur {
             return Ok(());
         }
         self.vider_demande.set(false);
-        if dictee::est_dictee(&suivant.exercice) && !self.sons_charges() {
-            if self.reconnexion_demandee.get() != Some(suivant.id) {
-                self.reconnexion_demandee.set(Some(suivant.id));
-                if self.coffre.recharger_les_sons().await? {
-                    // Son jeu se reconnecte seul, donc après l'écriture du pack. La connexion
-                    // peut aller plus vite qu'un tour : on la date d'ici.
-                    self.connecte_depuis.set(Some((self.horloge)()));
-                    return Ok(());
-                }
-                self.coffre.demander_de_se_reconnecter().await?;
-                self.notificateur
-                    .notifier(&format!(
-                        "Coffre n°{} en attente : l'enfant doit se déconnecter puis se \
-                         reconnecter pour que son jeu charge les sons de la dictée.",
-                        suivant.id
-                    ))
-                    .await;
-            }
+        let Some(suivant) = self.choisir_suivant(suivant).await? else {
             return Ok(());
-        }
+        };
         // Lu avant la pose : le coffre d'avant était-il une dictée, avec son tableau ?
         let apres_une_dictee = self
             .depot
@@ -1074,8 +1151,6 @@ impl CommandesParents {
             "Dictée n°{numero} enregistrée pour le {}.\n\
              À partir de demain et jusqu'à la veille, {n} coffres l'attendront à sa première \
              connexion de chaque jour.\n\
-             S'il joue en ce moment, son jeu doit se reconnecter pour charger les sons : \
-             l'agent le fait pour lui si [pack] adresse_du_jeu est réglée, sinon c'est à lui.\n\
              /dictee seance {numero} : une séance de {n} coffres tout de suite.",
             ecrire_jour(attente.jour),
             n = self.coffres_par_seance
@@ -1280,10 +1355,13 @@ impl CommandesParents {
             ));
         }
         let retire = self.depot.lire(numero)?;
-        let est_dictee = retire.is_some_and(|s| dictee::est_dictee(&s.exercice));
+        let dictee = retire
+            .as_ref()
+            .map(|s| &s.exercice)
+            .filter(|ex| dictee::est_dictee(ex));
         if statut == Some(Statut::Pose)
             && let Some(coffre) = &self.coffre
-            && let Err(e) = coffre.retirer(est_dictee).await
+            && let Err(e) = coffre.retirer(dictee).await
         {
             return Ok(format!(
                 "Le coffre n°{numero} n'a pas pu être retiré du jeu, réessayer : {e}"
@@ -1308,7 +1386,9 @@ impl CommandesParents {
         }
         if let Some(actif) = self.depot.actif()? {
             if let Some(coffre) = &self.coffre
-                && let Err(e) = coffre.retirer(dictee::est_dictee(&actif.exercice)).await
+                && let Err(e) = coffre
+                    .retirer(Some(&actif.exercice).filter(|ex| dictee::est_dictee(ex)))
+                    .await
             {
                 lignes.push(format!(
                     "Le coffre actif n°{} n'a pas pu être retiré du jeu, réessayer : {e}",

@@ -6,21 +6,22 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use async_trait::async_trait;
+use commun::{FausseDiffusion, VoixDeTest};
 use mine_de_rien::adapters::game::base::AdaptateurJeu;
 use mine_de_rien::adapters::game::log::FluxChat;
 use mine_de_rien::adapters::game::rcon::ErreurRcon;
-use mine_de_rien::dictees::{exercice_sonore, numero_son};
+use mine_de_rien::dictees::{Lecteur, exercice_sonore, fichier_du_son, numero_son};
 use mine_de_rien::exercises::base::Exercice;
 use mine_de_rien::exercises::francais::dictee::{Position, candidats, decouper};
 use mine_de_rien::exercises::indices::{contient_la_reponse, indices};
 use mine_de_rien::games::coffre_du_soir::{Coffre, CoffreDuSoir, predicat_cle_a_jour};
 use mine_de_rien::games::dictee::{
-    self, commande_ecouteur, commande_lecture, commandes_effacement, commandes_stockage,
-    est_dictee, predicat_ecouteur,
+    self, commande_ecouteur, commandes_effacement, commandes_stockage, est_dictee,
+    predicat_ecouteur,
 };
 use mine_de_rien::minecraft::texte::Style;
 use mine_de_rien::saisie::Source;
-use mine_de_rien::storage::sqlite::{ExerciceStocke, Statut};
+use mine_de_rien::storage::sqlite::{Depot, ExerciceStocke, Statut};
 
 const TEXTE: &str = "Dans la ville de Dubaï, aux Émirats arabes unis, s’élève la plus haute \
     tour jamais construite. Il dit : \"Viens\" \\ ici.";
@@ -161,7 +162,6 @@ fn stockage_de_l_ecouteur_echappe() {
     assert_eq!(
         commandes_stockage(&s.exercice),
         [
-            "data modify storage mine_de_rien:dictee son set value \"mine_de_rien:dictee.18\"",
             "data modify storage mine_de_rien:dictee phrase set value \"Il dit : \\\"_____\\\" \\\\ ici.\"",
         ]
     );
@@ -177,11 +177,6 @@ fn stockage_de_l_ecouteur_echappe() {
 
 #[test]
 fn lecture_et_ecouteur() {
-    assert_eq!(
-        commande_lecture(PSEUDO, 14).unwrap(),
-        "execute as Steve at @s run function mine_de_rien:dictee/jouer {son:\"mine_de_rien:dictee.14\"}"
-    );
-    assert!(commande_lecture("@a", 14).is_err());
     let give = commande_ecouteur(PSEUDO).unwrap();
     assert!(give.starts_with(
         "give Steve minecraft:warped_fungus_on_a_stick[minecraft:item_name=\"Écouteur\","
@@ -222,14 +217,12 @@ async fn pose_verrou_a_majuscule_et_apostrophe_puis_stockage() {
             panneau.contains("Dictée :") && !panneau.contains(mot),
             "{panneau}"
         );
-        // Après la pose vérifiée, ce que l'Écouteur relira.
-        let fin = &commandes[commandes.len() - 2..];
-        assert_eq!(
-            fin[0],
-            "data modify storage mine_de_rien:dictee son set value \"mine_de_rien:dictee.14\""
-        );
-        assert!(fin[1].starts_with("data modify storage mine_de_rien:dictee phrase set value \""));
-        assert!(fin[1].contains("_____"));
+        // Après la pose vérifiée, ce que l'Écouteur réaffichera.
+        let fin = &commandes[commandes.len() - 1];
+        assert!(fin.starts_with("data modify storage mine_de_rien:dictee phrase set value \""));
+        assert!(fin.contains("_____"));
+        // Le son ne passe plus par une commande du jeu.
+        assert!(!commandes.iter().any(|c| c.contains("dictee son ")));
     }
 }
 
@@ -242,7 +235,7 @@ async fn un_coffre_de_maths_n_ecrit_rien_pour_l_ecouteur() {
     coffre.annoncer(&s).await.unwrap();
     coffre.rappeler(&s).await.unwrap();
     coffre.ranger(&s).await.unwrap();
-    coffre.retirer(false).await.unwrap();
+    coffre.retirer(None).await.unwrap();
     let commandes = jeu.commandes();
     assert!(
         !commandes.iter().any(|c| c.contains("mine_de_rien:dictee")),
@@ -288,9 +281,9 @@ async fn annonce_d_une_dictee() {
     }
     let commandes = jeu.commandes();
     assert!(!commandes.iter().any(|c| c.contains("bell")));
-    // Sans clé à jour ni Écouteur : l'ancienne clé est retirée, les deux objets sont donnés,
-    // puis la phrase est lue.
-    assert_eq!(commandes.len(), 6, "{commandes:?}");
+    // Sans clé à jour ni Écouteur : l'ancienne clé est retirée, les deux objets sont donnés.
+    // Sans lecteur, rien n'est joué : aucune commande de son.
+    assert_eq!(commandes.len(), 5, "{commandes:?}");
     assert_eq!(
         commandes[0],
         format!("clear Steve {} 0", predicat_cle_a_jour())
@@ -305,7 +298,6 @@ async fn annonce_d_une_dictee() {
         format!("clear Steve {} 0", predicat_ecouteur())
     );
     assert_eq!(commandes[4], commande_ecouteur(PSEUDO).unwrap());
-    assert_eq!(commandes[5], commande_lecture(PSEUDO, 14).unwrap());
 }
 
 #[tokio::test]
@@ -320,9 +312,8 @@ async fn rappel_d_une_dictee_sans_redonner_ce_qu_il_a() {
     assert_eq!(jeu.textes()[0], "Un coffre de dictée t'attend à l'atelier.");
     assert!(jeu.textes()[1].contains("la ville de _____,"));
     let commandes = jeu.commandes();
-    assert_eq!(commandes.len(), 3, "{commandes:?}");
+    assert_eq!(commandes.len(), 2, "{commandes:?}");
     assert!(!commandes.iter().any(|c| c.starts_with("give ")));
-    assert_eq!(commandes[2], commande_lecture(PSEUDO, 14).unwrap());
 }
 
 #[tokio::test]
@@ -333,7 +324,10 @@ async fn rangement_et_retrait_rendent_l_ecouteur_muet() {
     let commandes = jeu.commandes();
     assert_eq!(commandes[commandes.len() - 2..], commandes_effacement());
     jeu.vider();
-    coffre.retirer(true).await.unwrap();
+    coffre
+        .retirer(Some(&trou("plus", 7).exercice))
+        .await
+        .unwrap();
     let commandes = jeu.commandes();
     // L'Écouteur redevient muet, puis le tableau de la dictée disparaît.
     assert_eq!(
@@ -380,11 +374,168 @@ fn ni_la_casse_ni_les_espaces_ne_comptent_mais_les_accents_si() {
 }
 
 #[tokio::test]
-async fn message_de_reconnexion() {
+async fn message_sans_chat_vocal() {
     let jeu = Rc::new(FauxJeu::default());
     let coffre = coffre(&jeu).await;
-    coffre.demander_de_se_reconnecter().await.unwrap();
-    assert_eq!(jeu.textes(), [dictee::RECONNEXION]);
+    coffre.demander_le_chat_vocal().await.unwrap();
+    assert_eq!(jeu.textes(), [dictee::SANS_CHAT_VOCAL]);
+    assert!(dictee::SANS_CHAT_VOCAL.contains("Demande à un parent d'installer le chat vocal"));
+    // Sans lecteur, le jeu de l'enfant n'est jamais tenu pour relié, et rien ne se prépare.
+    assert!(!coffre.chat_vocal_relie().await.unwrap());
+    assert!(coffre.preparer_la_dictee(&trou("plus", 7)).await.is_err());
+}
+
+/// Un coffre du soir qui sait lire les dictées, sur une base où `TEXTE` est une dictée
+/// confirmée : la fausse diffusion note ce qui est gardé, désigné et joué.
+struct AvecVoix {
+    _dossier: tempfile::TempDir,
+    jeu: Rc<FauxJeu>,
+    coffre: CoffreDuSoir,
+    diffusion: Rc<FausseDiffusion>,
+    voix: Rc<VoixDeTest>,
+    /// Le trou « plus » : sa phrase, et les noms de ses deux sons.
+    trou: ExerciceStocke,
+    phrase: String,
+    normal: String,
+    lent: String,
+}
+
+async fn avec_voix() -> AvecVoix {
+    let dossier = tempfile::tempdir().unwrap();
+    let depot = Rc::new(Depot::ouvrir(&dossier.path().join("mdr.sqlite")).unwrap());
+    let trou = stocke(commun::trou_en_base(&depot, TEXTE, "plus"), 12);
+    let (diffusion, voix) = (
+        Rc::new(FausseDiffusion::new()),
+        Rc::new(VoixDeTest::default()),
+    );
+    let lecteur = Rc::new(Lecteur::new(diffusion.clone(), voix.clone(), depot));
+    let jeu = Rc::new(FauxJeu::default());
+    let coffre = CoffreDuSoir::new(jeu.clone(), PSEUDO, 3, Some("Pixel"))
+        .unwrap()
+        .avec_lecteur(lecteur);
+    coffre.actualiser_atelier().await.unwrap();
+    jeu.vider();
+    AvecVoix {
+        _dossier: dossier,
+        jeu,
+        coffre,
+        diffusion,
+        voix,
+        phrase: decouper(TEXTE)[0].texte.clone(),
+        normal: fichier_du_son(dictee::son(&trou.exercice).unwrap()),
+        lent: fichier_du_son(dictee::son_lent(&trou.exercice).unwrap()),
+        trou,
+    }
+}
+
+#[tokio::test]
+async fn la_phrase_est_dite_a_la_pose_et_au_rappel_par_le_chat_vocal() {
+    let m = avec_voix().await;
+    assert!(m.coffre.chat_vocal_relie().await.unwrap());
+
+    // Avant la pose : la voix lit la phrase aux deux vitesses, les sons sont gardés.
+    m.coffre.preparer_la_dictee(&m.trou).await.unwrap();
+    assert_eq!(
+        *m.voix.lus.borrow(),
+        [(m.phrase.clone(), false), (m.phrase.clone(), true)]
+    );
+    let gardes = [format!("garder {}", m.normal), format!("garder {}", m.lent)];
+    assert_eq!(m.diffusion.actions(), gardes);
+    // Les noms sont des numéros : aucun mot de la phrase.
+    assert!(m.normal.starts_with("phrase-") && m.lent.starts_with("phrase-"));
+    // Une seconde préparation ne redemande rien à la voix.
+    m.coffre.preparer_la_dictee(&m.trou).await.unwrap();
+    assert_eq!(m.voix.lus.borrow().len(), 2);
+
+    m.coffre.poser(&m.trou).await.unwrap();
+    m.diffusion.actions.borrow_mut().clear();
+
+    // À l'annonce : la phrase est désignée à l'Écouteur, puis dite.
+    m.coffre.annoncer(&m.trou).await.unwrap();
+    let presentee = [
+        format!("désigner {}", m.normal),
+        format!("redire {}", m.normal),
+    ];
+    assert_eq!(m.diffusion.actions(), presentee);
+    // Au rappel de connexion : redésignée (le serveur a pu redémarrer) et redite.
+    m.diffusion.actions.borrow_mut().clear();
+    m.coffre.rappeler(&m.trou).await.unwrap();
+    assert_eq!(m.diffusion.actions(), presentee);
+
+    // Plus aucun son de dictée ne passe par une commande du jeu.
+    let commandes = m.jeu.commandes();
+    assert!(
+        !commandes
+            .iter()
+            .any(|c| c.contains("playsound mine_de_rien:") || c.contains("dictee/jouer")),
+        "{commandes:?}"
+    );
+    // Et rien de ce qui est écrit ne donne le mot.
+    for texte in m.jeu.textes() {
+        assert!(!contient_la_reponse(&texte, &m.trou.exercice), "{texte}");
+    }
+}
+
+#[tokio::test]
+async fn rien_n_est_dit_pour_un_coffre_de_calcul() {
+    let m = avec_voix().await;
+    let s = maths();
+    m.coffre.poser(&s).await.unwrap();
+    m.coffre.annoncer(&s).await.unwrap();
+    m.coffre.rappeler(&s).await.unwrap();
+    m.coffre.ranger(&s).await.unwrap();
+    m.coffre.retirer(None).await.unwrap();
+    assert!(
+        m.diffusion.actions().is_empty(),
+        "{:?}",
+        m.diffusion.actions()
+    );
+    assert!(m.voix.lus.borrow().is_empty());
+}
+
+#[tokio::test]
+async fn a_l_ouverture_et_au_retrait_les_sons_sont_oublies() {
+    for retrait in [false, true] {
+        let m = avec_voix().await;
+        m.coffre.preparer_la_dictee(&m.trou).await.unwrap();
+        m.coffre.annoncer(&m.trou).await.unwrap();
+        m.diffusion.actions.borrow_mut().clear();
+        if retrait {
+            m.coffre.retirer(Some(&m.trou.exercice)).await.unwrap();
+        } else {
+            m.coffre.ranger(&m.trou).await.unwrap();
+        }
+        assert_eq!(
+            m.diffusion.actions(),
+            [
+                "désigner rien".to_owned(),
+                format!("oublier {}", m.normal),
+                format!("oublier {}", m.lent)
+            ]
+        );
+        assert!(m.diffusion.gardes.borrow().is_empty());
+        assert_eq!(*m.diffusion.designe.borrow(), None);
+    }
+}
+
+#[tokio::test]
+async fn une_voix_en_panne_ne_casse_ni_l_annonce_ni_le_rangement() {
+    // Le serveur refuse de jouer (enfant sans chat vocal) : l'annonce reste écrite.
+    let m = avec_voix().await;
+    m.coffre.preparer_la_dictee(&m.trou).await.unwrap();
+    m.diffusion.en_panne.set(true);
+    m.coffre.annoncer(&m.trou).await.unwrap();
+    assert_eq!(m.jeu.textes()[0], dictee::ANNONCE);
+    m.coffre.ranger(&m.trou).await.unwrap();
+
+    // Piper ne répond pas : la préparation le dit, l'annonce passe quand même.
+    let m = avec_voix().await;
+    m.voix.en_panne.set(true);
+    let erreur = m.coffre.preparer_la_dictee(&m.trou).await.unwrap_err();
+    assert!(erreur.to_string().contains("voix locale"), "{erreur}");
+    m.coffre.annoncer(&m.trou).await.unwrap();
+    assert_eq!(m.jeu.textes()[0], dictee::ANNONCE);
+    assert!(m.diffusion.actions().is_empty());
 }
 
 #[test]
@@ -438,23 +589,9 @@ fn les_trois_paliers_ne_donnent_jamais_le_mot() {
     assert_eq!(palier("phrase")[0], "Réécoute, plus doucement cette fois.");
 }
 
-#[tokio::test]
-async fn sans_adresse_du_jeu_pas_de_transfert() {
-    let jeu = Rc::new(FauxJeu::default());
-    let coffre = coffre(&jeu).await;
-    jeu.vider();
-    assert!(!coffre.recharger_les_sons().await.unwrap());
-    assert!(jeu.commandes().is_empty());
-    assert!(jeu.textes().is_empty());
-}
-
 #[test]
-fn la_commande_de_transfert_et_l_adresse_du_jeu() {
+fn l_adresse_du_jeu_du_pack_se_lit_encore() {
     use mine_de_rien::config::Pack;
-    assert_eq!(
-        dictee::commande_transfert("192.168.1.20", 25565, "Steve"),
-        "transfer 192.168.1.20 25565 Steve"
-    );
     let pack = |adresse: &str| Pack {
         adresse_du_jeu: adresse.to_owned(),
         ..Pack::default()

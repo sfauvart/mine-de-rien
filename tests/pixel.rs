@@ -7,14 +7,17 @@ use std::rc::Rc;
 
 use async_trait::async_trait;
 use chrono::{DateTime, SecondsFormat, TimeDelta, Utc};
+use commun::{FausseDiffusion, VoixDeTest};
 use mine_de_rien::adapters::game::base::{AdaptateurJeu, MessageChat};
 use mine_de_rien::adapters::game::log::FluxChat;
 use mine_de_rien::adapters::game::rcon::ErreurRcon;
 use mine_de_rien::adapters::llm::base::{ErreurLlm, Llm};
+use mine_de_rien::dictees::{Lecteur, fichier_du_son};
 use mine_de_rien::exercises::base::Exercice;
 use mine_de_rien::exercises::indices::indices;
 use mine_de_rien::games::atelier::Atelier;
 use mine_de_rien::games::coffre_du_soir::{Coffre, CoffreDuSoir};
+use mine_de_rien::games::dictee;
 use mine_de_rien::games::pixel::{
     EVENEMENT_INDICE, Intention, Pixel, SYSTEME_BAVARDAGE, SYSTEME_CLASSEMENT,
     SYSTEME_REFORMULATION, adresse, classer_par_mots_cles, commande_teleportation,
@@ -868,28 +871,44 @@ async fn oracle_python() {
     .await;
 }
 
-fn trou_de_dictee() -> Exercice {
-    use mine_de_rien::exercises::francais::dictee::{Position, decouper};
-    let phrases = decouper("Dans la ville de Dubaï s'élève la plus haute tour jamais construite.");
-    // « plus », neuvième mot de la phrase n°7 de la base.
-    mine_de_rien::dictees::exercice_sonore(&phrases, Position { phrase: 0, mot: 7 }, 7).unwrap()
+const DICTEE: &str = "Dans la ville de Dubaï s'élève la plus haute tour jamais construite.";
+
+/// Le trou « plus » d'une dictée enregistrée dans la base.
+fn trou_de_dictee(depot: &Depot) -> Exercice {
+    commun::trou_en_base(depot, DICTEE, "plus")
+}
+
+/// De quoi relire la phrase d'une dictée : la fausse diffusion note ce qui est joué.
+fn lecteur(depot: &Rc<Depot>) -> (Rc<Lecteur>, Rc<FausseDiffusion>, Rc<VoixDeTest>) {
+    let (diffusion, voix) = (
+        Rc::new(FausseDiffusion::new()),
+        Rc::new(VoixDeTest::default()),
+    );
+    let lecteur = Rc::new(Lecteur::new(diffusion.clone(), voix.clone(), depot.clone()));
+    (lecteur, diffusion, voix)
 }
 
 #[tokio::test]
 async fn dictee_trois_paliers_sans_llm_et_lecture_lente() {
     local(async {
         let (_dossier, depot) = depot();
-        let ex = trou_de_dictee();
+        let ex = trou_de_dictee(&depot);
         assert_eq!(ex.reponse, "plus");
         let ident = poser_exercice(&depot, &ex);
         let jeu = FauxJeu::nouveau();
         // Un LLM local est branché : devant une dictée, il ne doit pas reformuler.
         let llm = Rc::new(FauxLlm::reformulation("Ça s'écrit p, l, u, s !"));
         let (pixel, _) = pixel(&depot, Some(llm.clone()), &jeu);
+        let (lecteur, diffusion, voix) = lecteur(&depot);
+        pixel.avec_lecteur(lecteur);
         for _ in 0..4 {
             dit(&pixel, "Pixel, aide-moi").await;
         }
-        let dits: Vec<String> = jeu.dits().into_iter().filter(|d| d != "<Pixel> …").collect();
+        let dits: Vec<String> = jeu
+            .dits()
+            .into_iter()
+            .filter(|d| d != "<Pixel> …")
+            .collect();
         assert_eq!(
             dits,
             [
@@ -899,11 +918,25 @@ async fn dictee_trois_paliers_sans_llm_et_lecture_lente() {
                 "<Pixel> Il commence par « p » et a 4 lettres.",
             ]
         );
-        // Une seule lecture, celle du premier palier, avec le son lent de la phrase (2 × 7 + 1).
-        assert_eq!(
-            jeu.commandes(),
-            ["execute as Steve_42 at @s run function mine_de_rien:dictee/jouer {son:\"mine_de_rien:dictee.15\"}"]
+        // Une seule lecture, celle du premier palier, avec le son lent de la phrase, par le
+        // chat vocal : plus aucune commande de son n'est envoyée au serveur.
+        let (normal, lent) = (
+            fichier_du_son(dictee::son(&ex).unwrap()),
+            fichier_du_son(dictee::son_lent(&ex).unwrap()),
         );
+        assert_eq!(
+            diffusion.actions(),
+            [
+                format!("garder {normal}"),
+                format!("garder {lent}"),
+                format!("redire {lent}")
+            ]
+        );
+        assert_eq!(
+            *voix.lus.borrow(),
+            [(DICTEE.to_owned(), false), (DICTEE.to_owned(), true)]
+        );
+        assert!(jeu.commandes().is_empty(), "{:?}", jeu.commandes());
         assert!(llm.appels().is_empty(), "{:?}", llm.appels());
         assert_eq!(depot.compter(EVENEMENT_INDICE, ident).unwrap(), 4);
     })
@@ -914,7 +947,7 @@ async fn dictee_trois_paliers_sans_llm_et_lecture_lente() {
 async fn dictee_pixel_ne_bavarde_pas_et_n_interroge_pas_le_llm() {
     local(async {
         let (_dossier, depot) = depot();
-        poser_exercice(&depot, &trou_de_dictee());
+        poser_exercice(&depot, &trou_de_dictee(&depot));
         let jeu = FauxJeu::nouveau();
         let llm = Rc::new(FauxLlm::bavardage("Plus s'écrit avec un s."));
         let (pixel, _) = pixel(&depot, Some(llm.clone()), &jeu);
@@ -945,19 +978,28 @@ async fn dictee_pixel_ne_bavarde_pas_et_n_interroge_pas_le_llm() {
 async fn dictee_sans_son_lent_le_son_normal_puis_rien() {
     local(async {
         let (_dossier, depot) = depot();
-        let mut ex = trou_de_dictee();
+        let mut ex = trou_de_dictee(&depot);
         ex.donnees.remove("son_lent");
         poser_exercice(&depot, &ex);
         let jeu = FauxJeu::nouveau();
         let (pixel, _) = pixel(&depot, None, &jeu);
+        let (lecteur, diffusion, _) = lecteur(&depot);
+        pixel.avec_lecteur(lecteur);
         dit(&pixel, "Pixel, aide-moi").await;
-        assert!(jeu.commandes()[0].ends_with("{son:\"mine_de_rien:dictee.14\"}"));
+        let normal = fichier_du_son(dictee::son(&ex).unwrap());
+        assert_eq!(
+            diffusion.actions(),
+            [format!("garder {normal}"), format!("redire {normal}")]
+        );
 
         let (_dossier, depot) = depot_sans_son();
         let jeu = FauxJeu::nouveau();
         let (muet, _) = crate::pixel(&depot, None, &jeu);
+        let (lecteur, diffusion, _) = crate::lecteur(&depot);
+        muet.avec_lecteur(lecteur);
         dit(&muet, "Pixel, aide-moi").await;
         assert!(jeu.commandes().is_empty());
+        assert!(diffusion.actions().is_empty());
         assert_eq!(
             jeu.dernier(),
             "<Pixel> Je n'arrive pas à relire cette phrase. Demande à un parent."
@@ -966,9 +1008,47 @@ async fn dictee_sans_son_lent_le_son_normal_puis_rien() {
     .await;
 }
 
+#[tokio::test]
+async fn dictee_sans_chat_vocal_ou_voix_en_panne_pixel_le_dit_sans_erreur() {
+    local(async {
+        // Sans lecteur du tout : les dictées ne sont pas réglées.
+        let (_dossier, depot) = depot();
+        poser_exercice(&depot, &trou_de_dictee(&depot));
+        let jeu = FauxJeu::nouveau();
+        let (pixel, _) = pixel(&depot, None, &jeu);
+        dit(&pixel, "Pixel, aide-moi").await;
+        assert_eq!(
+            jeu.dernier(),
+            "<Pixel> Je n'arrive pas à relire cette phrase. Demande à un parent."
+        );
+
+        // Le serveur refuse de jouer, puis la voix tombe : l'indice est dit, puis l'excuse.
+        for voix_en_panne in [false, true] {
+            let (_dossier, depot) = crate::depot();
+            poser_exercice(&depot, &trou_de_dictee(&depot));
+            let jeu = FauxJeu::nouveau();
+            let (pixel, _) = crate::pixel(&depot, None, &jeu);
+            let (lecteur, diffusion, voix) = lecteur(&depot);
+            diffusion.en_panne.set(!voix_en_panne);
+            voix.en_panne.set(voix_en_panne);
+            pixel.avec_lecteur(lecteur);
+            dit(&pixel, "Pixel, aide-moi").await;
+            let dits = jeu.dits();
+            assert_eq!(
+                dits[dits.len() - 2..],
+                [
+                    "<Pixel> Écoute bien, je relis la phrase lentement.",
+                    "<Pixel> Je n'arrive pas à relire cette phrase. Demande à un parent."
+                ]
+            );
+        }
+    })
+    .await;
+}
+
 fn depot_sans_son() -> (tempfile::TempDir, Rc<Depot>) {
     let (dossier, depot) = depot();
-    let mut ex = trou_de_dictee();
+    let mut ex = trou_de_dictee(&depot);
     ex.donnees.remove("son");
     ex.donnees.remove("son_lent");
     poser_exercice(&depot, &ex);

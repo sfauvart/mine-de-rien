@@ -63,6 +63,7 @@ use unicode_general_category::{GeneralCategory, get_general_category};
 use crate::adapters::game::base::{AdaptateurJeu, MessageChat};
 use crate::adapters::game::rcon::ErreurRcon;
 use crate::adapters::llm::base::{ErreurLlm, Llm, lire_json};
+use crate::dictees::Lecteur;
 use crate::exercises::base::{Exercice, normaliser};
 use crate::exercises::indices::{contient_la_reponse, indices};
 use crate::games::atelier::{Atelier, PAS_CONSTRUIT, lire_atelier};
@@ -302,6 +303,8 @@ pub struct Pixel {
     llm: Option<Rc<dyn Llm>>,
     horloge: Horloge,
     tache: RefCell<Option<JoinHandle<()>>>,
+    /// Ce qui relit la phrase d'une dictée, lentement : le premier indice.
+    lecteur: RefCell<Option<Rc<Lecteur>>>,
 }
 
 impl Pixel {
@@ -322,7 +325,13 @@ impl Pixel {
             llm: llm.filter(|llm| !llm.distant()),
             horloge,
             tache: RefCell::new(None),
+            lecteur: RefCell::new(None),
         }))
+    }
+
+    /// Avec de quoi relire les phrases de dictée à l'enfant, par le chat vocal.
+    pub fn avec_lecteur(&self, lecteur: Rc<Lecteur>) {
+        *self.lecteur.borrow_mut() = Some(lecteur);
     }
 
     /// Vrai si Pixel classe et reformule avec un LLM local ; sinon, mots-clés seuls.
@@ -482,14 +491,16 @@ impl Pixel {
                 self.dire(palier, COULEUR).await?;
                 return Ok(());
             }
-            let Some(numero) = dictee::son_lent(ex).or_else(|| dictee::son(ex)) else {
+            let lecteur = self.lecteur.borrow().clone();
+            let Some(lecteur) = lecteur.filter(|_| dictee::son(ex).is_some()) else {
                 self.dire(dictee::SANS_SON, COULEUR).await?;
                 return Ok(());
             };
             self.dire(palier, COULEUR).await?;
-            let commande =
-                dictee::commande_lecture(&self.pseudo, numero).map_err(ErreurRcon::from)?;
-            self.jeu.commande(&commande).await?;
+            if let Err(e) = lecteur.dire(ex, true).await {
+                journal::avertissement(format!("phrase de dictée non relue : {e}"));
+                self.dire(dictee::SANS_SON, COULEUR).await?;
+            }
             return Ok(());
         }
         let mut phrase = palier.clone();

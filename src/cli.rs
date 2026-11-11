@@ -17,6 +17,7 @@ use crate::adapters::llm::creer as creer_llm;
 use crate::adapters::voix::creer as creer_voix;
 use crate::alea::Alea;
 use crate::config::{Config, charger_config};
+use crate::dictees::Lecteur;
 use crate::diffusion::{ChatVocal, Diffusion, Etat};
 use crate::games::atelier::{self, ErreurAtelier};
 use crate::games::coffre_du_soir::{CoffreDuSoir, Notificateur, NotificateurConsole};
@@ -231,11 +232,9 @@ async fn lancer(config: &Config) -> Result<(), String> {
         assistant,
     )
     .map_err(|e| e.to_string())?;
-    if let Some(pack) = &config.pack
-        && let Some((hote, port)) = pack.transfert()?
-    {
-        coffre = coffre.avec_adresse_du_jeu(&hote, port);
-        println!("Sons des dictées : le jeu de l'enfant sera renvoyé vers {hote}:{port}.");
+    let lecteur = lecteur_de_dictee(config, &jeu, &depot);
+    if let Some(lecteur) = &lecteur {
+        coffre = coffre.avec_lecteur(lecteur.clone());
     }
     let coffre = Rc::new(coffre);
     println!(
@@ -281,9 +280,6 @@ async fn lancer(config: &Config) -> Result<(), String> {
         Box::new(maintenant),
         paisible,
     );
-    if config.pack.is_some() {
-        orchestrateur = orchestrateur.avec_pack(&chemin_du_pack(config));
-    }
     let fuseau = config.dictee.tz();
     if config.voix.is_some() && config.pack.is_some() {
         orchestrateur = orchestrateur.avec_seances(
@@ -309,6 +305,9 @@ async fn lancer(config: &Config) -> Result<(), String> {
             "mots-clés"
         };
         println!("{} écoute le chat ({mode}).", config.assistant.nom);
+        if let Some(lecteur) = &lecteur {
+            pixel.avec_lecteur(lecteur.clone());
+        }
         Some(pixel)
     } else {
         None
@@ -364,6 +363,40 @@ async fn lancer(config: &Config) -> Result<(), String> {
     // La base se ferme avec le dépôt, à la sortie de la fonction.
     jeu.fermer().await;
     resultat
+}
+
+/// Ce qui lit les phrases de dictée à l'enfant par le chat vocal : il faut une voix et le
+/// dossier partagé avec le serveur (`[voix] dossier_du_jeu`). Sans lui, les dictées attendent.
+fn lecteur_de_dictee(
+    config: &Config,
+    jeu: &Rc<JavaRcon>,
+    depot: &Rc<Depot>,
+) -> Option<Rc<Lecteur>> {
+    let section = config.voix.as_ref()?;
+    let cree = creer_voix(section)
+        .map_err(|e| e.to_string())
+        .and_then(|voix| {
+            ChatVocal::new(
+                jeu.clone(),
+                &config.enfant.pseudo_minecraft,
+                std::path::Path::new(&section.dossier_du_jeu),
+            )
+            .map(|chat_vocal| Lecteur::new(Rc::new(chat_vocal), voix, depot.clone()))
+            .map_err(|e| e.to_string())
+        });
+    match cree {
+        Ok(lecteur) => {
+            println!(
+                "Dictées lues par le chat vocal, sons déposés dans {}.",
+                section.dossier_du_jeu
+            );
+            Some(Rc::new(lecteur))
+        }
+        Err(e) => {
+            eprintln!("Dictées muettes en jeu : {e}");
+            None
+        }
+    }
 }
 
 async fn interroger_llm(
@@ -558,10 +591,7 @@ async fn dictee_essai(config: &Config, texte: &str, nombre: usize) -> Result<(),
             ex.enonce, ex.reponse
         );
     }
-    println!(
-        "S'il joue en ce moment, le jeu de l'enfant doit se reconnecter pour charger ces sons \
-         (« lancer » le fait pour lui si [pack] adresse_du_jeu est réglée)."
-    );
+    println!("« lancer » les pose : la phrase s'entend par le chat vocal, sans reconnexion.");
     Ok(())
 }
 
