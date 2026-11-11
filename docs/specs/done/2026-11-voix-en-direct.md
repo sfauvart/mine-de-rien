@@ -4,7 +4,7 @@
 > puis aller à la première phase non terminée.
 
 Écrite le 2026-11-11, le jour où la dictée audio a été close
-([spec](../done/2026-11-dictee-audio.md)) et publiée en 0.2.0.
+([spec](2026-11-dictee-audio.md)) et publiée en 0.2.0.
 
 ## Pourquoi
 
@@ -141,6 +141,8 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 - [x] **Phase 3 : Le plugin est livré avec l'image**
 - [x] **Phase 4 : Le pack de sons disparaît**
 - [x] **Phase 5 : Pixel et les annonces se font entendre**
+
+Close le 2026-11-11.
 
 La phase 1 porte tout le risque : si le son n'arrive pas, arrive en retard ou si le mod
 gêne l'enfant, on s'arrête là et on revoit la spec. La phase 2 dépend de la 1, la 3 de la
@@ -470,5 +472,6 @@ sont-ils lus correctement. Noter l'avis de l'enfant dans « Retours de jeu ».
   Et les mots semblaient encore dans le désordre : « la » revient deux fois dans la phrase,
   le coffre demandait le second, alors que le premier, masqué lui aussi, était le premier
   trou que l'enfant lisait. Un mot répété n'a plus qu'un trou, à sa première place.
-
-*(à compléter au fil des phases.)*
+- **Clôture, 2026-11-11.** Après les trois correctifs, le parent a rejoué sur son instance
+  locale : « c'est bon, tout fonctionne ». Pas de retour de l'enfant à ce stade : il joue
+  sur le serveur de la maison, qui n'a pas encore cette version.
