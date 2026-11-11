@@ -141,6 +141,8 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 - [x] **Phase 9 : La dictée entière affichée, les trous qui se remplissent**
 - [x] **Phase 10 : Les sons se chargent sans geste de l'enfant**
 
+Close le 2026-11-11.
+
 Les phases 8 à 10 viennent de la partie jouée le 2026-11-11 (voir « Retours de jeu ») ;
 elles sont indépendantes entre elles.
 
@@ -900,3 +902,14 @@ de l'image, écarts constatés.)*
   séance arrive à la première connexion du lendemain, pack déjà à jour.
 - `accepts-transfers=true` laisse aussi entrer un joueur renvoyé par un autre serveur ; sur
   un serveur de maison sans liste d'invités ouverte, cela ne change rien.
+
+**Partie jouée le 2026-11-11, phases 8 à 10.**
+- Phase 8 : la clé écrite avec d'autres majuscules ou des espaces ouvre bien le coffre. Gardé.
+- Phase 9 : le tableau est lisible. Gardé.
+- Phase 10 : le jeu se déconnecte et se reconnecte bien tout seul, mais cela ne plaît pas au
+  parent : « ça ne va pas plaire à l'enfant, ça donne un comportement agaçant ». Le parent
+  choisit de ne plus rien modifier ici : le comportement reste tel quel, réglable par
+  `adresse_du_jeu`. Le parent n'a pas dit si la phrase s'entendait après le renvoi.
+- Suite décidée : une nouvelle feature pour une voix en direct par chat vocal (piste du mod
+  Simple Voice Chat, non vérifiée sur la version du serveur), sans pack de sons ni
+  rechargement. Idée du parent pour plus tard : que l'enfant parle aussi à l'oral avec Pixel.

@@ -76,4 +76,4 @@ au passage sa limite « on ne voit pas les tentatives ratées » : l'agent relè
 l'enfant écrit sur la clé, et un mot raté revient deux jours plus tard. Règle propre à cette
 idée : **jamais une graphie fausse sous ses yeux**, ni la sienne, ni celle d'un LLM, d'où
 Bartholomé (idée 3) écarté pour l'orthographe. Détails dans
-`src/games/dictee.rs` et [la spec](specs/open/2026-11-dictee-audio.md).
+`src/games/dictee.rs` et [la spec](specs/done/2026-11-dictee-audio.md).
