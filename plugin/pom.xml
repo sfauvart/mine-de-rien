@@ -14,7 +14,7 @@
   <groupId>minederien</groupId>
   <artifactId>mine-de-rien-voix</artifactId>
   <!-- La version de Cargo.toml : l'agent, le datapack et le plugin sortent ensemble. -->
-  <version>0.2.0</version>
+  <version>0.3.0</version>
   <packaging>jar</packaging>
 
   <properties>

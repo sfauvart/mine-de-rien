@@ -3,7 +3,7 @@ services:
   # l'agent : le datapack dans data/datapacks, le plugin de la voix et les réglages du chat
   # vocal dans data/plugins. Tout vient de la même image, donc de la même version.
   livraison:
-    image: ghcr.io/sfauvart/mine-de-rien:0.2.0
+    image: ghcr.io/sfauvart/mine-de-rien:0.3.0
     command: ["mine-de-rien", "livrer", "--datapack", "/datapacks", "--plugin", "/plugins"]
     volumes:
       - ./data/datapacks:/datapacks
@@ -58,7 +58,7 @@ services:
     restart: unless-stopped
 
   agent:
-    image: ghcr.io/sfauvart/mine-de-rien:0.2.0
+    image: ghcr.io/sfauvart/mine-de-rien:0.3.0
     # Construire sa propre image depuis le clone, sans ghcr.io : docker compose build agent
     build:
       context: .

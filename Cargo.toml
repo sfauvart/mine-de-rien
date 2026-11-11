@@ -1,6 +1,6 @@
 [package]
 name = "mine-de-rien"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.94"
 description = "Les devoirs se font sans que personne ne s'en aperçoive : un agent qui met les devoirs en jeu dans Minecraft."

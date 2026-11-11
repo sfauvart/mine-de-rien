@@ -17,7 +17,7 @@ Trois fichiers suffisent. Docker téléchargera le reste : l'image de l'agent
 serveur Minecraft.
 
 Choisir la dernière version dans la liste https://github.com/sfauvart/mine-de-rien/tags
-(par exemple `v0.2.0`, à écrire sans le `v` ci-dessous), puis :
+(par exemple `v0.3.0`, à écrire sans le `v` ci-dessous), puis :
 
 ```bash
 mkdir mine-de-rien && cd mine-de-rien
