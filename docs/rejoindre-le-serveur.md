@@ -119,30 +119,6 @@ aucun intérêt. Pour vérifier :
 cat data/minecraft/ops.json
 ```
 
-## Le pack de sons des dictées
-
-Si les dictées sont installées (`[voix]` et `[pack]`, [installation.md](installation.md)
-étape 4), le serveur propose à la connexion un « pack de ressources » : ce sont les phrases
-de dictée lues à voix haute, rien d'autre.
-
-- Avant de se connecter : dans **Multijoueur**, sélectionner le serveur dans la liste,
-  cliquer **Modifier**, et régler « Packs de ressources du serveur » sur **Activés** (le
-  bouton change de valeur à chaque clic), puis **Terminé**. Sur **Désactivés**, le jeu
-  refuse le pack sans rien afficher, et aucun son de dictée ne s'entend : c'était le réglage
-  des serveurs d'une instance XMCL à l'essai du 2026-11-10. Sur **Demander**, le jeu pose
-  la question à chaque connexion : répondre **Oui**.
-- Le volume de la voix se règle dans **Options**, **Musique et sons**, curseur **Voix**. À
-  zéro, les dictées sont muettes.
-- Le pack se télécharge depuis le PC du serveur, port 8765. S'il ne se charge pas, ouvrir
-  ce port comme le 25565 (voir « Pare-feu » plus bas) et vérifier `PACK_URL` dans `.env` :
-  depuis le poste de l'enfant, un navigateur ouvert sur cette adresse doit télécharger un
-  fichier `mine-de-rien.zip`.
-- Une nouvelle dictée arrive dans le pack à la **connexion suivante**. Si l'enfant joue
-  quand elle arrive, l'agent renvoie son jeu vers le serveur : un écran de chargement
-  passe, sans rien toucher. Il faut pour cela `adresse_du_jeu` dans `config.toml`
-  ([installation.md](installation.md)) ; sans ce réglage, l'enfant se déconnecte et se
-  reconnecte lui-même.
-
 ## Le chat vocal
 
 La voix de Mine de rien arrive dans le jeu par un chat vocal, le mod **Simple Voice Chat** :

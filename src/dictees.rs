@@ -1,12 +1,12 @@
 //! De la dictée aux sons : ce qui relie le texte (`exercises/francais/dictee.rs`), la voix
-//! (`adapters/voix`), la conversion (`son.rs`) et le pack (`pack.rs`).
+//! (`adapters/voix`), la conversion (`son.rs`) et le chat vocal (`diffusion.rs`).
 //!
-//! Chaque phrase a deux sons dans le pack, à vitesse normale et à vitesse lente. Leurs
-//! numéros se déduisent du numéro de la phrase : `2 × phrase` et `2 × phrase + 1`. Un numéro
-//! ne dit rien du texte.
+//! Chaque phrase a deux sons, à vitesse normale et à vitesse lente. Leurs numéros se déduisent
+//! du numéro de la phrase : `2 × phrase` et `2 × phrase + 1`. Un numéro ne dit rien du texte.
+//! La voix relit la phrase quand son coffre arrive (`Lecteur`) : les sons que la base garde
+//! depuis l'époque du pack de ressources ne sont plus joués.
 
-use std::collections::{BTreeMap, HashMap};
-use std::path::Path;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use chrono::{DateTime, Datelike, NaiveDate, TimeDelta, Utc, Weekday};
@@ -20,7 +20,6 @@ use crate::exercises::francais::dictee::{
     ErreurDictee, Phrase, Position, candidats, decouper, decouper_liste, exercice, phrase_de, tirer,
 };
 use crate::games::tableau::{Morceau, Trou, morceaux};
-use crate::pack::{self, ErreurPack};
 use crate::son::{ErreurSon, Pcm, encoder_ogg, lire_wav, wav_vers_ogg};
 use crate::storage::sqlite::{
     Demande, Depot, DicteeStockee, ErreurStockage, ExerciceStocke, PhraseSonore, Statut,
@@ -35,8 +34,6 @@ pub enum ErreurDictees {
     #[error("{0}")]
     Son(#[from] ErreurSon),
     #[error("{0}")]
-    Pack(#[from] ErreurPack),
-    #[error("{0}")]
     Stockage(#[from] ErreurStockage),
     #[error("{0}")]
     Diffusion(#[from] ErreurDiffusion),
@@ -44,29 +41,14 @@ pub enum ErreurDictees {
 
 /// Au-delà, ce n'est plus une dictée de CM2, et la voix mettrait des minutes.
 pub const PHRASES_MAX: usize = 40;
-/// Une dictée reste dans le pack 30 jours après son jour : un mot raté peut y revenir.
+/// Une dictée reste révisable 30 jours après son jour : un mot raté peut revenir.
 pub const JOURS_GARDES: i64 = 30;
 /// Silence entre deux phrases de l'aperçu envoyé au parent.
 const SILENCE_SECONDES: f64 = 0.8;
 
-/// Le numéro, dans le pack, du son de la phrase n°`phrase` (comptée à partir de 1).
+/// Le numéro du son de la phrase n°`phrase` (comptée à partir de 1).
 pub fn numero_son(phrase: u32, lent: bool) -> u32 {
     phrase * 2 + u32::from(lent)
-}
-
-/// Fait lire `texte` aux deux vitesses et range les deux sons, en Ogg Vorbis, sous les numéros
-/// de la phrase n°`phrase`.
-pub async fn ajouter_sons(
-    sons: &mut BTreeMap<u32, Vec<u8>>,
-    voix: &dyn Voix,
-    phrase: u32,
-    texte: &str,
-) -> Result<(), ErreurDictees> {
-    for lent in [false, true] {
-        let wav = voix.dire(texte, lent).await?;
-        sons.insert(numero_son(phrase, lent), wav_vers_ogg(&wav)?);
-    }
-    Ok(())
 }
 
 /// L'exercice d'un trou, avec les numéros des sons de sa phrase, que le jeu lira.
@@ -157,44 +139,21 @@ pub async fn preparer(
     })
 }
 
-/// Réécrit le pack avec les sons de toutes les dictées encore utiles : celles dont le jour
-/// n'est pas passé depuis plus de 30 jours. Rend le nombre de sons.
-pub fn reconstruire_pack(
-    depot: &Depot,
-    chemin: &Path,
-    aujourdhui: NaiveDate,
-) -> Result<usize, ErreurDictees> {
-    let mut sons = BTreeMap::new();
-    for (phrase, son, son_lent) in depot.sons_depuis(aujourdhui - TimeDelta::days(JOURS_GARDES))? {
-        let Ok(phrase) = u32::try_from(phrase) else {
-            continue;
-        };
-        sons.insert(numero_son(phrase, false), son);
-        sons.insert(numero_son(phrase, true), son_lent);
-    }
-    pack::ecrire(chemin, &pack::construire(&sons)?)?;
-    Ok(sons.len())
-}
-
-/// Enregistre une dictée confirmée et refait le pack. Rend le numéro de la dictée.
+/// Enregistre une dictée confirmée. Rend le numéro de la dictée.
 pub fn enregistrer(
     depot: &Depot,
     preparation: &Preparation,
     jour: NaiveDate,
     demande_par: &str,
     quand: DateTime<Utc>,
-    chemin_du_pack: &Path,
-    aujourdhui: NaiveDate,
 ) -> Result<i64, ErreurDictees> {
-    let ident = depot.ajouter_dictee(
+    Ok(depot.ajouter_dictee(
         jour,
         &preparation.texte,
         &preparation.sonores,
         demande_par,
         quand,
-    )?;
-    reconstruire_pack(depot, chemin_du_pack, aujourdhui)?;
-    Ok(ident)
+    )?)
 }
 
 /// Les phrases d'une dictée enregistrée, avec le numéro de chacune dans la base.

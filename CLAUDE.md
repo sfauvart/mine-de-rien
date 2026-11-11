@@ -5,7 +5,10 @@ piloté par les parents via Telegram, avec rapports de progression.
 
 ## Règles du projet
 
-- L'agent est écrit en Rust : un seul crate, un seul binaire, `mine-de-rien`.
+- L'agent est écrit en Rust : un seul crate, un seul binaire, `mine-de-rien`. Seule
+  exception à « tout en Rust » : `plugin/`, le petit plugin Paper en Java qui fait entendre
+  la voix par le chat vocal. Il ne décide rien, n'embarque aucune bibliothèque, n'ouvre aucun
+  port ; toute logique reste dans l'agent.
 - Code, commentaires, docs et messages de commit en français. Identifiants Rust en français
   quand ils désignent des notions métier (compétence, énoncé, tentative), en anglais pour la
   plomberie technique standard.
@@ -42,6 +45,10 @@ cargo test                                  # tests
 cargo fmt --check                           # mise en forme
 cargo clippy --all-targets -- -D warnings   # lint
 cargo run -- --config config.essai.toml lancer
+
+# le plugin Java, sans JDK sur le poste : construit et testé dans un conteneur
+docker run --rm -v "$PWD/plugin":/plugin -v mine-de-rien-m2:/root/.m2 -w /plugin \
+  maven:3.9.16-eclipse-temurin-25 mvn -B package
 ```
 
 `tests/donnees/oracle/` garde ce que produisait l'ancienne version Python de l'agent
@@ -55,7 +62,10 @@ changement de comportement, à assumer dans le commit ou à corriger.
 - `src/exercises/` : générateurs par compétence
 - `src/games/` : mises en scène dans Minecraft (coffre du soir, Pixel, ...)
 - `src/storage/` : SQLite
+- `src/diffusion.rs` : dire un son à l'enfant par le chat vocal (fichier déposé, commande RCON)
 - `src/orchestrateur.rs` : boucle de surveillance et commandes des parents
 - `tests/` : un fichier par module, `tests/commun/` pour les faux mondes partagés
 - `datapacks/` : zone de l'atelier, embarqué dans le binaire à la compilation
+- `plugin/` : plugin Paper `mine-de-rien-voix` (Java, Maven), livré dans l'image à côté du
+  binaire ; même version que `Cargo.toml` (`tests/version.rs`)
 - `docs/` : idées et décisions d'architecture

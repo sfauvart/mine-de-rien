@@ -134,8 +134,8 @@ pub fn commandes_stockage(ex: &Exercice) -> Vec<String> {
         .collect()
 }
 
-/// À l'ouverture ou au retrait : l'Écouteur n'affiche plus rien. `son` date du pack de sons :
-/// il est retiré d'un monde qui le porterait encore.
+/// À l'ouverture ou au retrait : l'Écouteur n'affiche plus rien. `son` date d'avant le chat
+/// vocal : il est retiré d'un monde qui le porterait encore.
 pub fn commandes_effacement() -> Vec<String> {
     vec![
         format!("data remove storage {STOCKAGE} son"),

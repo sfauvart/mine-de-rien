@@ -28,14 +28,11 @@ services:
       # pseudo par un service en ligne (PlayerDB ou Mojang), ce qu'on évite.
       ENABLE_WHITELIST: "true"
       ENFORCE_WHITELIST: "true"
-      # Pack de sons des dictées, servi par l'agent : l'adresse de cette machine vue depuis le
-      # poste de l'enfant, ex. http://192.168.1.20:8765/mine-de-rien.zip. Vide : pas de pack.
-      # Facultatif pour le joueur : si l'agent est arrêté, le serveur reste jouable.
-      RESOURCE_PACK: ${PACK_URL:-}
-      RESOURCE_PACK_ENFORCE: "FALSE"
-      # Permet à l'agent de renvoyer le jeu de l'enfant vers ce serveur (commande « transfer »)
-      # pour qu'il recharge les sons d'une nouvelle dictée sans se déconnecter à la main.
-      ACCEPTS_TRANSFERS: "TRUE"
+      # Un serveur installé avant le chat vocal garde dans server.properties l'adresse de
+      # l'ancien pack de sons et l'autorisation de renvoyer le jeu : ces deux lignes les
+      # effacent. Retirer la variable ne suffirait pas, l'image laisserait l'ancienne valeur.
+      RESOURCE_PACK: ""
+      ACCEPTS_TRANSFERS: "FALSE"
       # Le chat vocal (Simple Voice Chat), par lequel l'enfant entend la voix. Version
       # épinglée : le mod de son jeu doit porter la même (docs/rejoindre-le-serveur.md).
       # Téléchargé sur Modrinth au démarrage du serveur, comme Paper.
@@ -67,9 +64,7 @@ services:
       context: .
       dockerfile: docker/agent.Dockerfile
     env_file: .env
-    # Pack de sons des dictées ([pack] de config.toml), téléchargé par le jeu de l'enfant.
-    ports:
-      - "8765:8765"
+    # Aucun port publié : l'agent n'écoute personne, il parle au serveur et à Telegram.
     volumes:
       - ./config.toml:/app/config.toml:ro
       - ./data/agent:/data

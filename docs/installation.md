@@ -105,20 +105,10 @@ coffre et aux durées. Jamais le pseudo ni le prénom de l'enfant.
   `docker compose exec agent mine-de-rien --config /app/config.toml voix "Bonjour, ceci est un essai." --sortie /data/essai.ogg`.
   Pour une autre voix française (`fr_FR-upmc-medium`, `fr_FR-tom-medium`), l'écrire dans
   `[voix] voix` et dans `.env` (`VOIX=fr_FR-upmc-medium`), puis refaire les deux commandes.
-- **`[pack]`** : facultatif, va avec `[voix]`. Minecraft ne joue un son nouveau que s'il
-  vient d'un « pack de ressources » : l'agent le fabrique et le donne au jeu de l'enfant,
-  par le port 8765. Décommenter la section `[pack]` de `config.toml`, et écrire dans `.env`
-  l'adresse de cette machine sur le réseau de la maison (la même que celle que l'enfant
-  tape pour rejoindre le serveur) :
-
-  ```
-  PACK_URL=http://192.168.1.20:8765/mine-de-rien.zip
-  ```
-
-  Puis `docker compose up -d` : le serveur Minecraft redémarre avec cette adresse. À sa
-  connexion suivante, le jeu de l'enfant propose le pack : voir
-  [rejoindre-le-serveur.md](rejoindre-le-serveur.md#le-pack-de-sons-des-dictées). Le pack
-  n'est pas obligatoire : si l'agent est arrêté, le serveur reste jouable, sans les sons.
+  Pour que l'enfant l'entende en jeu, garder aussi `dossier_du_jeu = "/sons"` dans cette
+  section : c'est le dossier (`data/sons`) où l'agent dépose les sons que le serveur fait
+  entendre par le chat vocal. Il faut alors le mod du chat vocal dans le jeu de l'enfant
+  (étape 8).
 
 ## 5. Démarrer le serveur, importer le monde
 
@@ -180,7 +170,7 @@ Chaque parent ouvre une conversation avec le bot et envoie `/start`. Le bot rép
 
 ```toml
 [canal]
-parents = [123456789, 987654321]
+parents = [123456789, 222333444]
 ```
 
 Tant qu'un identifiant n'est pas dans cette liste, le bot ignore ses messages : `/start`
@@ -382,8 +372,8 @@ est corrigée en 3 secondes.** Pour garder par exemple un serveur paisible en pe
 
 ## 13. Préparer une dictée
 
-Il faut les sections `[voix]` (avec `dossier_du_jeu = "/sons"`) et `[pack]` de l'étape 4,
-et le chat vocal dans le jeu de l'enfant
+Il faut la section `[voix]` de l'étape 4, avec `dossier_du_jeu = "/sons"`, et le chat vocal
+dans le jeu de l'enfant
 ([rejoindre-le-serveur.md](rejoindre-le-serveur.md#le-chat-vocal)).
 
 Quand la maîtresse donne le texte à préparer, l'envoyer au bot avec le jour de la dictée :
@@ -449,7 +439,10 @@ Le monde, la base des coffres, `.env` et `config.toml` sont conservés.
    ```
 
 3. Comparer `config.toml` à `config.example.toml` de la même version, pour une section
-   nouvelle à recopier.
+   nouvelle à recopier. Depuis la version qui fait entendre la voix par le chat vocal : la
+   section `[pack]` et la ligne `PACK_URL` de `.env` ne servent plus et peuvent être
+   retirées (l'agent démarre aussi avec, en le signalant), `[voix]` gagne
+   `dossier_du_jeu = "/sons"`, et le jeu de l'enfant a besoin du mod (étape 8).
 4. Télécharger les images et redémarrer. Le datapack et le plugin de la voix suivent
    l'agent :
 

@@ -133,7 +133,7 @@ pub const MIGRATIONS: [&str; 4] = [
     "#,
     // 5 : les dictées préparées. Une dictée est gardée jusqu'à son jour ; chacune de ses
     // phrases porte ses deux sons (Ogg Vorbis, vitesse normale et lente). Le numéro d'une
-    // phrase donne ceux de ses sons dans le pack (`dictees::numero_son`).
+    // phrase donne ceux de ses sons (`dictees::numero_son`).
     r#"
     CREATE TABLE dictees (
         id              INTEGER PRIMARY KEY,
@@ -276,7 +276,7 @@ pub struct DicteeStockee {
     pub derniere_seance: Option<NaiveDate>,
 }
 
-/// Une phrase d'une dictée. Son `id` donne les numéros de ses sons dans le pack.
+/// Une phrase d'une dictée. Son `id` donne les numéros de ses sons.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PhraseStockee {
     pub id: i64,
@@ -844,7 +844,7 @@ impl Depot {
         Ok(sortie)
     }
 
-    /// Les sons à mettre dans le pack : ceux des dictées non annulées dont le jour est
+    /// Les sons gardés en base : ceux des dictées non annulées dont le jour est
     /// `depuis` ou après. Chaque élément : numéro de la phrase, son normal, son lent.
     pub fn sons_depuis(&self, depuis: NaiveDate) -> Result<Vec<SonsDePhrase>, ErreurStockage> {
         let mut preparee = self.cx.prepare(

@@ -44,9 +44,6 @@ unicode-general-category = "1.1.0"
 unicode-normalization = "0.1.26"
 vorbis_rs = { version = "0.5", default-features = false }
 
-[dev-dependencies]
-zip = { version = "2", default-features = false }
-
 [lints.rust]
 unsafe_code = "forbid"
 

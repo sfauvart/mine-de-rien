@@ -25,14 +25,11 @@ services:
       MOTD: "Mine de rien - essai"
       # Recopié dans world/datapacks à chaque démarrage : le monde suit le dépôt.
       DATAPACKS: /datapacks/mine_de_rien
-      # Pack de sons des dictées, servi sur le poste par « cargo run -- servir-pack ». Le jeu
-      # du testeur tourne sur le même poste : localhost. Facultatif pour le joueur : sans
-      # service de pack, le serveur d'essai reste utilisable.
-      RESOURCE_PACK: ${PACK_URL:-http://localhost:8765/mine-de-rien.zip}
-      RESOURCE_PACK_ENFORCE: "FALSE"
-      # Permet à l'agent de renvoyer le jeu de l'enfant vers ce serveur (commande « transfer »)
-      # pour qu'il recharge les sons d'une nouvelle dictée sans se déconnecter à la main.
-      ACCEPTS_TRANSFERS: "TRUE"
+      # Un serveur installé avant le chat vocal garde dans server.properties l'adresse de
+      # l'ancien pack de sons et l'autorisation de renvoyer le jeu : ces deux lignes les
+      # effacent. Retirer la variable ne suffirait pas, l'image laisserait l'ancienne valeur.
+      RESOURCE_PACK: ""
+      ACCEPTS_TRANSFERS: "FALSE"
       # Le chat vocal, version épinglée : celle du mod à installer dans le jeu du testeur
       # (docs/rejoindre-le-serveur.md). Téléchargé sur Modrinth au démarrage, comme Paper.
       MODRINTH_PROJECTS: "simple-voice-chat:bukkit-2.6.27"

@@ -48,14 +48,21 @@ fn le_datapack_du_depot_est_la_source_par_defaut() {
 }
 
 #[test]
-fn le_datapack_embarque_sait_lire_un_son_de_dictee() {
-    let fonction = datapack::EMBARQUE
-        .get_file("data/mine_de_rien/function/dictee/jouer.mcfunction")
+fn le_datapack_embarque_ne_joue_plus_aucun_son() {
+    // La voix passe par le chat vocal : plus de fonction de lecture, plus de playsound.
+    assert!(
+        datapack::EMBARQUE
+            .get_file("data/mine_de_rien/function/dictee/jouer.mcfunction")
+            .is_none()
+    );
+    let redire = datapack::EMBARQUE
+        .get_file("data/mine_de_rien/function/dictee/redire.mcfunction")
         .and_then(|f| f.contents_utf8())
         .unwrap();
-    // Une ligne à macro, dans la catégorie « voice », pour le seul joueur qui l'exécute.
-    assert!(fonction.contains("\n$playsound $(son) voice @s ~ ~ ~ 1 1\n"));
-    assert!(fonction.contains("\nstopsound @s voice\n"));
+    assert!(!redire.contains("playsound") && !redire.contains("dictee/jouer"));
+    // L'Écouteur réaffiche toujours la phrase à trou, pour le seul joueur qui a cliqué.
+    assert!(redire.contains("tellraw @s"));
+    assert!(redire.contains("unless data storage mine_de_rien:dictee phrase"));
 }
 
 #[test]

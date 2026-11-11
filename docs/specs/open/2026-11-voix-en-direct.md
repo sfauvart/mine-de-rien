@@ -139,7 +139,7 @@ Hypothèses prises sans poser la question, à corriger dans ce fichier si elles 
 - [x] **Phase 1 : Le serveur dit une phrase au seul enfant**
 - [x] **Phase 2 : La dictée passe par la voix en direct**
 - [x] **Phase 3 : Le plugin est livré avec l'image**
-- [ ] **Phase 4 : Le pack de sons disparaît**
+- [x] **Phase 4 : Le pack de sons disparaît**
 - [ ] **Phase 5 : Pixel et les annonces se font entendre**
 
 La phase 1 porte tout le risque : si le son n'arrive pas, arrive en retard ou si le mod
@@ -360,6 +360,19 @@ du pack.
 configuration qui contient encore `[pack]` se charge : la section est ignorée, et l'agent
 le dit une fois au démarrage. `docs/architecture.md` reçoit un paragraphe daté sur
 l'arrivée du plugin et du mod, et `CLAUDE.md` décrit `plugin/`.
+
+**Précisé en codant.**
+
+- Retirer `RESOURCE_PACK` et `ACCEPTS_TRANSFERS` des compose ne suffit pas : l'image du
+  serveur laisse l'ancienne valeur dans `server.properties`, et un serveur déjà installé
+  continuerait d'annoncer un pack que plus personne ne sert. Les deux variables restent
+  donc, vides ou à `FALSE`, pour effacer. Vérifié sur le serveur d'essai recréé le
+  2026-11-11 : `resource-pack=` vide, `accepts-transfers=false`, plus d'avertissement de
+  pack au démarrage.
+- La dépendance de test `zip`, qui ne servait qu'à relire le pack, est retirée.
+- Laissé en place : la base garde les deux sons Ogg de chaque phrase (`phrases.son`,
+  `son_lent`), que plus rien ne joue, et la préparation d'une dictée les fabrique encore.
+  Les retirer demande une migration de la base : à faire à part.
 
 **Vérification automatique.**
 
