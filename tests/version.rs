@@ -13,8 +13,13 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 static TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^v([0-9]+\.[0-9]+\.[0-9]+)$").unwrap());
+/// L'image de l'agent, et elle seule : celle de la voix (`mine-de-rien-voix`) porte le numéro
+/// de Piper, pas celui de l'agent.
 static IMAGE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?m)^\s*image:\s*["']?ghcr\.io/sfauvart/mine-de-rien(?::([^\s"']+))?"#).unwrap()
+    Regex::new(
+        r#"(?m)^\s*image:\s*["']?ghcr\.io/sfauvart/mine-de-rien(?::([^\s"']+))?(?:["'\s]|$)"#,
+    )
+    .unwrap()
 });
 
 static VERSION_DU_PLUGIN: LazyLock<Regex> = LazyLock::new(|| {
@@ -87,6 +92,18 @@ fn le_depot_est_coherent_avec_sa_propre_version() {
         ecarts(&format!("v{version}"), version, &compose_du_depot()),
         Vec::<String>::new()
     );
+}
+
+#[test]
+fn l_image_de_la_voix_suit_piper_pas_l_agent() {
+    let avec_voix = format!(
+        "{}  voix:\n    image: ghcr.io/sfauvart/mine-de-rien-voix:1.8.0\n",
+        compose(&[":1.2.3"])
+    );
+    assert_eq!(ecarts("v1.2.3", "1.2.3", &avec_voix), Vec::<String>::new());
+    // Seule, elle ne tient pas lieu d'image de l'agent.
+    let voix_seule = "services:\n  voix:\n    image: ghcr.io/sfauvart/mine-de-rien-voix:1.8.0\n";
+    assert_eq!(ecarts("v1.2.3", "1.2.3", voix_seule).len(), 1);
 }
 
 /// Lancé par le workflow de publication : `MDR_TAG=v0.2.0 cargo test --test version`.
