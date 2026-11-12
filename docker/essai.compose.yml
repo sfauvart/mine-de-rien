@@ -60,7 +60,7 @@ services:
   #     piper.download_voices --download-dir /voix fr_FR-siwis-medium
   voix:
     profiles: ["voix"]
-    image: mine-de-rien-voix:piper-1.8.0
+    image: ghcr.io/sfauvart/mine-de-rien-voix:1.8.0
     build:
       context: .
       dockerfile: voix.Dockerfile

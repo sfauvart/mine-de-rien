@@ -42,6 +42,26 @@ Le workflow (`.github/workflows/publier.yml`) refuse de publier :
 
 5. Suivre le workflow « Publier l'image » dans l'onglet **Actions** du dépôt GitHub.
 
+## L'image de la voix
+
+Piper et son serveur HTTP vivent dans une image à part,
+`ghcr.io/sfauvart/mine-de-rien-voix`, dont le numéro est celui de Piper : elle ne change
+pas d'une version de l'agent à l'autre. Un tag git `voix-X.Y.Z` la publie pour amd64 et
+arm64 (`.github/workflows/publier-voix.yml`) ; le workflow refuse si `X.Y.Z` n'est pas la
+version figée dans `docker/voix.Dockerfile`.
+
+Pour changer de version de Piper : la modifier dans `docker/voix.Dockerfile`, reporter le
+numéro sur l'image `mine-de-rien-voix` de `docker-compose.yml` et de
+`docker/essai.compose.yml`, écouter une dictée sur le serveur d'essai, commiter, puis :
+
+```bash
+git tag voix-X.Y.Z
+git push origin voix-X.Y.Z
+```
+
+Piper est sous licence GPL : l'image le redistribue tel qu'il est publié sur PyPI, sans
+modification, et l'agent ne lui parle que par HTTP.
+
 ## Changer de version de Minecraft ou du chat vocal
 
 Le plugin Simple Voice Chat est épinglé dans `docker-compose.yml` (`MODRINTH_PROJECTS`) et
