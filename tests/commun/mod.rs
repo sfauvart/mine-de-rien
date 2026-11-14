@@ -154,6 +154,14 @@ impl AdaptateurJeu for Rejeu {
         if commande == mine_de_rien::games::tableau::commande_effacement() {
             return Ok("No entity was found".to_owned());
         }
+        // Le coffre vide retiré avant chaque pose, pour fermer sa fenêtre restée ouverte : même
+        // tolérance, la version Python ne le faisait pas.
+        if commande.starts_with("execute if block ")
+            && commande.contains(" unless data block ")
+            && commande.ends_with(" minecraft:air")
+        {
+            return Ok(String::new());
+        }
         let attendu = self.suivant(&json!(["commande", commande]));
         assert_eq!(
             json!(commande),

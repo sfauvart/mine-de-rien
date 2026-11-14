@@ -203,7 +203,7 @@ async fn pose_verrou_a_majuscule_et_apostrophe_puis_stockage() {
         coffre.poser(&trou(mot, 7)).await.unwrap();
         let commandes = jeu.commandes();
         assert_eq!(
-            commandes[1],
+            commandes[2],
             format!(
                 "data modify block 0 -60 8 lock set value {{components:{{\"minecraft:custom_name\":{cle}}}}}"
             )
