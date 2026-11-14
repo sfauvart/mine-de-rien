@@ -11,8 +11,9 @@ use mine_de_rien::adapters::game::rcon::ErreurRcon;
 use mine_de_rien::exercises::base::Exercice;
 use mine_de_rien::games::atelier::Atelier;
 use mine_de_rien::games::coffre_du_soir::{
-    Coffre, CoffreDuSoir, ErreurCoffre, Notificateur, commande_cle, commandes_pose,
-    commandes_rangement, commandes_retrait, formater_duree, predicat_cle, predicat_preuve,
+    Coffre, CoffreDuSoir, ErreurCoffre, Notificateur, commande_cle, commande_fermeture,
+    commandes_pose, commandes_rangement, commandes_retrait, formater_duree, predicat_cle,
+    predicat_preuve,
 };
 use mine_de_rien::games::paisible::ModePaisible;
 use mine_de_rien::games::tableau::{Genre, Morceau};
@@ -584,6 +585,26 @@ async fn pose_refusee_sans_atelier_dans_le_monde() {
         *monde.recues.borrow(),
         ["data get storage mine_de_rien:atelier pos"]
     );
+}
+
+/// L'enfant qui garde la fenêtre du coffre ouverte ne doit pas y voir arriver la récompense
+/// suivante : le coffre vide est retiré, donc sa fenêtre fermée, avant toute autre commande.
+#[tokio::test]
+async fn la_pose_commence_par_retirer_le_coffre_vide() {
+    let monde = Rc::new(MondeSansAtelier::default());
+    *monde.pos.borrow_mut() = Some([0, -60, 8]);
+    let coffre = CoffreDuSoir::new(monde.clone(), "Steve", 3, None).unwrap();
+    coffre.actualiser_atelier().await.unwrap();
+    let _ = coffre.poser(&defaut()).await;
+    let recues = monde.recues.borrow();
+    assert_eq!(
+        recues[1],
+        "execute if block 0 -60 8 minecraft:chest unless data block 0 -60 8 Items[0] run setblock 0 -60 8 minecraft:air"
+    );
+    assert_eq!(recues[1], commande_fermeture(&A));
+    assert!(recues[2].contains("run setblock 0 -60 8 minecraft:chest"));
+    let recompense = recues.iter().position(|c| c.contains("item replace"));
+    assert!(recompense.is_some_and(|rang| rang > 2), "{recues:?}");
 }
 
 /// Atelier construit ou déplacé pendant que l'agent tourne : pas de redémarrage.

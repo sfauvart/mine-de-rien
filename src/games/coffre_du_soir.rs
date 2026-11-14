@@ -8,6 +8,8 @@
 //! enclume (voir `atelier.rs`) :
 //!
 //! ```text
+//!     execute if block C minecraft:chest unless data block C Items[0] run setblock C minecraft:air
+//!     execute unless block C minecraft:chest run setblock C minecraft:chest[facing=south]
 //!     data modify block C lock set value {components:{"minecraft:custom_name":"29"}}
 //!     item replace block C container.13 with minecraft:diamond 3
 //!     item replace block C container.11 with minecraft:paper[minecraft:custom_name="Preuve n°12",
@@ -25,6 +27,12 @@
 //!
 //! Le verrou est posé avant d'y mettre la récompense : à aucun moment le coffre n'est ouvert
 //! avec quelque chose dedans.
+//!
+//! **Un coffre neuf à chaque pose.** Le verrou n'est regardé qu'au moment d'ouvrir : un enfant
+//! qui garde la fenêtre du coffre ouverte après l'avoir vidé verrait la récompense suivante y
+//! apparaître, et la prendrait sans répondre. Le coffre vide est donc retiré puis reposé, ce
+//! qui ferme sa fenêtre chez qui l'avait ouverte. Un coffre qui contient encore quelque chose
+//! n'est jamais retiré.
 //!
 //! **La clé** : une clé (`trial_key`) dont la description explique les gestes, donnée avec les
 //! niveaux si l'enfant n'en a plus une sur lui. C'est elle qu'il renomme : il n'a pas à deviner
@@ -72,6 +80,8 @@
 //! - *Casser le coffre* : zone en mode aventure autour de l'atelier (datapack). Un coffre qui
 //!   disparaît quand même (creeper, créatif) est reposé et l'événement noté. Limite connue :
 //!   une explosion fait tomber le contenu, preuve comprise, et compte donc comme une ouverture.
+//! - *Garder le coffre ouvert* d'un coffre à l'autre, pour se servir sans répondre : le coffre
+//!   est remplacé à chaque pose, sa fenêtre se ferme (`commande_fermeture`).
 //! - *Opérateur, créatif* : l'enfant ne doit pas être opérateur sur le serveur réel (voir
 //!   `docs/installation.md`). En créatif, la zone ne s'applique pas.
 //! - *Répondre au hasard* : chaque renommage coûte un niveau ; 3 niveaux sont offerts par coffre,
@@ -243,6 +253,17 @@ pub fn commande_verrou(a: &Atelier, nom: &str) -> String {
         "data modify block {} lock set value {{components:{{\"minecraft:custom_name\":{}}}}}",
         pos(a.coffre()),
         snbt(nom)
+    )
+}
+
+/// Avant la pose : retire le coffre s'il est vide, pour fermer sa fenêtre chez l'enfant qui
+/// l'aurait gardée ouverte depuis le coffre précédent. `commandes_pose` le repose aussitôt.
+/// Le test et le retrait se font dans la même commande : un objet glissé entre-temps dans le
+/// coffre n'est pas détruit. Vérifiée sur Minecraft Java 26.3 (Paper).
+pub fn commande_fermeture(a: &Atelier) -> String {
+    let c = pos(a.coffre());
+    format!(
+        "execute if block {c} minecraft:chest unless data block {c} Items[0] run setblock {c} minecraft:air"
     )
 }
 
@@ -628,7 +649,10 @@ impl Coffre for CoffreDuSoir {
 
     async fn poser(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre> {
         let a = self.verifier_atelier()?;
-        self.executer(&commandes_pose(&a, s)?).await?;
+        // L'énoncé est vérifié avant de toucher au coffre.
+        let mut commandes = commandes_pose(&a, s)?;
+        commandes.insert(0, commande_fermeture(&a));
+        self.executer(&commandes).await?;
         let c = pos(a.coffre());
         let pose = self
             .teste(&format!("execute if data block {c} lock"))
