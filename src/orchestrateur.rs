@@ -46,7 +46,7 @@ use crate::dictees::{self, ErreurDictees, Preparation, ecrire_jour, lire_jour};
 use crate::exercises::base::{Exercice, meme_cle, normaliser};
 use crate::exercises::francais::dictee::imposes_absents;
 use crate::games::atelier::{ErreurAtelier, pos};
-use crate::games::cadeaux::tirer;
+use crate::games::cadeaux::{dire, tirer};
 use crate::games::coffre_du_soir::{
     Coffre, CoffreDuSoir, ErreurCoffre, Notificateur, formater_duree,
 };
@@ -351,14 +351,20 @@ impl Orchestrateur {
                     // Le mot trouvé s'écrit en vert à sa place.
                     self.dessiner_tableau(actif.id).await?;
                 }
-                let duree = self.depot.lire(actif.id)?.and_then(|ouvert| ouvert.duree());
+                let ouvert = self.depot.lire(actif.id)?;
+                let duree = ouvert.as_ref().and_then(ExerciceStocke::duree);
+                // Ce que l'enfant vient de gagner ; rien à dire d'un coffre sans cadeau connu.
+                let gagne = ouvert
+                    .filter(|ouvert| !ouvert.cadeaux.is_empty())
+                    .map(|ouvert| format!(" Cadeaux : {}.", dire(&ouvert.cadeaux)))
+                    .unwrap_or_default();
                 let aide = nombre_indices(self.depot.compter(EVENEMENT_INDICE, actif.id)?);
                 let essais = essais_rates(&self.depot.tentatives(actif.id)?)
                     .map(|rates| format!(" Essais : {rates}."))
                     .unwrap_or_default();
                 self.notificateur
                     .notifier(&format!(
-                        "Coffre n°{} ouvert en {}, {aide} ({} → {}).{essais}",
+                        "Coffre n°{} ouvert en {}, {aide} ({} → {}).{essais}{gagne}",
                         actif.id,
                         formater_duree(duree),
                         actif.exercice.enonce,

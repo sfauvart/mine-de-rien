@@ -332,7 +332,10 @@ async fn notification_d_ouverture_compte_les_indices() {
 
         assert_eq!(
             *envoyes.0.borrow().last().unwrap(),
-            format!("Coffre n°1 ouvert en 12 min, {texte} (Double de 17 = ? → 34).")
+            format!(
+                "Coffre n°1 ouvert en 12 min, {texte} (Double de 17 = ? → 34). Cadeaux : {}.",
+                mine_de_rien::games::cadeaux::dire(&depot.lire(1).unwrap().unwrap().cadeaux)
+            )
         );
     }
 }

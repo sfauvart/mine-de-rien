@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use mine_de_rien::alea::Alea;
 use mine_de_rien::config::{Cadeau, cadeaux_par_defaut};
-use mine_de_rien::games::cadeaux::tirer;
+use mine_de_rien::games::cadeaux::{CadeauTire, dire, tirer};
 
 fn cadeau(objet: &str, poids: i64) -> Cadeau {
     Cadeau {
@@ -90,4 +90,23 @@ fn une_liste_trop_courte_rend_ce_qu_elle_peut() {
     let liste = [cadeau("a", 1), cadeau("b", 1)];
     assert_eq!(tirer(&liste, 5, &mut Alea::graine(1)).len(), 2);
     assert!(tirer(&[], 2, &mut Alea::graine(1)).is_empty());
+}
+
+#[test]
+fn les_cadeaux_se_disent_avec_leur_nom_ou_a_defaut_leur_identifiant() {
+    let tire = |objet: &str, nombre, nom: Option<&str>| CadeauTire {
+        objet: objet.to_owned(),
+        nombre,
+        nom: nom.map(str::to_owned),
+    };
+    assert_eq!(
+        dire(&[
+            tire("minecraft:diamond", 3, Some("diamant")),
+            tire("minecraft:saddle", 1, None),
+            tire("gold_ingot", 4, Some("lingot d'or")),
+        ]),
+        "3 × diamant, 1 × saddle, 4 × lingot d'or"
+    );
+    assert_eq!(dire(&[tire("emerald", 64, None)]), "64 × emerald");
+    assert_eq!(dire(&[]), "");
 }

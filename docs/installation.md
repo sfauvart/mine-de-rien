@@ -71,8 +71,31 @@ coffre et aux durées. Jamais le pseudo ni le prénom de l'enfant.
 
 - **`[enfant] pseudo_minecraft`** : le pseudo exact de l'enfant dans Minecraft, celui du
   compte Microsoft ou du compte hors ligne. Il ne quitte jamais la maison.
-- **`[coffre]`** : la récompense de chaque coffre (3 diamants par défaut) et les niveaux
-  d'expérience offerts pour les essais (3 par défaut, un renommage coûte un niveau).
+- **`[coffre]`** : les niveaux d'expérience offerts pour les essais (3 par défaut, un
+  renommage coûte un niveau) et les cadeaux. Chaque coffre en reçoit plusieurs, différents,
+  tirés au hasard dans une liste ; à l'ouverture, Telegram dit lesquels (« Cadeaux :
+  3 × diamant, 1 × selle. »). Sans rien écrire, la liste livrée avec l'agent s'applique :
+  diamants, émeraudes, lingots, carottes dorées, gâteau, améthyste, laisse, étiquette,
+  selle, longue-vue, et plus rarement un disque de musique ou une pomme dorée. Pour la
+  régler :
+
+  ```toml
+  [coffre]
+  cadeaux_par_coffre = 2      # cadeaux différents par coffre, de 1 à 5
+  cadeaux = [
+    { objet = "minecraft:diamond", nombre = 3, poids = 10, nom = "diamant" },
+    { objet = "minecraft:cake",    nombre = 1, poids = 8,  nom = "gâteau" },
+    { objet = "minecraft:saddle",  nombre = 1, poids = 2,  nom = "selle" },
+  ]
+  ```
+
+  `objet` est l'identifiant Minecraft de l'objet, `nombre` la quantité donnée (1 à 64),
+  `poids` sa fréquence (1 à 100 : un poids 10 sort cinq fois plus souvent qu'un poids 2),
+  `nom` ce que lira Telegram. Un objet ne figure qu'une fois, et la liste doit compter au
+  moins `cadeaux_par_coffre` cadeaux. Un identifiant mal écrit n'est pas détecté par
+  l'agent : le serveur refuse l'objet et sa case reste vide, mieux vaut l'essayer une fois.
+  Les anciennes clés `recompense` et `recompense_nombre` ne sont plus lues : elles peuvent
+  être retirées, l'agent le rappelle à son démarrage tant qu'elles sont là.
 - **`[atelier]`** : à laisser commenté, l'étape 7 trouve l'emplacement toute seule.
 - **`[canal] parents`** : on y reviendra à l'étape 6.
 - **`[llm]`** : facultatif, pour lire les photos de fiches (étape 10). Un serveur local
