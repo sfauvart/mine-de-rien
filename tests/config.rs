@@ -145,3 +145,121 @@ fn la_voix_dit_le_chat_par_defaut_et_le_reglage_se_coupe() {
             .contains("dire_le_chat = false")
     );
 }
+
+#[test]
+fn cadeaux_par_defaut_et_liste_reglee() {
+    let config = lire_config(MINIMALE, &sans_variable).unwrap();
+    assert_eq!(config.coffre.cadeaux_par_coffre, 2);
+    assert_eq!(config.coffre.cadeaux.len(), 13);
+    assert!(config.coffre.cadeaux.iter().all(|c| c.nom.is_some()));
+    // Aux valeurs d'usage, rien de nouveau ne s'écrit.
+    let ecrite = toml::to_string(&config).unwrap();
+    assert!(!ecrite.contains("cadeaux"), "{ecrite}");
+
+    let reglee = lire_config(
+        &format!(
+            "{MINIMALE}[coffre]\ncadeaux_par_coffre = 1\ncadeaux = [\n  \
+             {{ objet = \"minecraft:diamond\", nombre = 3, poids = 10, nom = \"diamant\" }},\n  \
+             {{ objet = \"saddle\" }},\n]\n"
+        ),
+        &sans_variable,
+    )
+    .unwrap();
+    assert_eq!(reglee.coffre.cadeaux_par_coffre, 1);
+    let selle = &reglee.coffre.cadeaux[1];
+    assert_eq!(
+        (selle.objet.as_str(), selle.nombre, selle.poids, &selle.nom),
+        ("saddle", 1, 1, &None)
+    );
+    let ecrite = toml::to_string(&reglee).unwrap();
+    assert!(ecrite.contains("cadeaux_par_coffre"), "{ecrite}");
+    assert_eq!(lire_config(&ecrite, &sans_variable).unwrap(), reglee);
+}
+
+#[test]
+fn chaque_cadeau_mal_regle_est_refuse() {
+    let refus = |coffre: &str| {
+        lire_config(&format!("{MINIMALE}[coffre]\n{coffre}\n"), &sans_variable)
+            .unwrap_err()
+            .to_string()
+    };
+    let deux = "{ objet = \"diamond\" }, { objet = \"emerald\" }";
+    for (coffre, attendu) in [
+        (
+            "cadeaux_par_coffre = 0",
+            "cadeaux_par_coffre doit être entre 1 et 5",
+        ),
+        (
+            "cadeaux_par_coffre = 6",
+            "cadeaux_par_coffre doit être entre 1 et 5",
+        ),
+        (
+            "cadeaux = [{ objet = \"diamond\" }]",
+            "il en faut au moins 2",
+        ),
+        ("cadeaux = []", "il en faut au moins 2"),
+        (
+            "cadeaux = [{ objet = \"Diamant\" }, { objet = \"emerald\" }]",
+            "objet invalide : 'Diamant'",
+        ),
+        (
+            "cadeaux = [{ objet = \"diamond 64\" }, { objet = \"emerald\" }]",
+            "objet invalide",
+        ),
+        (
+            "cadeaux = [{ objet = \"diamond\", nombre = 65 }, { objet = \"emerald\" }]",
+            "nombre doit être entre 1 et 64 (diamond)",
+        ),
+        (
+            "cadeaux = [{ objet = \"diamond\", nombre = 0 }, { objet = \"emerald\" }]",
+            "nombre doit être entre 1 et 64 (diamond)",
+        ),
+        (
+            "cadeaux = [{ objet = \"diamond\", poids = 0 }, { objet = \"emerald\" }]",
+            "poids doit être entre 1 et 100 (diamond)",
+        ),
+        (
+            "cadeaux = [{ objet = \"diamond\", poids = 101 }, { objet = \"emerald\" }]",
+            "poids doit être entre 1 et 100 (diamond)",
+        ),
+        (
+            "cadeaux = [{ objet = \"diamond\", nom = \" \" }, { objet = \"emerald\" }]",
+            "nom de 1 à 30 caractères (diamond)",
+        ),
+        (
+            "cadeaux = [{ objet = \"diamond\", nom = \"éééééééééééééééééééééééééééééééé\" }, { objet = \"emerald\" }]",
+            "nom de 1 à 30 caractères (diamond)",
+        ),
+        (
+            "cadeaux = [{ objet = \"diamond\" }, { objet = \"minecraft:diamond\" }]",
+            "minecraft:diamond figure deux fois",
+        ),
+        (
+            "cadeaux = [{ objet = \"diamond\", couleur = \"bleu\" }, { objet = \"emerald\" }]",
+            "couleur",
+        ),
+    ] {
+        let message = refus(coffre);
+        assert!(message.contains(attendu), "{coffre} → {message}");
+    }
+    // Un nom de 30 lettres accentuées passe : la longueur se compte en caractères.
+    let trente = "é".repeat(30);
+    assert!(
+        lire_config(
+            &format!(
+                "{MINIMALE}[coffre]\ncadeaux = [{{ objet = \"diamond\", nom = \"{trente}\" }}, {deux}]\n"
+            ),
+            &sans_variable
+        )
+        .is_err() // « diamond » y figure deux fois
+    );
+    assert!(
+        lire_config(
+            &format!(
+                "{MINIMALE}[coffre]\ncadeaux = [{{ objet = \"cake\", nom = \"{trente}\" }}, {deux}]\n"
+            ),
+            &sans_variable
+        )
+        .is_ok()
+    );
+}

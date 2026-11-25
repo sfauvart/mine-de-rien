@@ -211,13 +211,75 @@ pub struct Atelier {
     pub z: i32,
 }
 
-/// Récompense identique pour tous les coffres, et niveaux offerts pour les essais.
+/// Un cadeau possible dans un coffre : plus son poids est grand, plus il sort souvent.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Cadeau {
+    pub objet: String,
+    #[serde(default = "un")]
+    pub nombre: i64,
+    #[serde(default = "un")]
+    pub poids: i64,
+    /// Le nom dit aux parents sur Telegram ; sans lui, l'identifiant de l'objet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nom: Option<String>,
+}
+
+fn un() -> i64 {
+    1
+}
+
+/// La liste livrée avec l'agent : de quoi construire et explorer, rien qui casse le jeu.
+/// (objet, nombre, poids, nom)
+const CADEAUX_PAR_DEFAUT: [(&str, i64, i64, &str); 13] = [
+    ("minecraft:diamond", 3, 10, "diamant"),
+    ("minecraft:emerald", 5, 10, "émeraude"),
+    ("minecraft:iron_ingot", 8, 10, "lingot de fer"),
+    ("minecraft:gold_ingot", 4, 8, "lingot d'or"),
+    ("minecraft:golden_carrot", 8, 8, "carotte dorée"),
+    ("minecraft:cake", 1, 8, "gâteau"),
+    ("minecraft:amethyst_shard", 6, 6, "éclat d'améthyste"),
+    ("minecraft:lead", 2, 5, "laisse"),
+    ("minecraft:name_tag", 1, 5, "étiquette"),
+    ("minecraft:saddle", 1, 4, "selle"),
+    ("minecraft:spyglass", 1, 3, "longue-vue"),
+    ("minecraft:music_disc_cat", 1, 2, "disque de musique"),
+    ("minecraft:golden_apple", 1, 2, "pomme dorée"),
+];
+
+pub fn cadeaux_par_defaut() -> Vec<Cadeau> {
+    CADEAUX_PAR_DEFAUT
+        .iter()
+        .map(|&(objet, nombre, poids, nom)| Cadeau {
+            objet: objet.to_owned(),
+            nombre,
+            poids,
+            nom: Some(nom.to_owned()),
+        })
+        .collect()
+}
+
+fn cadeaux_sont_par_defaut(cadeaux: &[Cadeau]) -> bool {
+    cadeaux == cadeaux_par_defaut()
+}
+
+fn cadeaux_par_coffre_est_par_defaut(nombre: &i64) -> bool {
+    *nombre == Coffre::CADEAUX_PAR_COFFRE
+}
+
+/// Les cadeaux des coffres, tirés au hasard dans une liste, et les niveaux offerts pour les
+/// essais.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Coffre {
     pub recompense: String,
     pub recompense_nombre: i64,
     pub niveaux_offerts: i64,
+    /// Aux valeurs d'usage, ni la liste ni le nombre ne s'écrivent.
+    #[serde(skip_serializing_if = "cadeaux_par_coffre_est_par_defaut")]
+    pub cadeaux_par_coffre: i64,
+    #[serde(skip_serializing_if = "cadeaux_sont_par_defaut")]
+    pub cadeaux: Vec<Cadeau>,
 }
 
 impl Default for Coffre {
@@ -226,12 +288,75 @@ impl Default for Coffre {
             recompense: "minecraft:diamond".to_owned(),
             recompense_nombre: 3,
             niveaux_offerts: 3,
+            cadeaux_par_coffre: Self::CADEAUX_PAR_COFFRE,
+            cadeaux: cadeaux_par_defaut(),
         }
     }
 }
 
 impl Coffre {
+    /// Cadeaux différents par coffre, sans réglage.
+    pub const CADEAUX_PAR_COFFRE: i64 = 2;
+    /// Les cadeaux tiennent dans les cases 12 à 16 du coffre.
+    pub const CADEAUX_MAX: i64 = 5;
+    const NOM_MAX: usize = 30;
+
+    fn verifier_cadeaux(&self) -> Result<(), ErreurConfig> {
+        if !(1..=Self::CADEAUX_MAX).contains(&self.cadeaux_par_coffre) {
+            return Err(ErreurConfig(format!(
+                "[coffre] cadeaux_par_coffre doit être entre 1 et {}",
+                Self::CADEAUX_MAX
+            )));
+        }
+        if (self.cadeaux.len() as i64) < self.cadeaux_par_coffre {
+            return Err(ErreurConfig(format!(
+                "[coffre] cadeaux : il en faut au moins {} (cadeaux_par_coffre), la liste en a {}",
+                self.cadeaux_par_coffre,
+                self.cadeaux.len()
+            )));
+        }
+        let sans_prefixe = |objet: &str| objet.trim_start_matches("minecraft:").to_owned();
+        let mut vus = std::collections::HashSet::new();
+        for cadeau in &self.cadeaux {
+            if !OBJET.is_match(&cadeau.objet) {
+                return Err(ErreurConfig(format!(
+                    "[coffre] cadeaux : objet invalide : {}",
+                    repr(&cadeau.objet)
+                )));
+            }
+            if !(1..=64).contains(&cadeau.nombre) {
+                return Err(ErreurConfig(format!(
+                    "[coffre] cadeaux : nombre doit être entre 1 et 64 ({})",
+                    cadeau.objet
+                )));
+            }
+            if !(1..=100).contains(&cadeau.poids) {
+                return Err(ErreurConfig(format!(
+                    "[coffre] cadeaux : poids doit être entre 1 et 100 ({})",
+                    cadeau.objet
+                )));
+            }
+            if let Some(nom) = &cadeau.nom
+                && (nom.trim().is_empty() || nom.chars().count() > Self::NOM_MAX)
+            {
+                return Err(ErreurConfig(format!(
+                    "[coffre] cadeaux : nom de 1 à {} caractères ({})",
+                    Self::NOM_MAX,
+                    cadeau.objet
+                )));
+            }
+            if !vus.insert(sans_prefixe(&cadeau.objet)) {
+                return Err(ErreurConfig(format!(
+                    "[coffre] cadeaux : {} figure deux fois dans la liste",
+                    cadeau.objet
+                )));
+            }
+        }
+        Ok(())
+    }
+
     fn verifier(&self) -> Result<(), ErreurConfig> {
+        self.verifier_cadeaux()?;
         if !OBJET.is_match(&self.recompense) {
             return Err(ErreurConfig(format!(
                 "[coffre] recompense invalide : {}",
