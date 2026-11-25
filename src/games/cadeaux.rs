@@ -11,6 +11,22 @@ pub use crate::storage::sqlite::CadeauTire;
 /// voisines. La preuve garde la case 11.
 pub const CASES: [u8; 5] = [13, 14, 12, 15, 16];
 
+/// Les cadeaux d'un coffre tels qu'on les dit aux parents : « 3 × diamant, 1 × selle ». Le nom
+/// réglé dans `[coffre]` s'il existe, sinon l'identifiant de l'objet sans `minecraft:`.
+pub fn dire(cadeaux: &[CadeauTire]) -> String {
+    let lignes: Vec<String> = cadeaux
+        .iter()
+        .map(|cadeau| {
+            let nom = cadeau
+                .nom
+                .as_deref()
+                .unwrap_or_else(|| cadeau.objet.trim_start_matches("minecraft:"));
+            format!("{} × {nom}", cadeau.nombre)
+        })
+        .collect();
+    lignes.join(", ")
+}
+
 /// `combien` cadeaux différents de `liste` : deux fois plus de chances pour un poids double.
 /// Une liste trop courte rend ce qu'elle peut.
 pub fn tirer(liste: &[Cadeau], combien: usize, alea: &mut Alea) -> Vec<CadeauTire> {

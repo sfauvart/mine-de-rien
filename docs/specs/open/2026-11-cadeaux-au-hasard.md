@@ -121,7 +121,7 @@ Rien. Le tirage est local, la liste des cadeaux ne part que vers le serveur Mine
 
 - [x] **Phase 1 : la liste et le tirage**
 - [x] **Phase 2 : les cadeaux dans le coffre**
-- [ ] **Phase 3 : les cadeaux dits aux parents, et la doc**
+- [x] **Phase 3 : les cadeaux dits aux parents, et la doc**
 
 La phase 2 a besoin de la liste et du tirage de la phase 1 ; la phase 3 lit en base ce que
 la phase 2 y écrit. Après la phase 1 seule, le comportement en jeu n'a pas changé.
@@ -218,7 +218,7 @@ et les trois coffres ne se ressemblent pas. Le détail des gestes sera donné pa
 
 **Fichiers.** `src/orchestrateur.rs`, `src/games/cadeaux.rs`, `tests/orchestrateur.rs`,
 `tests/cadeaux.rs`, `docs/installation.md` (ligne 74),
-`tests/donnees/oracle/commandes_parents.json` si le relevé couvre ce message.
+`tests/donnees/oracle/coffre_du_soir.json` (les deux messages d'ouverture du scénario).
 
 **Conception.**
 - `cadeaux::dire(&[CadeauTire]) -> String` : « 3 × diamant, 1 × selle ». Le `nom` de la

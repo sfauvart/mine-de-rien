@@ -490,6 +490,15 @@ fn monde() -> Monde {
     }
 }
 
+/// La fin du message d'ouverture : ce que le coffre contenait, d'après la base.
+fn gagne(depot: &Depot, numero: i64) -> String {
+    let cadeaux = depot.lire(numero).unwrap().unwrap().cadeaux;
+    format!(
+        " Cadeaux : {}.",
+        mine_de_rien::games::cadeaux::dire(&cadeaux)
+    )
+}
+
 fn actif(depot: &Depot) -> Option<i64> {
     depot.actif().unwrap().map(|s| s.id)
 }
@@ -521,8 +530,19 @@ async fn scenario_complet() {
     assert_eq!(m.coffre.actions().last().unwrap(), "ranger 1");
     assert_eq!(
         m.notifs.dernier(),
-        "Coffre n°1 ouvert en 5 min, sans indice (12 ÷ 12 = ? → 1)."
+        format!(
+            "Coffre n°1 ouvert en 5 min, sans indice (12 ÷ 12 = ? → 1).{}",
+            gagne(&m.depot, 1)
+        )
     );
+    // Deux cadeaux, nommés comme dans la liste livrée.
+    let fin = gagne(&m.depot, 1);
+    assert!(
+        fin.starts_with(" Cadeaux : ") && fin.ends_with('.'),
+        "{fin}"
+    );
+    assert_eq!(fin.matches(" × ").count(), 2, "{fin}");
+    assert!(!fin.contains("minecraft:"), "{fin}");
     assert_eq!(m.depot.lire(1).unwrap().unwrap().statut, Statut::Ouvert);
 
     // Coffre pas vidé : on attend, et on le lui demande une fois.
@@ -1328,7 +1348,10 @@ async fn chaque_nouveau_nom_de_la_cle_est_un_essai() {
     );
     assert_eq!(
         m.notifs.dernier(),
-        "Coffre n°1 ouvert en 4 min, sans indice (12 ÷ 12 = ? → 1). Essais : 7."
+        format!(
+            "Coffre n°1 ouvert en 4 min, sans indice (12 ÷ 12 = ? → 1). Essais : 7.{}",
+            gagne(&m.depot, 1)
+        )
     );
 
     // Coffre suivant : « 1 », resté sur la clé, est son point de départ.
@@ -1344,10 +1367,13 @@ async fn chaque_nouveau_nom_de_la_cle_est_un_essai() {
     avancer(&m.horloge, TimeDelta::minutes(1));
     m.orch.tour().await.unwrap();
     assert_eq!(essais(&m, 2), [("2".to_owned(), true)]);
-    // Sans essai raté, la notification est celle d'avant, au caractère près.
+    // Sans essai raté, rien ne s'intercale avant les cadeaux.
     assert_eq!(
         m.notifs.dernier(),
-        "Coffre n°2 ouvert en 1 min, sans indice (24 ÷ 12 = ? → 2)."
+        format!(
+            "Coffre n°2 ouvert en 1 min, sans indice (24 ÷ 12 = ? → 2).{}",
+            gagne(&m.depot, 2)
+        )
     );
 }
 
@@ -1400,7 +1426,7 @@ async fn un_mot_de_dictee_rate_garde_sa_graphie_et_ne_va_pas_au_journal() {
     assert!(
         m.notifs
             .dernier()
-            .ends_with("→ plus). Essais : plu, pluss."),
+            .contains("→ plus). Essais : plu, pluss. Cadeaux : "),
         "{}",
         m.notifs.dernier()
     );
