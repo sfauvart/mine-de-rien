@@ -272,8 +272,12 @@ fn cadeaux_par_coffre_est_par_defaut(nombre: &i64) -> bool {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Coffre {
-    pub recompense: String,
-    pub recompense_nombre: i64,
+    /// L'ancienne récompense unique, remplacée par `cadeaux` : une configuration qui la porte
+    /// encore doit se charger. Rien n'en est lu ni réécrit, quel que soit son contenu.
+    #[serde(skip_serializing)]
+    pub recompense: Option<toml::Value>,
+    #[serde(skip_serializing)]
+    pub recompense_nombre: Option<toml::Value>,
     pub niveaux_offerts: i64,
     /// Aux valeurs d'usage, ni la liste ni le nombre ne s'écrivent.
     #[serde(skip_serializing_if = "cadeaux_par_coffre_est_par_defaut")]
@@ -285,8 +289,8 @@ pub struct Coffre {
 impl Default for Coffre {
     fn default() -> Self {
         Self {
-            recompense: "minecraft:diamond".to_owned(),
-            recompense_nombre: 3,
+            recompense: None,
+            recompense_nombre: None,
             niveaux_offerts: 3,
             cadeaux_par_coffre: Self::CADEAUX_PAR_COFFRE,
             cadeaux: cadeaux_par_defaut(),
@@ -300,6 +304,11 @@ impl Coffre {
     /// Les cadeaux tiennent dans les cases 12 à 16 du coffre.
     pub const CADEAUX_MAX: i64 = 5;
     const NOM_MAX: usize = 30;
+
+    /// Vrai si la configuration porte encore `recompense` ou `recompense_nombre`.
+    pub fn porte_l_ancienne_recompense(&self) -> bool {
+        self.recompense.is_some() || self.recompense_nombre.is_some()
+    }
 
     fn verifier_cadeaux(&self) -> Result<(), ErreurConfig> {
         if !(1..=Self::CADEAUX_MAX).contains(&self.cadeaux_par_coffre) {
@@ -357,17 +366,6 @@ impl Coffre {
 
     fn verifier(&self) -> Result<(), ErreurConfig> {
         self.verifier_cadeaux()?;
-        if !OBJET.is_match(&self.recompense) {
-            return Err(ErreurConfig(format!(
-                "[coffre] recompense invalide : {}",
-                repr(&self.recompense)
-            )));
-        }
-        if !(1..=64).contains(&self.recompense_nombre) {
-            return Err(ErreurConfig(
-                "[coffre] recompense_nombre doit être entre 1 et 64".into(),
-            ));
-        }
         if !(0..=30).contains(&self.niveaux_offerts) {
             return Err(ErreurConfig(
                 "[coffre] niveaux_offerts doit être entre 0 et 30".into(),

@@ -23,8 +23,6 @@ const DICTEE_6: &str = "Dans la ville de Dubaï, aux Émirats arabes unis, s'él
 const DEMANDE: Demande<'static> = Demande {
     source: Source::Dictee,
     demande_par: "seance",
-    recompense: "minecraft:diamond",
-    recompense_nombre: 3,
 };
 
 fn jour(m: u32, j: u32) -> NaiveDate {

@@ -1,6 +1,6 @@
 //! Coffre du soir : un coffre verrouillé par la réponse, à renommer sur une enclume.
 //!
-//! **Le désir.** Des diamants dans un coffre, à l'atelier près de sa base. Le coffre ne s'ouvre
+//! **Le désir.** Une surprise dans un coffre, à l'atelier près de sa base. Le coffre ne s'ouvre
 //! qu'en tenant un objet dont le nom est la réponse : le calcul est la clé, pas une barrière
 //! posée devant.
 //!
@@ -11,7 +11,8 @@
 //!     execute if block C minecraft:chest unless data block C Items[0] run setblock C minecraft:air
 //!     execute unless block C minecraft:chest run setblock C minecraft:chest[facing=south]
 //!     data modify block C lock set value {components:{"minecraft:custom_name":"29"}}
-//!     item replace block C container.13 with minecraft:diamond 3
+//!     item replace block C container.13 with minecraft:diamond 3       # un par cadeau :
+//!     item replace block C container.14 with minecraft:saddle 1        # cases 13, 14, 12, 15, 16
 //!     item replace block C container.11 with minecraft:paper[minecraft:custom_name="Preuve n°12",
 //!         minecraft:custom_data={mdr_coffre:12}]
 //!     setblock P minecraft:oak_sign[rotation=0]{front_text:{messages:[...]},is_waxed:1b}
@@ -67,7 +68,10 @@
 //! compte sans retirer (« Found 1 matching item(s) on player ... »). Le papier n'existe que dans
 //! le coffre : l'avoir sur soi prouve qu'on l'a ouvert.
 //!
-//! **Récompense** : la valeur de `[coffre]` dans `config.toml`, identique pour tous les coffres.
+//! **Récompense** : plusieurs cadeaux différents, tirés au hasard selon leurs poids dans la
+//! liste de `[coffre]` (`cadeaux.rs`). Le tirage se fait à la première pose et s'écrit en base :
+//! un coffre disparu puis reposé contient les mêmes cadeaux, on ne relance pas les dés en le
+//! faisant disparaître. L'enfant ne les découvre qu'en ouvrant.
 //!
 //! **Rangement** après ouverture : la preuve est retirée de l'inventaire, le panneau disparaît,
 //! le verrou saute. Ce qui reste dans le coffre n'est pas effacé : le coffre suivant attend
@@ -107,6 +111,7 @@ use crate::dictees::Lecteur;
 use crate::diffusion::Parole;
 use crate::exercises::base::Exercice;
 use crate::games::atelier::{Atelier, PAS_CONSTRUIT, lire_atelier, pos};
+use crate::games::cadeaux;
 use crate::games::dictee;
 use crate::games::tableau::{self, Morceau};
 use crate::journal;
@@ -298,19 +303,26 @@ pub fn commandes_pose(a: &Atelier, s: &ExerciceStocke) -> Result<Vec<String>, Er
         "minecraft:oak_sign[rotation=0]{{front_text:{{messages:[{}]}},is_waxed:1b}}",
         messages.join(",")
     );
-    Ok(vec![
+    let mut commandes = vec![
         format!(
             "execute unless block {c} minecraft:chest run setblock {c} minecraft:chest[facing=south]"
         ),
         commande_verrou(a, &s.exercice.reponse),
-        format!(
-            "item replace block {c} container.13 with {} {}",
-            s.recompense, s.recompense_nombre
-        ),
+    ];
+    // Un cadeau par case. Objet et nombre viennent de la configuration vérifiée
+    // (`config::Coffre`), jamais d'un texte libre.
+    for (cadeau, case) in s.cadeaux.iter().zip(cadeaux::CASES) {
+        commandes.push(format!(
+            "item replace block {c} container.{case} with {} {}",
+            cadeau.objet, cadeau.nombre
+        ));
+    }
+    commandes.extend([
         format!("item replace block {c} container.11 with {preuve}"),
         format!("setblock {p} {panneau}"),
         format!("setblock {e} minecraft:anvil[facing=east]"),
-    ])
+    ]);
+    Ok(commandes)
 }
 
 /// Après ouverture : preuve retirée, panneau enlevé, verrou ôté. Le contenu reste.

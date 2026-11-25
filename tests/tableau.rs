@@ -21,8 +21,6 @@ const TEXTE: &str = "La plus haute tour s'élève. Elle est plus haute que trois
 const DEMANDE: Demande<'static> = Demande {
     source: Source::Dictee,
     demande_par: "seance",
-    recompense: "minecraft:diamond",
-    recompense_nombre: 3,
 };
 
 fn p(phrase: usize, mot: usize) -> Position {

@@ -17,7 +17,6 @@ use mine_de_rien::adapters::game::base::AdaptateurJeu;
 use mine_de_rien::adapters::game::log::FluxChat;
 use mine_de_rien::adapters::game::rcon::ErreurRcon;
 use mine_de_rien::alea::Alea;
-use mine_de_rien::config::Coffre as ConfigCoffre;
 use mine_de_rien::games::coffre_du_soir::CoffreDuSoir;
 use mine_de_rien::minecraft::texte::Style;
 use mine_de_rien::orchestrateur::CommandesParents;
@@ -597,7 +596,6 @@ fn monde() -> Monde {
     let coffre = Rc::new(CoffreDuSoir::new(jeu.clone(), "Steve", 3, None).unwrap());
     let c = CommandesParents::new(
         depot.clone(),
-        ConfigCoffre::default(),
         Some(coffre),
         &PARENTS,
         Box::new(mine_de_rien::storage::sqlite::maintenant),
@@ -650,10 +648,9 @@ async fn coffre_file_annuler() {
             .starts_with("Coffre n°2 en file")
     );
     let premier = m.depot.lire(1).unwrap().unwrap();
-    assert_eq!(
-        (premier.demande_par.as_str(), premier.recompense.as_str()),
-        ("111", "minecraft:diamond")
-    );
+    assert_eq!(premier.demande_par, "111");
+    // Les cadeaux ne sont tirés qu'à la pose.
+    assert!(premier.cadeaux.is_empty());
 
     poser(&m, 1);
     let file = dit(&m, "/file").await;

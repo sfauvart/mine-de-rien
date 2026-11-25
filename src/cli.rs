@@ -216,7 +216,7 @@ fn coffre(config: &Config, texte: &str) -> ExitCode {
         Ok(depot) => depot,
         Err(e) => return erreur(e),
     };
-    match mettre_en_file(&depot, &config.coffre, texte, "cli", &mut Alea::nouveau()) {
+    match mettre_en_file(&depot, texte, "cli", &mut Alea::nouveau()) {
         Ok(lignes) => {
             println!("{}", lignes.join("\n"));
             ExitCode::SUCCESS
@@ -247,6 +247,11 @@ async fn arret_demande() {
 }
 
 /// Dit au démarrage, une fois : la section `[pack]` n'existe plus.
+/// Dit au démarrage, une fois : la récompense unique a laissé la place à la liste de cadeaux.
+const RECOMPENSE_IGNOREE: &str = "Les clés recompense et recompense_nombre de [coffre] ne sont \
+    plus lues : chaque coffre reçoit des cadeaux tirés au hasard dans la liste cadeaux. Elles \
+    peuvent être retirées (docs/installation.md).";
+
 const PACK_IGNORE: &str = "La section [pack] de la configuration n'est plus lue : les dictées \
     s'entendent par le chat vocal, il n'y a plus de pack de sons. Elle peut être retirée \
     (docs/installation.md).";
@@ -254,6 +259,9 @@ const PACK_IGNORE: &str = "La section [pack] de la configuration n'est plus lue 
 async fn lancer(config: &Config) -> Result<(), String> {
     if config.pack.is_some() {
         eprintln!("{PACK_IGNORE}");
+    }
+    if config.coffre.porte_l_ancienne_recompense() {
+        eprintln!("{RECOMPENSE_IGNOREE}");
     }
     let pseudo = config.enfant.pseudo_minecraft.as_str();
     let jeu = Rc::new(jeu(config));
@@ -317,15 +325,12 @@ async fn lancer(config: &Config) -> Result<(), String> {
         notificateur,
         Box::new(maintenant),
         paisible,
-    );
+    )
+    .avec_cadeaux(&config.coffre, Alea::nouveau());
     let fuseau = config.dictee.tz();
     if config.voix.is_some() {
-        orchestrateur = orchestrateur.avec_seances(
-            config.dictee.coffres_par_seance,
-            fuseau,
-            config.coffre.clone(),
-            Alea::nouveau(),
-        );
+        orchestrateur =
+            orchestrateur.avec_seances(config.dictee.coffres_par_seance, fuseau, Alea::nouveau());
     }
     let pixel = if pixel_actif {
         let pixel = Pixel::new(
@@ -355,7 +360,6 @@ async fn lancer(config: &Config) -> Result<(), String> {
     };
     let mut commandes = CommandesParents::new(
         depot,
-        config.coffre.clone(),
         Some(coffre),
         parents,
         Box::new(maintenant),
@@ -608,8 +612,6 @@ async fn dictee_essai(config: &Config, texte: &str, nombre: usize) -> Result<(),
     let demande = Demande {
         source: Source::Dictee,
         demande_par: "cli",
-        recompense: &config.coffre.recompense,
-        recompense_nombre: config.coffre.recompense_nombre,
     };
     let coffres = dictees::seance(
         &depot,

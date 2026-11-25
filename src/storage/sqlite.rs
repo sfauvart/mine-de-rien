@@ -12,13 +12,14 @@ use std::path::Path;
 
 use chrono::{DateTime, NaiveDate, SecondsFormat, TimeDelta, Utc};
 use rusqlite::{Connection, OptionalExtension, Row, params};
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::exercises::base::Exercice;
 use crate::saisie::Source;
 use crate::util::json_python;
 
-pub const VERSION_SCHEMA: u32 = 5;
+pub const VERSION_SCHEMA: u32 = 6;
 
 pub const SCHEMA: &str = r#"
 CREATE TABLE exercices (
@@ -49,7 +50,7 @@ CREATE TABLE tentatives (
 "#;
 
 /// Chaque entrée fait passer le schéma de la version `indice + 1` à `indice + 2`.
-pub const MIGRATIONS: [&str; 4] = [
+pub const MIGRATIONS: [&str; 5] = [
     // 2 : niveaux d'expérience donnés pour le coffre, et journal pour le rapport.
     r#"
     ALTER TABLE exercices ADD COLUMN niveaux_donnes INTEGER NOT NULL DEFAULT 0;
@@ -156,6 +157,17 @@ pub const MIGRATIONS: [&str; 4] = [
     );
     CREATE INDEX dictee_phrases_dictee ON dictee_phrases (dictee_id, rang);
     "#,
+    // 6 : les cadeaux d'un coffre, tirés au hasard à sa première pose (liste JSON de
+    // `CadeauTire`, vide tant que rien n'est tiré). Un coffre déjà posé ou ouvert garde son
+    // ancienne récompense comme seul cadeau ; la récompense unique disparaît.
+    r#"
+    ALTER TABLE exercices ADD COLUMN cadeaux TEXT NOT NULL DEFAULT '[]';
+    UPDATE exercices
+        SET cadeaux = json_array(json_object('objet', recompense, 'nombre', recompense_nombre))
+        WHERE statut IN ('pose', 'ouvert');
+    ALTER TABLE exercices DROP COLUMN recompense;
+    ALTER TABLE exercices DROP COLUMN recompense_nombre;
+    "#,
 ];
 
 pub const JEU_PAR_DEFAUT: &str = "coffre-du-soir";
@@ -222,6 +234,15 @@ fn date_requise(texte: String) -> Result<DateTime<Utc>, ErreurStockage> {
     }
 }
 
+/// Un cadeau sorti pour un coffre : ce qu'on pose dans le jeu, et son nom pour les parents.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct CadeauTire {
+    pub objet: String,
+    pub nombre: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nom: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExerciceStocke {
     pub id: i64,
@@ -230,8 +251,8 @@ pub struct ExerciceStocke {
     pub source: Source,
     pub statut: Statut,
     pub demande_par: String,
-    pub recompense: String,
-    pub recompense_nombre: i64,
+    /// Les cadeaux du coffre ; vide tant qu'il n'a jamais été posé.
+    pub cadeaux: Vec<CadeauTire>,
     pub cree_le: DateTime<Utc>,
     pub pose_le: Option<DateTime<Utc>>,
     pub ouvert_le: Option<DateTime<Utc>>,
@@ -343,13 +364,11 @@ fn dictee_verifiee(brute: DicteeBrute) -> Result<DicteeStockee, ErreurStockage> 
     })
 }
 
-/// Ce qui accompagne un exercice mis en file : d'où il vient, qui l'a demandé, le butin.
+/// Ce qui accompagne un exercice mis en file : d'où il vient, qui l'a demandé.
 #[derive(Debug, Clone, Copy)]
 pub struct Demande<'a> {
     pub source: Source,
     pub demande_par: &'a str,
-    pub recompense: &'a str,
-    pub recompense_nombre: i64,
 }
 
 pub fn ouvrir(chemin: &Path) -> Result<Connection, ErreurStockage> {
@@ -388,7 +407,7 @@ pub fn ouvrir(chemin: &Path) -> Result<Connection, ErreurStockage> {
 }
 
 const COLONNES: &str = "id, competence, enonce, reponse, donnees, jeu, source, statut, \
-    demande_par, recompense, recompense_nombre, cree_le, pose_le, ouvert_le, niveaux_donnes";
+    demande_par, cadeaux, cree_le, pose_le, ouvert_le, niveaux_donnes";
 
 /// Une ligne telle qu'elle sort de SQLite, avant d'être vérifiée.
 struct Brut {
@@ -401,8 +420,7 @@ struct Brut {
     source: String,
     statut: String,
     demande_par: String,
-    recompense: String,
-    recompense_nombre: i64,
+    cadeaux: String,
     cree_le: String,
     pose_le: Option<String>,
     ouvert_le: Option<String>,
@@ -421,12 +439,11 @@ impl Brut {
             source: ligne.get(6)?,
             statut: ligne.get(7)?,
             demande_par: ligne.get(8)?,
-            recompense: ligne.get(9)?,
-            recompense_nombre: ligne.get(10)?,
-            cree_le: ligne.get(11)?,
-            pose_le: ligne.get(12)?,
-            ouvert_le: ligne.get(13)?,
-            niveaux_donnes: ligne.get(14)?,
+            cadeaux: ligne.get(9)?,
+            cree_le: ligne.get(10)?,
+            pose_le: ligne.get(11)?,
+            ouvert_le: ligne.get(12)?,
+            niveaux_donnes: ligne.get(13)?,
         })
     }
 
@@ -447,6 +464,9 @@ impl Brut {
                 self.id, self.statut
             ));
         };
+        let Ok(cadeaux) = serde_json::from_str::<Vec<CadeauTire>>(&self.cadeaux) else {
+            return refus(format!("cadeaux illisibles pour l'exercice {}", self.id));
+        };
         Ok(ExerciceStocke {
             id: self.id,
             exercice: Exercice {
@@ -459,8 +479,7 @@ impl Brut {
             source,
             statut,
             demande_par: self.demande_par,
-            recompense: self.recompense,
-            recompense_nombre: self.recompense_nombre,
+            cadeaux,
             cree_le: date_requise(self.cree_le)?,
             pose_le: date(self.pose_le)?,
             ouvert_le: date(self.ouvert_le)?,
@@ -523,8 +542,8 @@ impl Depot {
     ) -> Result<i64, ErreurStockage> {
         self.cx.execute(
             "INSERT INTO exercices (competence, enonce, reponse, donnees, jeu, source,
-                 demande_par, recompense, recompense_nombre, cree_le)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                 demande_par, cree_le)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             params![
                 exercice.competence,
                 exercice.enonce,
@@ -533,12 +552,24 @@ impl Depot {
                 JEU_PAR_DEFAUT,
                 demande.source.nom(),
                 demande.demande_par,
-                demande.recompense,
-                demande.recompense_nombre,
                 iso(quand),
             ],
         )?;
         Ok(self.cx.last_insert_rowid())
+    }
+
+    /// Écrit les cadeaux tirés pour un coffre : ils ne changeront plus, même s'il est reposé.
+    pub fn fixer_cadeaux(&self, ident: i64, cadeaux: &[CadeauTire]) -> Result<(), ErreurStockage> {
+        let Ok(texte) = serde_json::to_string(cadeaux) else {
+            return refus(format!(
+                "cadeaux impossibles à écrire pour l'exercice {ident}"
+            ));
+        };
+        self.cx.execute(
+            "UPDATE exercices SET cadeaux = ? WHERE id = ?",
+            params![texte, ident],
+        )?;
+        Ok(())
     }
 
     pub fn lire(&self, ident: i64) -> Result<Option<ExerciceStocke>, ErreurStockage> {

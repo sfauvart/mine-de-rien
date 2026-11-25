@@ -263,3 +263,25 @@ fn chaque_cadeau_mal_regle_est_refuse() {
         .is_ok()
     );
 }
+
+#[test]
+fn une_configuration_qui_porte_encore_recompense_se_charge() {
+    // La récompense unique a laissé la place à la liste : ses clés sont ignorées, quel que
+    // soit leur contenu, et la liste par défaut s'applique.
+    let ancienne = format!(
+        "{MINIMALE}[coffre]\nrecompense = \"Diamant\"\nrecompense_nombre = 65\nniveaux_offerts = 2\n"
+    );
+    let config = lire_config(&ancienne, &sans_variable).unwrap();
+    assert!(config.coffre.porte_l_ancienne_recompense());
+    assert_eq!(config.coffre.niveaux_offerts, 2);
+    assert_eq!(config.coffre.cadeaux.len(), 13);
+    // Elles ne se réécrivent pas.
+    let ecrite = toml::to_string(&config).unwrap();
+    assert!(!ecrite.contains("recompense"), "{ecrite}");
+    assert!(
+        !lire_config(MINIMALE, &sans_variable)
+            .unwrap()
+            .coffre
+            .porte_l_ancienne_recompense()
+    );
+}

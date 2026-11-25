@@ -21,7 +21,7 @@ use mine_de_rien::games::coffre_du_soir::{CLE_JUSTE, Coffre, CoffreDuSoir, MODE_
 use mine_de_rien::games::dictee;
 use mine_de_rien::minecraft::texte::Style;
 use mine_de_rien::saisie::Source;
-use mine_de_rien::storage::sqlite::{Depot, ExerciceStocke, Statut};
+use mine_de_rien::storage::sqlite::{CadeauTire, Depot, ExerciceStocke, Statut};
 
 const PSEUDO: &str = "Steve";
 
@@ -210,8 +210,11 @@ fn stocke(exercice: Exercice, source: Source) -> ExerciceStocke {
         source,
         statut: Statut::EnFile,
         demande_par: "cli".to_owned(),
-        recompense: "minecraft:diamond".to_owned(),
-        recompense_nombre: 3,
+        cadeaux: vec![CadeauTire {
+            objet: "minecraft:diamond".to_owned(),
+            nombre: 3,
+            nom: None,
+        }],
         cree_le: commun::instant("2026-11-10T18:00:00+00:00"),
         pose_le: None,
         ouvert_le: None,
