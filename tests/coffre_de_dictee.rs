@@ -20,7 +20,7 @@ use mine_de_rien::games::dictee::{
 };
 use mine_de_rien::minecraft::texte::Style;
 use mine_de_rien::saisie::Source;
-use mine_de_rien::storage::sqlite::{Depot, ExerciceStocke, Statut};
+use mine_de_rien::storage::sqlite::{CadeauTire, Depot, ExerciceStocke, Statut};
 
 const TEXTE: &str = "Dans la ville de Dubaï, aux Émirats arabes unis, s’élève la plus haute \
     tour jamais construite. Il dit : \"Viens\" \\ ici.";
@@ -103,8 +103,11 @@ fn stocke(exercice: Exercice, ident: i64) -> ExerciceStocke {
         source: Source::Dictee,
         statut: Statut::EnFile,
         demande_par: "cli".to_owned(),
-        recompense: "minecraft:diamond".to_owned(),
-        recompense_nombre: 3,
+        cadeaux: vec![CadeauTire {
+            objet: "minecraft:diamond".to_owned(),
+            nombre: 3,
+            nom: None,
+        }],
         cree_le: commun::instant("2026-11-10T18:00:00+00:00"),
         pose_le: None,
         ouvert_le: None,
@@ -604,8 +607,6 @@ async fn le_chat_n_ecrit_pas_le_mot_d_un_coffre_qui_attend() {
     let demande = Demande {
         source: Source::Dictee,
         demande_par: "cli",
-        recompense: "minecraft:diamond",
-        recompense_nombre: 3,
     };
     let quand = commun::instant("2026-11-09T17:00:00+00:00");
     let premier = depot.ajouter(&plus, demande, quand).unwrap();

@@ -44,8 +44,6 @@ fn ajouter(
     let demande = Demande {
         source: Source::Competence,
         demande_par: "111",
-        recompense: "minecraft:diamond",
-        recompense_nombre: 3,
     };
     let pose = maintenant() - pose_il_y_a;
     let ident = depot
@@ -323,8 +321,6 @@ async fn notification_d_ouverture_compte_les_indices() {
         let demande = Demande {
             source: Source::Photo,
             demande_par: "111",
-            recompense: "minecraft:diamond",
-            recompense_nombre: 3,
         };
         depot.ajouter(&exercice, demande, maintenant()).unwrap();
 
@@ -416,8 +412,6 @@ fn le_rapport_montre_ce_que_l_enfant_a_ecrit() {
     let demande = Demande {
         source: Source::Dictee,
         demande_par: "cli",
-        recompense: "minecraft:diamond",
-        recompense_nombre: 3,
     };
     let exercice = |enonce: &str, reponse: &str| Exercice {
         competence: "francais/dictee".to_owned(),

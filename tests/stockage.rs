@@ -4,7 +4,7 @@ use chrono::{DateTime, SecondsFormat, TimeDelta, Utc};
 use mine_de_rien::exercises::base::Exercice;
 use mine_de_rien::saisie::Source;
 use mine_de_rien::storage::sqlite::{
-    Demande, Depot, ExerciceStocke, MIGRATIONS, SCHEMA, Statut, VERSION_SCHEMA,
+    CadeauTire, Demande, Depot, ExerciceStocke, MIGRATIONS, SCHEMA, Statut, VERSION_SCHEMA,
 };
 use rusqlite::Connection;
 use serde_json::{Value, json};
@@ -31,8 +31,6 @@ fn depot() -> (tempfile::TempDir, Depot) {
 const DEMANDE: Demande<'static> = Demande {
     source: Source::Expression,
     demande_par: "42",
-    recompense: "diamond",
-    recompense_nombre: 3,
 };
 
 fn ajouter(depot: &Depot, n: i64, quand: DateTime<Utc>) -> i64 {
@@ -205,11 +203,89 @@ fn migration_2_vers_3_garde_les_exercices_et_admet_la_photo() {
     let demande = Demande {
         source: Source::Photo,
         demande_par: "111",
-        recompense: "minecraft:diamond",
-        recompense_nombre: 3,
     };
     let numero = depot.ajouter(&mai, demande, t0()).unwrap();
     assert_eq!(depot.lire(numero).unwrap().unwrap().source, Source::Photo);
+}
+
+#[test]
+fn migration_5_vers_6_garde_la_recompense_des_coffres_deja_poses() {
+    let dossier = tempfile::tempdir().unwrap();
+    let chemin = dossier.path().join("v5.sqlite");
+    let cx = Connection::open(&chemin).unwrap();
+    cx.execute_batch(SCHEMA).unwrap();
+    for script in &MIGRATIONS[..4] {
+        cx.execute_batch(script).unwrap();
+    }
+    for (statut, objet, nombre) in [
+        ("en_file", "minecraft:diamond", 3),
+        ("pose", "minecraft:diamond", 3),
+        ("ouvert", "emerald", 64),
+        ("annule", "minecraft:diamond", 3),
+    ] {
+        cx.execute(
+            "INSERT INTO exercices (competence, enonce, reponse, jeu, source, statut,
+                 demande_par, recompense, recompense_nombre, cree_le)
+             VALUES ('maths/calcul', '1 + 1 = ?', '2', 'coffre-du-soir', 'expression', ?,
+                     'cli', ?, ?, '2026-11-01T18:00:00+00:00')",
+            rusqlite::params![statut, objet, nombre],
+        )
+        .unwrap();
+    }
+    cx.pragma_update(None, "user_version", 5).unwrap();
+    drop(cx);
+
+    let depot = Depot::ouvrir(&chemin).unwrap();
+    assert_eq!(version(depot.connexion()), VERSION_SCHEMA);
+    let cadeaux = |ident| depot.lire(ident).unwrap().unwrap().cadeaux;
+    let seul = |objet: &str, nombre| {
+        vec![CadeauTire {
+            objet: objet.to_owned(),
+            nombre,
+            nom: None,
+        }]
+    };
+    // En file ou annulé : rien n'est encore tiré. Posé ou ouvert : l'ancienne récompense.
+    assert!(cadeaux(1).is_empty());
+    assert_eq!(cadeaux(2), seul("minecraft:diamond", 3));
+    assert_eq!(cadeaux(3), seul("emerald", 64));
+    assert!(cadeaux(4).is_empty());
+    assert_eq!(depot.lire(2).unwrap().unwrap().statut, Statut::Pose);
+    // Les anciennes colonnes ont disparu.
+    let colonnes: Vec<String> = depot
+        .connexion()
+        .prepare("SELECT name FROM pragma_table_info('exercices')")
+        .unwrap()
+        .query_map([], |l| l.get(0))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect();
+    assert!(colonnes.contains(&"cadeaux".to_owned()));
+    assert!(
+        !colonnes.iter().any(|c| c.starts_with("recompense")),
+        "{colonnes:?}"
+    );
+}
+
+#[test]
+fn les_cadeaux_fixes_se_relisent_avec_leur_nom() {
+    let (_dossier, depot) = depot();
+    let numero = ajouter(&depot, 1, t0());
+    assert!(depot.lire(numero).unwrap().unwrap().cadeaux.is_empty());
+    let tires = vec![
+        CadeauTire {
+            objet: "minecraft:gold_ingot".to_owned(),
+            nombre: 4,
+            nom: Some("lingot d'or \"brillant\"".to_owned()),
+        },
+        CadeauTire {
+            objet: "minecraft:cake".to_owned(),
+            nombre: 1,
+            nom: None,
+        },
+    ];
+    depot.fixer_cadeaux(numero, &tires).unwrap();
+    assert_eq!(depot.lire(numero).unwrap().unwrap().cadeaux, tires);
 }
 
 #[test]
@@ -266,8 +342,6 @@ fn stocke(s: &ExerciceStocke) -> Value {
         "source": s.source.nom(),
         "statut": s.statut.nom(),
         "demande_par": s.demande_par,
-        "recompense": s.recompense,
-        "recompense_nombre": s.recompense_nombre,
         "cree_le": iso(Some(s.cree_le)),
         "pose_le": iso(s.pose_le),
         "ouvert_le": iso(s.ouvert_le),

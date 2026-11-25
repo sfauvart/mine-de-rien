@@ -41,11 +41,12 @@ use crate::adapters::game::rcon::ErreurRcon;
 use crate::adapters::llm::base::Llm;
 use crate::adapters::voix::base::Voix;
 use crate::alea::Alea;
-use crate::config::Coffre as ConfigCoffre;
+use crate::config::{Cadeau, Coffre as ConfigCoffre};
 use crate::dictees::{self, ErreurDictees, Preparation, ecrire_jour, lire_jour};
 use crate::exercises::base::{Exercice, meme_cle, normaliser};
 use crate::exercises::francais::dictee::imposes_absents;
 use crate::games::atelier::{ErreurAtelier, pos};
+use crate::games::cadeaux::tirer;
 use crate::games::coffre_du_soir::{
     Coffre, CoffreDuSoir, ErreurCoffre, Notificateur, formater_duree,
 };
@@ -101,14 +102,31 @@ pub struct Orchestrateur {
     cle_vue: RefCell<Option<(i64, Option<String>)>>,
     /// Les séances de dictée quotidiennes, si elles sont réglées.
     seances: Option<Seances>,
+    cadeaux: RefCell<Cadeaux>,
 }
 
 /// Ce qu'il faut pour créer la séance de dictée du jour à la connexion de l'enfant.
 pub struct Seances {
     pub coffres: usize,
     pub fuseau: Tz,
-    pub recompense: ConfigCoffre,
     pub alea: RefCell<Alea>,
+}
+
+/// De quoi tirer les cadeaux d'un coffre à sa première pose.
+struct Cadeaux {
+    liste: Vec<Cadeau>,
+    par_coffre: usize,
+    alea: Alea,
+}
+
+impl Cadeaux {
+    fn de(config: &ConfigCoffre, alea: Alea) -> Self {
+        Self {
+            liste: config.cadeaux.clone(),
+            par_coffre: usize::try_from(config.cadeaux_par_coffre).unwrap_or(0),
+            alea,
+        }
+    }
 }
 
 impl Orchestrateur {
@@ -135,23 +153,45 @@ impl Orchestrateur {
             fuseau: Cell::new(chrono_tz::UTC),
             cle_vue: RefCell::new(None),
             seances: None,
+            cadeaux: RefCell::new(Cadeaux::de(&ConfigCoffre::default(), Alea::nouveau())),
         }
+    }
+
+    /// Avec la liste de cadeaux de `[coffre]` ; sans cet appel, la liste livrée par défaut.
+    pub fn avec_cadeaux(self, config: &ConfigCoffre, alea: Alea) -> Self {
+        self.cadeaux.replace(Cadeaux::de(config, alea));
+        self
+    }
+
+    /// Le coffre avec ses cadeaux. Ils sont tirés une seule fois, avant la première pose, et
+    /// écrits en base : un coffre reposé garde les siens.
+    fn avec_ses_cadeaux(&self, coffre: &ExerciceStocke) -> Result<ExerciceStocke, ErreurStockage> {
+        if !coffre.cadeaux.is_empty() {
+            return Ok(coffre.clone());
+        }
+        let tires = {
+            let mut cadeaux = self.cadeaux.borrow_mut();
+            let Cadeaux {
+                liste,
+                par_coffre,
+                alea,
+            } = &mut *cadeaux;
+            tirer(liste, *par_coffre, alea)
+        };
+        self.depot.fixer_cadeaux(coffre.id, &tires)?;
+        Ok(ExerciceStocke {
+            cadeaux: tires,
+            ..coffre.clone()
+        })
     }
 
     /// Avec les séances de dictée : à la première connexion de chaque jour, quelques coffres
     /// de la dictée à préparer entrent dans la file.
-    pub fn avec_seances(
-        mut self,
-        coffres: usize,
-        fuseau: Tz,
-        recompense: ConfigCoffre,
-        alea: Alea,
-    ) -> Self {
+    pub fn avec_seances(mut self, coffres: usize, fuseau: Tz, alea: Alea) -> Self {
         self.fuseau.set(fuseau);
         self.seances = Some(Seances {
             coffres,
             fuseau,
-            recompense,
             alea: RefCell::new(alea),
         });
         self
@@ -166,8 +206,6 @@ impl Orchestrateur {
         let demande = Demande {
             source: Source::Dictee,
             demande_par: "seance",
-            recompense: &seances.recompense.recompense,
-            recompense_nombre: seances.recompense.recompense_nombre,
         };
         let creee = creer_seance_du_jour(
             &self.depot,
@@ -332,7 +370,7 @@ impl Orchestrateur {
         }
         self.coffre.verifier_atelier()?;
         if !self.coffre.coffre_present().await? {
-            self.coffre.poser(actif).await?;
+            self.coffre.poser(&self.avec_ses_cadeaux(actif)?).await?;
             self.depot
                 .noter("coffre_disparu", Some(actif.id), (self.horloge)())?;
             self.notificateur
@@ -487,6 +525,7 @@ impl Orchestrateur {
             .depot
             .dernier_ouvert()?
             .is_some_and(|dernier| dictee::est_dictee(&dernier.exercice));
+        let suivant = self.avec_ses_cadeaux(&suivant)?;
         self.coffre.poser(&suivant).await?;
         self.depot.marquer_pose(suivant.id, (self.horloge)())?;
         if dictee::est_dictee(&suivant.exercice) {
@@ -526,7 +565,6 @@ impl Orchestrateur {
 /// Ajoute les exercices à la file ; une ligne par coffre.
 pub fn ajouter_exercices(
     depot: &Depot,
-    coffre: &ConfigCoffre,
     exercices: &[Exercice],
     source: Source,
     demande_par: &str,
@@ -534,8 +572,6 @@ pub fn ajouter_exercices(
     let demande = Demande {
         source,
         demande_par,
-        recompense: &coffre.recompense,
-        recompense_nombre: coffre.recompense_nombre,
     };
     let mut lignes = Vec::with_capacity(exercices.len());
     for ex in exercices {
@@ -560,7 +596,6 @@ pub enum ErreurFile {
 /// Ajoute à la file les exercices saisis ; une ligne par coffre.
 pub fn mettre_en_file(
     depot: &Depot,
-    coffre: &ConfigCoffre,
     texte: &str,
     demande_par: &str,
     alea: &mut Alea,
@@ -568,7 +603,6 @@ pub fn mettre_en_file(
     let saisie = interpreter(texte, alea)?;
     Ok(ajouter_exercices(
         depot,
-        coffre,
         &saisie.exercices,
         saisie.source,
         demande_par,
@@ -664,7 +698,6 @@ pub enum ErreurCommande {
 /// Traite les messages des parents. Ne répond rien à un expéditeur non autorisé.
 pub struct CommandesParents {
     depot: Rc<Depot>,
-    config_coffre: ConfigCoffre,
     coffre: Option<Rc<CoffreDuSoir>>,
     parents: HashSet<i64>,
     horloge: Horloge,
@@ -683,7 +716,6 @@ pub struct CommandesParents {
 impl CommandesParents {
     pub fn new(
         depot: Rc<Depot>,
-        config_coffre: ConfigCoffre,
         coffre: Option<Rc<CoffreDuSoir>>,
         parents: &[i64],
         horloge: Horloge,
@@ -692,7 +724,6 @@ impl CommandesParents {
     ) -> Self {
         Self {
             depot,
-            config_coffre,
             coffre,
             parents: parents.iter().copied().collect(),
             horloge,
@@ -818,13 +849,7 @@ impl CommandesParents {
             "/coffre" => {
                 let demande_par = message.expediteur.to_string();
                 let mut alea = self.alea.borrow_mut();
-                match mettre_en_file(
-                    &self.depot,
-                    &self.config_coffre,
-                    argument,
-                    &demande_par,
-                    &mut alea,
-                ) {
+                match mettre_en_file(&self.depot, argument, &demande_par, &mut alea) {
                     Ok(lignes) => lignes.join("\n"),
                     Err(ErreurFile::Saisie(e)) => format!("Refusé : {e}"),
                     Err(ErreurFile::Stockage(e)) => return Err(e.into()),
@@ -992,7 +1017,6 @@ impl CommandesParents {
         };
         let lignes = ajouter_exercices(
             &self.depot,
-            &self.config_coffre,
             &attente.exercices,
             Source::Photo,
             &parent.to_string(),
@@ -1258,8 +1282,6 @@ impl CommandesParents {
         let demande = Demande {
             source: Source::Dictee,
             demande_par: &parent.to_string(),
-            recompense: &self.config_coffre.recompense,
-            recompense_nombre: self.config_coffre.recompense_nombre,
         };
         // Les mêmes poids que la séance du jour : un mot acquis ne revient pas, un mot raté
         // hier repose.

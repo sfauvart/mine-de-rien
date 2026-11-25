@@ -34,14 +34,15 @@ que l'enfant a gagné quand il ouvre.
 | Ce que voit l'enfant | Rien de nouveau dans le chat : la surprise est dans le coffre. |
 | Moment du tirage (hypothèse) | À la première pose du coffre, pas à la mise en file. Le résultat est écrit en base : un coffre disparu puis reposé contient les mêmes cadeaux, l'enfant ne peut pas « relancer les dés ». Une liste modifiée dans `config.toml` vaut donc aussi pour les coffres déjà en file. |
 | Anciennes clés (hypothèse) | `recompense` et `recompense_nombre` restent acceptées pour ne pas empêcher l'agent de démarrer, mais ne sont plus lues : un avertissement au démarrage dit de les retirer. Après la mise à jour, le hasard s'applique donc sans toucher au `config.toml` du homelab. |
-| Bornes (hypothèse) | `cadeaux_par_coffre` entre 1 et 5 (les cases 12 à 16 de la rangée du milieu ; la preuve garde la case 11). La liste doit contenir au moins `cadeaux_par_coffre` entrées. `nombre` entre 1 et 64, `poids` entier entre 1 et 100. |
+| Bornes (hypothèse) | `cadeaux_par_coffre` entre 1 et 5 (les cases 12 à 16 de la rangée du milieu, remplies à partir de la case 13 ; la preuve garde la case 11). La liste doit contenir au moins `cadeaux_par_coffre` entrées. `nombre` entre 1 et 64, `poids` entier entre 1 et 100. |
 | Un objet, une entrée (hypothèse) | Le même `objet` ne peut pas figurer deux fois dans la liste : c'est ce qui garantit des cadeaux différents dans un coffre. |
 | Coffres déjà posés ou ouverts (hypothèse) | La migration recopie leur ancienne récompense comme unique cadeau : rien ne change pour eux. |
 
 ### La liste par défaut proposée
 
 Des objets utiles à un enfant qui construit et explore, rien qui casse le jeu (pas
-d'élytres, pas de totem). Identifiants **à vérifier sur la version du serveur** en phase 2.
+d'élytres, pas de totem). Identifiants vérifiés sur Minecraft Java 26.3 (Paper) : chacun a
+été posé dans un coffre du serveur d'essai et relu.
 
 | Cadeau | `objet` | `nombre` | `poids` |
 |---|---|---|---|
@@ -119,7 +120,7 @@ Rien. Le tirage est local, la liste des cadeaux ne part que vers le serveur Mine
 **Branche** : `feat/cadeaux-au-hasard`, pas encore créée, `/next` l'ouvre à la première phase.
 
 - [x] **Phase 1 : la liste et le tirage**
-- [ ] **Phase 2 : les cadeaux dans le coffre**
+- [x] **Phase 2 : les cadeaux dans le coffre**
 - [ ] **Phase 3 : les cadeaux dits aux parents, et la doc**
 
 La phase 2 a besoin de la liste et du tirage de la phase 1 ; la phase 3 lit en base ce que
@@ -178,14 +179,16 @@ et locaux, les tests qui construisent une `Demande` (`tests/stockage.rs`, `rappo
   `{objet, nombre, nom}`). Pour les lignes `pose` et `ouvert`, elle est remplie avec
   l'ancienne récompense ; les lignes `en_file` gardent `[]`, « pas encore tiré ». Les
   colonnes `recompense` et `recompense_nombre` sont retirées (`ALTER TABLE … DROP COLUMN`,
-  à vérifier avec le SQLite embarqué par `rusqlite`, sinon recopie de table comme les
-  migrations 3 et 4).
+  accepté par le SQLite embarqué par `rusqlite`).
 - `Demande` perd `recompense` et `recompense_nombre` ; `ExerciceStocke` gagne `cadeaux`.
+  La configuration du coffre quitte du même coup `CommandesParents` et les séances : seule
+  la boucle de surveillance en a besoin (`Orchestrateur::avec_cadeaux`).
 - À la pose, si `cadeaux` est vide, l'orchestrateur tire (`cadeaux::tirer`, avec son
   `Alea`), écrit en base, puis pose. Un coffre reposé relit la base et ne retire pas.
-- `commandes_pose` : un `item replace block C container.<12+i> with <objet> <nombre>` par
-  cadeau, après le verrou, avant la preuve. **À vérifier sur la version du serveur**, ainsi
-  que chaque identifiant de la liste par défaut.
+- `commandes_pose` : un `item replace block C container.<case> with <objet> <nombre>` par
+  cadeau, après le verrou, avant la preuve. Les cases se remplissent dans l'ordre 13, 14,
+  12, 15, 16 : un cadeau seul reste en case 13, comme l'ancienne récompense. Vérifié sur
+  Minecraft Java 26.3 (Paper).
 - `Coffre` (config) : `recompense` et `recompense_nombre` deviennent facultatives et
   ignorées ; présentes, elles déclenchent un avertissement au démarrage (« ces clés ne
   servent plus, voir `cadeaux` »). Elles disparaissent des fichiers d'exemple, remplacées

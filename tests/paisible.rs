@@ -252,8 +252,6 @@ fn ajouter(depot: &Depot) -> i64 {
     let demande = Demande {
         source: Source::Expression,
         demande_par: "1",
-        recompense: "minecraft:diamond",
-        recompense_nombre: 3,
     };
     depot.ajouter(&exercice, demande, t0()).unwrap()
 }

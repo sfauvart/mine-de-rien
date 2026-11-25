@@ -20,7 +20,7 @@ use mine_de_rien::games::tableau::{Genre, Morceau};
 use mine_de_rien::minecraft::texte::{Style, lignes_panneau};
 use mine_de_rien::orchestrateur::Orchestrateur;
 use mine_de_rien::saisie::Source;
-use mine_de_rien::storage::sqlite::{Demande, Depot, ExerciceStocke, Statut};
+use mine_de_rien::storage::sqlite::{CadeauTire, Demande, Depot, ExerciceStocke, Statut};
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
@@ -38,8 +38,11 @@ fn stocke_de(exercice: Exercice, ident: i64) -> ExerciceStocke {
         source: Source::Expression,
         statut: Statut::EnFile,
         demande_par: "cli".to_owned(),
-        recompense: "minecraft:diamond".to_owned(),
-        recompense_nombre: 3,
+        cadeaux: vec![CadeauTire {
+            objet: "minecraft:diamond".to_owned(),
+            nombre: 3,
+            nom: None,
+        }],
         cree_le: t0(),
         pose_le: None,
         ouvert_le: None,
@@ -74,6 +77,55 @@ fn commandes_pour_un_exercice_fixe() {
             "setblock 1 -60 8 minecraft:anvil[facing=east]",
         ]
     );
+}
+
+/// Une liste d'un seul cadeau : le tirage ne peut rien donner d'autre.
+fn trois_diamants() -> mine_de_rien::config::Coffre {
+    mine_de_rien::config::Coffre {
+        cadeaux_par_coffre: 1,
+        cadeaux: vec![mine_de_rien::config::Cadeau {
+            objet: "minecraft:diamond".to_owned(),
+            nombre: 3,
+            poids: 1,
+            nom: None,
+        }],
+        ..Default::default()
+    }
+}
+
+#[test]
+fn un_cadeau_par_case_entre_le_verrou_et_la_preuve() {
+    let cadeau = |objet: &str, nombre| CadeauTire {
+        objet: objet.to_owned(),
+        nombre,
+        nom: Some("peu importe".to_owned()),
+    };
+    let mut coffre = defaut();
+    coffre.cadeaux = vec![
+        cadeau("minecraft:diamond", 3),
+        cadeau("minecraft:saddle", 1),
+        cadeau("minecraft:cake", 1),
+        cadeau("minecraft:lead", 2),
+        cadeau("minecraft:emerald", 5),
+    ];
+    let commandes = commandes_pose(&A, &coffre).unwrap();
+    assert_eq!(
+        commandes[1..8],
+        [
+            "data modify block 0 -60 8 lock set value {components:{\"minecraft:custom_name\":\"29\"}}",
+            "item replace block 0 -60 8 container.13 with minecraft:diamond 3",
+            "item replace block 0 -60 8 container.14 with minecraft:saddle 1",
+            "item replace block 0 -60 8 container.12 with minecraft:cake 1",
+            "item replace block 0 -60 8 container.15 with minecraft:lead 2",
+            "item replace block 0 -60 8 container.16 with minecraft:emerald 5",
+            "item replace block 0 -60 8 container.11 with minecraft:paper[minecraft:custom_name=\"Preuve n°12\",minecraft:custom_data={mdr_coffre:12}]",
+        ]
+    );
+    // Sans cadeau connu, le coffre se pose quand même, avec sa preuve.
+    coffre.cadeaux.clear();
+    let commandes = commandes_pose(&A, &coffre).unwrap();
+    assert_eq!(commandes.len(), 5);
+    assert!(commandes[2].contains("container.11"));
 }
 
 #[test]
@@ -201,6 +253,8 @@ struct FauxCoffre {
     relie: Cell<bool>,
     /// La voix ne répond pas : les sons d'une dictée ne se préparent pas.
     voix_en_panne: Cell<bool>,
+    /// Les cadeaux de chaque pose, dans l'ordre.
+    poses: RefCell<Vec<(i64, Vec<CadeauTire>)>>,
 }
 
 impl FauxCoffre {
@@ -217,6 +271,7 @@ impl FauxCoffre {
             nom_cle: RefCell::new(None),
             relie: Cell::new(true),
             voix_en_panne: Cell::new(false),
+            poses: RefCell::new(Vec::new()),
         })
     }
 
@@ -270,6 +325,7 @@ impl Coffre for FauxCoffre {
     async fn poser(&self, s: &ExerciceStocke) -> Result<(), ErreurCoffre> {
         self.verifier_atelier()?;
         self.note(format!("poser {}", s.id));
+        self.poses.borrow_mut().push((s.id, s.cadeaux.clone()));
         self.present.set(true);
         self.vide.set(false);
         self.preuve.set(false);
@@ -400,8 +456,6 @@ struct Monde {
 const DEMANDE: Demande<'static> = Demande {
     source: Source::Expression,
     demande_par: "cli",
-    recompense: "minecraft:diamond",
-    recompense_nombre: 3,
 };
 
 fn monde() -> Monde {
@@ -506,6 +560,70 @@ async fn suivant_attend_dix_secondes() {
     avancer(&m.horloge, TimeDelta::seconds(6));
     m.orch.tour().await.unwrap();
     assert_eq!(actif(&m.depot), Some(2));
+}
+
+#[tokio::test]
+async fn chaque_coffre_recoit_deux_cadeaux_differents_tires_une_seule_fois() {
+    let m = monde();
+    m.orch.tour().await.unwrap();
+    let (numero, cadeaux) = m.coffre.poses.borrow()[0].clone();
+    assert_eq!(numero, 1);
+    assert_eq!(cadeaux.len(), 2);
+    assert_ne!(cadeaux[0].objet, cadeaux[1].objet);
+    // Tous viennent de la liste livrée, avec leur nombre et leur nom.
+    let liste = mine_de_rien::config::cadeaux_par_defaut();
+    for cadeau in &cadeaux {
+        let origine = liste.iter().find(|c| c.objet == cadeau.objet).unwrap();
+        assert_eq!((cadeau.nombre, &cadeau.nom), (origine.nombre, &origine.nom));
+    }
+    // Écrits en base : le coffre en file n'a encore rien.
+    assert_eq!(m.depot.lire(1).unwrap().unwrap().cadeaux, cadeaux);
+    assert!(m.depot.lire(2).unwrap().unwrap().cadeaux.is_empty());
+
+    // Le coffre disparaît : il est reposé avec les mêmes cadeaux, sans nouveau tirage.
+    for _ in 0..5 {
+        m.coffre.present.set(false);
+        m.orch.tour().await.unwrap();
+    }
+    let poses = m.coffre.poses.borrow();
+    assert_eq!(poses.len(), 6);
+    assert!(poses.iter().all(|pose| *pose == (1, cadeaux.clone())));
+}
+
+#[tokio::test]
+async fn les_coffres_ne_se_ressemblent_pas_tous() {
+    use mine_de_rien::alea::Alea;
+    let mut contenus = std::collections::HashSet::new();
+    for graine in 0..20 {
+        let m = monde();
+        let orch = m.orch.avec_cadeaux(
+            &mine_de_rien::config::Coffre::default(),
+            Alea::graine(graine),
+        );
+        orch.tour().await.unwrap();
+        let objets: Vec<String> = m.coffre.poses.borrow()[0]
+            .1
+            .iter()
+            .map(|c| c.objet.clone())
+            .collect();
+        contenus.insert(objets);
+    }
+    assert!(contenus.len() > 5, "{contenus:?}");
+}
+
+#[tokio::test]
+async fn le_nombre_de_cadeaux_suit_le_reglage() {
+    use mine_de_rien::alea::Alea;
+    for par_coffre in 1..=5 {
+        let m = monde();
+        let config = mine_de_rien::config::Coffre {
+            cadeaux_par_coffre: par_coffre,
+            ..Default::default()
+        };
+        let orch = m.orch.avec_cadeaux(&config, Alea::graine(1));
+        orch.tour().await.unwrap();
+        assert_eq!(m.coffre.poses.borrow()[0].1.len() as i64, par_coffre);
+    }
 }
 
 #[tokio::test]
@@ -797,7 +915,9 @@ async fn jouer_scenario(cas: &Value, exercices: &[Exercice], rejeu: Rc<commun::R
         notifs.clone(),
         Box::new(move || lue.get()),
         mode,
-    );
+    )
+    // La version Python ne connaissait qu'une récompense : 3 diamants dans chaque coffre.
+    .avec_cadeaux(&trois_diamants(), mine_de_rien::alea::Alea::graine(0));
     for etape in e["etapes"].as_array().unwrap() {
         avancer(
             &horloge,
@@ -1311,7 +1431,6 @@ fn monde_avec_seances() -> Monde {
     .avec_seances(
         4,
         chrono_tz::Europe::Paris,
-        mine_de_rien::config::Coffre::default(),
         mine_de_rien::alea::Alea::graine(3),
     );
     let texte = "Dans la ville de Dubaï s'élève la plus haute tour. Deux-millions de personnes \

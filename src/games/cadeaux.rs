@@ -3,19 +3,13 @@
 //! Le tirage est sans remise : un coffre ne contient jamais deux fois le même cadeau. Il se
 //! rejoue avec une graine, et ne dépend de rien d'autre que de la liste et du hasard.
 
-use serde::{Deserialize, Serialize};
-
 use crate::alea::Alea;
 use crate::config::Cadeau;
+pub use crate::storage::sqlite::CadeauTire;
 
-/// Un cadeau sorti pour un coffre : ce qu'on pose dans le jeu, et son nom pour les parents.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct CadeauTire {
-    pub objet: String,
-    pub nombre: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub nom: Option<String>,
-}
+/// Les cases du coffre qui reçoivent les cadeaux, dans l'ordre : le milieu d'abord, puis ses
+/// voisines. La preuve garde la case 11.
+pub const CASES: [u8; 5] = [13, 14, 12, 15, 16];
 
 /// `combien` cadeaux différents de `liste` : deux fois plus de chances pour un poids double.
 /// Une liste trop courte rend ce qu'elle peut.

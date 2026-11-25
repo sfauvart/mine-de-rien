@@ -15,7 +15,6 @@ use mine_de_rien::adapters::channel::base::{Canal, MessageParent};
 use mine_de_rien::adapters::llm::base::{ErreurLlm, Llm};
 use mine_de_rien::adapters::voix::base::{ErreurVoix, Voix};
 use mine_de_rien::alea::Alea;
-use mine_de_rien::config::Coffre as ConfigCoffre;
 use mine_de_rien::dictees::{PHRASES_MAX, ecrire_jour, lire_jour, numero_son, preparer};
 use mine_de_rien::orchestrateur::{
     AIDE, AIDE_DICTEE, CommandesParents, DICTEES_ABSENTES, LECTURE_EN_COURS, PREPARATION_EN_COURS,
@@ -156,7 +155,6 @@ fn monde_avec(llm: Option<Rc<FauxLlm>>, dictees: bool) -> Monde {
     let voix = Rc::new(FausseVoix::default());
     let mut commandes = CommandesParents::new(
         depot.clone(),
-        ConfigCoffre::default(),
         None,
         &[PARENT, 222],
         Box::new(move || lu.get()),

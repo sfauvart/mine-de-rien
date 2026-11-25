@@ -18,7 +18,6 @@ use mine_de_rien::adapters::game::log::FluxChat;
 use mine_de_rien::adapters::game::rcon::ErreurRcon;
 use mine_de_rien::adapters::llm::base::{ErreurLlm, Llm};
 use mine_de_rien::alea::Alea;
-use mine_de_rien::config::Coffre as ConfigCoffre;
 use mine_de_rien::exercises::base::Exercice;
 use mine_de_rien::games::coffre_du_soir::{Coffre, CoffreDuSoir, Notificateur};
 use mine_de_rien::games::emplacement::{AUCUN_TERRAIN, ENFANT_ABSENT};
@@ -114,7 +113,6 @@ fn commandes_avec(
     let lu = Rc::clone(temps);
     CommandesParents::new(
         depot.clone(),
-        ConfigCoffre::default(),
         coffre,
         &PARENTS,
         Box::new(move || lu.get()),
@@ -451,8 +449,6 @@ fn pose(depot: &Depot) -> i64 {
     let demande = Demande {
         source: Source::Photo,
         demande_par: "1",
-        recompense: "minecraft:diamond",
-        recompense_nombre: 3,
     };
     let ident = depot
         .ajouter(
@@ -691,8 +687,6 @@ async fn jouer_scenario(cas: &Value, rejeu: Rc<commun::Rejeu>) -> Value {
     let demande = Demande {
         source: Source::Expression,
         demande_par: "cli",
-        recompense: "minecraft:diamond",
-        recompense_nombre: 3,
     };
     for op in e["avant"].as_array().unwrap() {
         let entier = |i: usize| op[i].as_i64().unwrap();
@@ -748,9 +742,7 @@ async fn jouer_scenario(cas: &Value, rejeu: Rc<commun::Rejeu>) -> Value {
                 s.source.nom(),
                 s.demande_par,
                 s.exercice.enonce,
-                s.exercice.reponse,
-                s.recompense,
-                s.recompense_nombre
+                s.exercice.reponse
             ])
         })
         .collect();

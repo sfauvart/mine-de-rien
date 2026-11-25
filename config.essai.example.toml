@@ -23,9 +23,16 @@ y = -60
 z = 8
 
 [coffre]
-recompense = "minecraft:diamond"   # identique pour tous les coffres
-recompense_nombre = 3
 niveaux_offerts = 3                 # renommer sur l'enclume coûte un niveau par essai
+# Chaque coffre reçoit des cadeaux différents, tirés au hasard dans une liste : plus le poids
+# d'un cadeau est grand, plus il sort souvent. Sans rien écrire ici, la liste livrée avec
+# l'agent s'applique (diamants, émeraudes, gâteau, selle...). Pour la régler :
+# cadeaux_par_coffre = 2            # de 1 à 5
+# cadeaux = [
+#   { objet = "minecraft:diamond", nombre = 3, poids = 10, nom = "diamant" },
+#   { objet = "minecraft:cake",    nombre = 1, poids = 8,  nom = "gâteau" },
+#   { objet = "minecraft:saddle",  nombre = 1, poids = 2,  nom = "selle" },
+# ]
 
 [canal]
 adaptateur = "telegram"

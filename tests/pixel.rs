@@ -26,7 +26,7 @@ use mine_de_rien::games::pixel::{
 };
 use mine_de_rien::minecraft::texte::Style;
 use mine_de_rien::saisie::Source;
-use mine_de_rien::storage::sqlite::{Demande, Depot, ExerciceStocke, Statut};
+use mine_de_rien::storage::sqlite::{CadeauTire, Demande, Depot, ExerciceStocke, Statut};
 use mine_de_rien::{journal, photo};
 use serde_json::{Value, json};
 
@@ -208,8 +208,6 @@ fn depot() -> (tempfile::TempDir, Rc<Depot>) {
 const DEMANDE: Demande<'static> = Demande {
     source: Source::Photo,
     demande_par: "1",
-    recompense: "minecraft:diamond",
-    recompense_nombre: 3,
 };
 
 fn poser_exercice(depot: &Depot, exercice: &Exercice) -> i64 {
@@ -702,8 +700,11 @@ fn coffre_factice() -> ExerciceStocke {
         source: Source::Photo,
         statut: Statut::Pose,
         demande_par: "1".to_owned(),
-        recompense: "minecraft:diamond".to_owned(),
-        recompense_nombre: 3,
+        cadeaux: vec![CadeauTire {
+            objet: "minecraft:diamond".to_owned(),
+            nombre: 3,
+            nom: None,
+        }],
         cree_le: debut(),
         pose_le: None,
         ouvert_le: None,
