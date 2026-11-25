@@ -118,7 +118,7 @@ Rien. Le tirage est local, la liste des cadeaux ne part que vers le serveur Mine
 
 **Branche** : `feat/cadeaux-au-hasard`, pas encore créée, `/next` l'ouvre à la première phase.
 
-- [ ] **Phase 1 : la liste et le tirage**
+- [x] **Phase 1 : la liste et le tirage**
 - [ ] **Phase 2 : les cadeaux dans le coffre**
 - [ ] **Phase 3 : les cadeaux dits aux parents, et la doc**
 
@@ -135,13 +135,14 @@ la phase 2 y écrit. Après la phase 1 seule, le comportement en jeu n'a pas cha
 sur rien : le coffre pose toujours `recompense`.
 
 **Fichiers.** `src/config.rs`, nouveau `src/games/cadeaux.rs`, `src/games/mod.rs`,
-`tests/config.rs`, nouveau `tests/cadeaux.rs`, `tests/donnees/oracle/config.json`.
+`tests/config.rs`, nouveau `tests/cadeaux.rs`.
 
 **Conception.**
-- `Cadeau { objet, nombre, poids, nom: Option<String> }` et, dans `Coffre`, `cadeaux:
+- `Cadeau { objet, nombre, poids, nom: Option<String> }` (`nombre` et `poids` valent 1
+  s'ils ne sont pas écrits) et, dans `Coffre`, `cadeaux:
   Vec<Cadeau>` (défaut : la liste proposée) et `cadeaux_par_coffre: i64` (défaut 2).
 - `Coffre::verifier` refuse, avec un message pour la personne qui installe : objet de forme
-  invalide (`OBJET`), `nombre` hors 1..=64, `poids` hors 1..=100, objet en double,
+  invalide (`OBJET`), `nombre` hors 1..=64, `poids` hors 1..=100, objet en double (avec ou sans `minecraft:`),
   `cadeaux_par_coffre` hors 1..=5, liste plus courte que `cadeaux_par_coffre`, `nom` vide ou
   de plus de 30 caractères (comptés avec `chars()`).
 - `cadeaux::tirer(liste, combien, &mut Alea) -> Vec<CadeauTire>` (`objet`, `nombre`,
@@ -155,8 +156,8 @@ sur rien : le coffre pose toujours `recompense`.
 - la même graine donne le même tirage ;
 - sur 10 000 tirages d'un cadeau, un poids 10 sort entre 4 et 6 fois plus qu'un poids 2 ;
 - chaque refus de `verifier` a son test, la liste par défaut passe `verifier` ;
-- `oracle_python` de la config : relevé mis à jour pour les deux nouvelles clés, signalé
-  dans le commit.
+- `oracle_python` de la config reste vert sans retouche : aux valeurs par défaut, les deux
+  nouvelles clés ne s'écrivent pas (même règle que `[voix]` et `[dictee]`).
 
 ### Phase 2 : les cadeaux dans le coffre
 
