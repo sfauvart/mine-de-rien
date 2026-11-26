@@ -75,9 +75,9 @@ coffre et aux durées. Jamais le pseudo ni le prénom de l'enfant.
   renommage coûte un niveau) et les cadeaux. Chaque coffre en reçoit plusieurs, différents,
   tirés au hasard dans une liste ; à l'ouverture, Telegram dit lesquels (« Cadeaux :
   3 × diamant, 1 × selle. »). Sans rien écrire, la liste livrée avec l'agent s'applique :
-  diamants, émeraudes, lingots, carottes dorées, gâteau, améthyste, laisse, étiquette,
-  selle, longue-vue, et plus rarement un disque de musique ou une pomme dorée. Pour la
-  régler :
+  le plus souvent des cookies, des torches, des carottes dorées, quelques lingots, un
+  gâteau ou des émeraudes ; plus rarement un diamant, une selle, une étiquette ou une
+  pomme dorée. Pour la régler :
 
   ```toml
   [coffre]

@@ -150,7 +150,7 @@ fn la_voix_dit_le_chat_par_defaut_et_le_reglage_se_coupe() {
 fn cadeaux_par_defaut_et_liste_reglee() {
     let config = lire_config(MINIMALE, &sans_variable).unwrap();
     assert_eq!(config.coffre.cadeaux_par_coffre, 2);
-    assert_eq!(config.coffre.cadeaux.len(), 13);
+    assert_eq!(config.coffre.cadeaux.len(), 16);
     assert!(config.coffre.cadeaux.iter().all(|c| c.nom.is_some()));
     // Aux valeurs d'usage, rien de nouveau ne s'écrit.
     let ecrite = toml::to_string(&config).unwrap();
@@ -274,7 +274,7 @@ fn une_configuration_qui_porte_encore_recompense_se_charge() {
     let config = lire_config(&ancienne, &sans_variable).unwrap();
     assert!(config.coffre.porte_l_ancienne_recompense());
     assert_eq!(config.coffre.niveaux_offerts, 2);
-    assert_eq!(config.coffre.cadeaux.len(), 13);
+    assert_eq!(config.coffre.cadeaux.len(), 16);
     // Elles ne se réécrivent pas.
     let ecrite = toml::to_string(&config).unwrap();
     assert!(!ecrite.contains("recompense"), "{ecrite}");
