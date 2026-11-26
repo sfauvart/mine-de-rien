@@ -129,8 +129,18 @@ Rien. Le tirage est local, la liste des cadeaux ne part que vers le serveur Mine
 - [x] **Phase 2 : les cadeaux dans le coffre**
 - [x] **Phase 3 : les cadeaux dits aux parents, et la doc**
 
+Close le 2026-11-26.
+
 La phase 2 a besoin de la liste et du tirage de la phase 1 ; la phase 3 lit en base ce que
 la phase 2 y écrit. Après la phase 1 seule, le comportement en jeu n'a pas changé.
+
+## Retours de jeu
+
+- 2026-11-26 : scénario joué par le parent sur le serveur d'essai, conforme : deux cadeaux
+  différents par coffre, des coffres qui ne se ressemblent pas, et un message d'ouverture
+  qui liste ce que le coffre contenait.
+- 2026-11-26 : la première liste par défaut a paru trop généreuse (3 diamants dans un coffre
+  sur quatre). Liste rééquilibrée livrée dans la foulée, rejouée, et jugée bien dosée.
 
 ## Conception
 
