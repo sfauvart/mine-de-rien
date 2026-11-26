@@ -46,22 +46,28 @@ d'élytres, pas de totem). Identifiants vérifiés sur Minecraft Java 26.3 (Pape
 
 | Cadeau | `objet` | `nombre` | `poids` |
 |---|---|---|---|
-| diamant | `minecraft:diamond` | 3 | 10 |
-| émeraude | `minecraft:emerald` | 5 | 10 |
-| lingot de fer | `minecraft:iron_ingot` | 8 | 10 |
-| lingot d'or | `minecraft:gold_ingot` | 4 | 8 |
-| carotte dorée | `minecraft:golden_carrot` | 8 | 8 |
+| cookie | `minecraft:cookie` | 6 | 10 |
+| torche | `minecraft:torch` | 16 | 10 |
+| carotte dorée | `minecraft:golden_carrot` | 4 | 10 |
+| lingot de fer | `minecraft:iron_ingot` | 3 | 10 |
 | gâteau | `minecraft:cake` | 1 | 8 |
-| éclat d'améthyste | `minecraft:amethyst_shard` | 6 | 6 |
-| laisse | `minecraft:lead` | 2 | 5 |
-| étiquette | `minecraft:name_tag` | 1 | 5 |
-| selle | `minecraft:saddle` | 1 | 4 |
+| éclat d'améthyste | `minecraft:amethyst_shard` | 4 | 8 |
+| émeraude | `minecraft:emerald` | 2 | 8 |
+| lanterne | `minecraft:lantern` | 2 | 6 |
+| lingot d'or | `minecraft:gold_ingot` | 2 | 6 |
+| laisse | `minecraft:lead` | 1 | 5 |
+| diamant | `minecraft:diamond` | 1 | 6 |
 | longue-vue | `minecraft:spyglass` | 1 | 3 |
+| étiquette | `minecraft:name_tag` | 1 | 3 |
+| selle | `minecraft:saddle` | 1 | 2 |
 | disque de musique | `minecraft:music_disc_cat` | 1 | 2 |
-| pomme dorée | `minecraft:golden_apple` | 1 | 2 |
+| pomme dorée | `minecraft:golden_apple` | 1 | 1 |
 
-Avec ces poids, sur 2 cadeaux par coffre, un cadeau rare (poids 2 ou 3) sort environ une
-fois sur six.
+Liste rééquilibrée après le premier essai en jeu, où la première proposition (3 diamants
+de poids 10, 8 lingots de fer…) s'est révélée trop généreuse pour quatre coffres par jour :
+les objets précieux sont donnés à l'unité et plus rarement, trois cadeaux courants (cookies,
+torches, lanternes) diluent le reste. Avec ces poids et 2 cadeaux par coffre, un diamant
+sort environ un coffre sur huit, soit un tous les deux jours à quatre coffres par jour.
 
 Dans `config.toml` :
 

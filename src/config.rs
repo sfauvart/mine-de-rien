@@ -231,20 +231,25 @@ fn un() -> i64 {
 
 /// La liste livrée avec l'agent : de quoi construire et explorer, rien qui casse le jeu.
 /// (objet, nombre, poids, nom)
-const CADEAUX_PAR_DEFAUT: [(&str, i64, i64, &str); 13] = [
-    ("minecraft:diamond", 3, 10, "diamant"),
-    ("minecraft:emerald", 5, 10, "émeraude"),
-    ("minecraft:iron_ingot", 8, 10, "lingot de fer"),
-    ("minecraft:gold_ingot", 4, 8, "lingot d'or"),
-    ("minecraft:golden_carrot", 8, 8, "carotte dorée"),
+const CADEAUX_PAR_DEFAUT: [(&str, i64, i64, &str); 16] = [
+    // Courants : de quoi manger, s'éclairer, décorer.
+    ("minecraft:cookie", 6, 10, "cookie"),
+    ("minecraft:torch", 16, 10, "torche"),
+    ("minecraft:golden_carrot", 4, 10, "carotte dorée"),
+    ("minecraft:iron_ingot", 3, 10, "lingot de fer"),
     ("minecraft:cake", 1, 8, "gâteau"),
-    ("minecraft:amethyst_shard", 6, 6, "éclat d'améthyste"),
-    ("minecraft:lead", 2, 5, "laisse"),
-    ("minecraft:name_tag", 1, 5, "étiquette"),
-    ("minecraft:saddle", 1, 4, "selle"),
+    ("minecraft:amethyst_shard", 4, 8, "éclat d'améthyste"),
+    ("minecraft:emerald", 2, 8, "émeraude"),
+    ("minecraft:lantern", 2, 6, "lanterne"),
+    ("minecraft:gold_ingot", 2, 6, "lingot d'or"),
+    ("minecraft:lead", 1, 5, "laisse"),
+    // Précieux : à l'unité, et plus rares.
+    ("minecraft:diamond", 1, 6, "diamant"),
     ("minecraft:spyglass", 1, 3, "longue-vue"),
+    ("minecraft:name_tag", 1, 3, "étiquette"),
+    ("minecraft:saddle", 1, 2, "selle"),
     ("minecraft:music_disc_cat", 1, 2, "disque de musique"),
-    ("minecraft:golden_apple", 1, 2, "pomme dorée"),
+    ("minecraft:golden_apple", 1, 1, "pomme dorée"),
 ];
 
 pub fn cadeaux_par_defaut() -> Vec<Cadeau> {
