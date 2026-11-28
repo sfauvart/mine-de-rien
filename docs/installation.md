@@ -433,7 +433,7 @@ le fuseau horaire se règlent dans la section `[dictee]` de `config.toml`.
 | Message | Effet |
 |---|---|
 | `/dictee` | les dictées en cours, avec leur numéro |
-| `/dictee seance 3` | une séance de plus pour la dictée n°3, tout de suite |
+| `/dictee seance 3` | une séance de plus pour la dictée n°3, tout de suite (tous les mots, si c'est une liste de mots) |
 | `/dictee mots 3 plus trois` | ces mots sortiront en priorité, à leur place dans le texte |
 | `/dictee annuler 3` | retire la dictée n°3, ses coffres en attente et ses sons |
 

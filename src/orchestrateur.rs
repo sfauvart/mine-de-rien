@@ -639,7 +639,8 @@ pub const AIDE_DICTEE: &str = "\n\
     /dictee vendredi mots : plus, trois : une liste de mots sans texte\n\
     Photo de la feuille, « dictée vendredi » en légende\n\
     /dictee : les dictées en cours\n\
-    /dictee seance 3 : une séance de coffres tout de suite, pour la dictée n°3\n\
+    /dictee seance 3 : une séance de coffres tout de suite, pour la dictée n°3 \
+    (tous les mots d'une liste)\n\
     /dictee mots 3 plus trois : les mots à faire sortir en priorité\n\
     /dictee annuler 3 : retire la dictée n°3";
 pub const DICTEES_ABSENTES: &str = "Les dictées ne sont pas configurées : il faut les sections \
@@ -1170,11 +1171,19 @@ impl CommandesParents {
             Err(ErreurDictees::Stockage(e)) => return Err(e.into()),
             Err(e) => return Ok(format!("Dictée impossible à enregistrer : {e}")),
         };
+        let tout_de_suite = if attente.preparation.liste {
+            "tous les mots de la liste tout de suite".to_owned()
+        } else {
+            format!(
+                "une séance de {} coffres tout de suite",
+                self.coffres_par_seance
+            )
+        };
         Ok(format!(
             "Dictée n°{numero} enregistrée pour le {}.\n\
              À partir de demain et jusqu'à la veille, {n} coffres l'attendront à sa première \
              connexion de chaque jour.\n\
-             /dictee seance {numero} : une séance de {n} coffres tout de suite.",
+             /dictee seance {numero} : {tout_de_suite}.",
             ecrire_jour(attente.jour),
             n = self.coffres_par_seance
         ))
@@ -1292,10 +1301,17 @@ impl CommandesParents {
         // Les mêmes poids que la séance du jour : un mot acquis ne revient pas, un mot raté
         // hier repose.
         let poids = seance::poids(&self.depot, dictee.id, self.aujourdhui(), self.fuseau)?;
+        // Une liste de mots demandée par le parent se révise en entier ; la séance de chaque
+        // jour, elle, reste courte.
+        let combien = if dictee.liste {
+            usize::MAX
+        } else {
+            self.coffres_par_seance
+        };
         let coffres = match dictees::seance(
             &self.depot,
             &dictee,
-            self.coffres_par_seance,
+            combien,
             &mut self.alea.borrow_mut(),
             &poids,
             demande,

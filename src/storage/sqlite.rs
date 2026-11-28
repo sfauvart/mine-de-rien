@@ -19,7 +19,7 @@ use crate::exercises::base::Exercice;
 use crate::saisie::Source;
 use crate::util::json_python;
 
-pub const VERSION_SCHEMA: u32 = 6;
+pub const VERSION_SCHEMA: u32 = 7;
 
 pub const SCHEMA: &str = r#"
 CREATE TABLE exercices (
@@ -50,7 +50,7 @@ CREATE TABLE tentatives (
 "#;
 
 /// Chaque entrée fait passer le schéma de la version `indice + 1` à `indice + 2`.
-pub const MIGRATIONS: [&str; 5] = [
+pub const MIGRATIONS: [&str; 6] = [
     // 2 : niveaux d'expérience donnés pour le coffre, et journal pour le rapport.
     r#"
     ALTER TABLE exercices ADD COLUMN niveaux_donnes INTEGER NOT NULL DEFAULT 0;
@@ -167,6 +167,19 @@ pub const MIGRATIONS: [&str; 5] = [
         WHERE statut IN ('pose', 'ouvert');
     ALTER TABLE exercices DROP COLUMN recompense;
     ALTER TABLE exercices DROP COLUMN recompense_nombre;
+    "#,
+    // 7 : une dictée sait si elle est une liste de mots (« /dictee vendredi mots : … ») : son
+    // tableau ne montre alors aucun mot que la séance ne demande pas. Les dictées déjà
+    // enregistrées dont chaque phrase est un mot seul, sans ponctuation, sont des listes.
+    r#"
+    ALTER TABLE dictees ADD COLUMN liste INTEGER NOT NULL DEFAULT 0;
+    UPDATE dictees SET liste = 1
+        WHERE EXISTS (SELECT 1 FROM dictee_phrases p WHERE p.dictee_id = dictees.id)
+          AND NOT EXISTS (
+            SELECT 1 FROM dictee_phrases p
+            WHERE p.dictee_id = dictees.id
+              AND (p.texte LIKE '% %' OR p.texte LIKE '%.' OR p.texte LIKE '%!'
+                   OR p.texte LIKE '%?' OR p.texte LIKE '%…'));
     "#,
 ];
 
@@ -288,6 +301,8 @@ pub struct DicteeStockee {
     /// Le jour de la dictée à l'école.
     pub jour: NaiveDate,
     pub texte: String,
+    /// Une liste de mots sans texte : chaque phrase est un élément de la liste, lu seul.
+    pub liste: bool,
     /// Les mots que le parent veut voir sortir en priorité.
     pub imposes: Vec<String>,
     pub annulee: bool,
@@ -322,7 +337,7 @@ fn jour(texte: &str) -> Result<NaiveDate, ErreurStockage> {
 pub type SonsDePhrase = (i64, Vec<u8>, Vec<u8>);
 
 const COLONNES_DICTEE: &str =
-    "id, jour, texte, imposes, statut, demande_par, confirmee_le, derniere_seance";
+    "id, jour, texte, imposes, statut, demande_par, confirmee_le, derniere_seance, liste";
 
 type DicteeBrute = (
     i64,
@@ -333,6 +348,7 @@ type DicteeBrute = (
     String,
     String,
     Option<String>,
+    bool,
 );
 
 fn dictee_brute(l: &Row<'_>) -> rusqlite::Result<DicteeBrute> {
@@ -345,17 +361,19 @@ fn dictee_brute(l: &Row<'_>) -> rusqlite::Result<DicteeBrute> {
         l.get(5)?,
         l.get(6)?,
         l.get(7)?,
+        l.get(8)?,
     ))
 }
 
 fn dictee_verifiee(brute: DicteeBrute) -> Result<DicteeStockee, ErreurStockage> {
-    let (id, le_jour, texte, imposes, statut, demande_par, confirmee_le, derniere) = brute;
+    let (id, le_jour, texte, imposes, statut, demande_par, confirmee_le, derniere, liste) = brute;
     let imposes: Vec<String> = serde_json::from_str(&imposes)
         .or_else(|_| refus(format!("mots imposés illisibles pour la dictée {id}")))?;
     Ok(DicteeStockee {
         id,
         jour: jour(&le_jour)?,
         texte,
+        liste,
         imposes,
         annulee: statut != "en_cours",
         demande_par,
@@ -770,14 +788,16 @@ impl Depot {
         &self,
         le_jour: NaiveDate,
         texte: &str,
+        liste: bool,
         phrases: &[PhraseSonore],
         demande_par: &str,
         quand: DateTime<Utc>,
     ) -> Result<i64, ErreurStockage> {
         let transaction = self.cx.unchecked_transaction()?;
         transaction.execute(
-            "INSERT INTO dictees (jour, texte, demande_par, confirmee_le) VALUES (?, ?, ?, ?)",
-            params![le_jour.to_string(), texte, demande_par, iso(quand)],
+            "INSERT INTO dictees (jour, texte, liste, demande_par, confirmee_le)
+             VALUES (?, ?, ?, ?, ?)",
+            params![le_jour.to_string(), texte, liste, demande_par, iso(quand)],
         )?;
         let ident = transaction.last_insert_rowid();
         for (rang, phrase) in phrases.iter().enumerate() {

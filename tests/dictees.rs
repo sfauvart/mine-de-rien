@@ -764,3 +764,69 @@ async fn la_confirmation_annonce_les_seances_quotidiennes() {
         "{reponse}"
     );
 }
+
+/// Une liste de mots, demandée par le parent, se révise en entier ; son tableau ne montre que
+/// des trous, jamais l'écriture d'un mot à venir.
+#[tokio::test]
+async fn la_seance_d_une_liste_demande_tous_ses_mots() {
+    use mine_de_rien::dictees::tableau;
+    use mine_de_rien::games::tableau::Genre;
+
+    let m = monde();
+    m.dit(
+        "/dictee samedi mots : réservoir récit historique légendaire plein raconter déplacer \
+         dans avant comme plusieurs avec",
+    )
+    .await;
+    let confirmation = m.dit("/oui").await;
+    assert!(
+        confirmation.contains("/dictee seance 1 : tous les mots de la liste tout de suite."),
+        "{confirmation}"
+    );
+    assert!(m.depot.lire_dictee(1).unwrap().unwrap().liste);
+
+    let reponse = m.dit("/dictee seance 1").await;
+    assert_eq!(reponse.lines().count(), 12, "{reponse}");
+    let coffres = m.depot.en_file().unwrap();
+    let mots: Vec<&str> = coffres
+        .iter()
+        .map(|c| c.exercice.reponse.as_str())
+        .collect();
+    assert_eq!(
+        mots,
+        [
+            "réservoir",
+            "récit",
+            "historique",
+            "légendaire",
+            "plein",
+            "raconter",
+            "déplacer",
+            "dans",
+            "avant",
+            "comme",
+            "plusieurs",
+            "avec"
+        ]
+    );
+    let morceaux = tableau(&m.depot, &coffres[0]).unwrap().unwrap();
+    assert!(
+        morceaux
+            .iter()
+            .all(|m| m.genre != Genre::Texte || m.texte.trim().is_empty()),
+        "{morceaux:?}"
+    );
+    // Tout est déjà en file : une seconde demande n'ajoute rien.
+    assert!(
+        m.dit("/dictee seance 1")
+            .await
+            .starts_with("Aucun mot à demander")
+    );
+}
+
+#[tokio::test]
+async fn un_texte_n_est_pas_une_liste() {
+    let m = monde();
+    dictee_enregistree(&m).await;
+    assert!(!m.depot.lire_dictee(1).unwrap().unwrap().liste);
+}

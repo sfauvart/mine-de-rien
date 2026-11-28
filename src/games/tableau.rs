@@ -28,6 +28,9 @@
 //!
 //! **Ce que l'enfant ne voit jamais** : un mot encore à trouver. Il est masqué partout où il
 //! apparaît dans le texte, pas seulement à sa position (« plus » deux fois dans la dictée).
+//! Une liste de mots n'a pas de texte autour des trous : chacun de ses mots est une réponse,
+//! d'aujourd'hui ou d'un autre jour. Son tableau ne montre donc que les mots de la séance
+//! (`morceaux_de_liste`) ; les autres n'y sont pas, ni écrits ni en trou.
 //! Aucune graphie fausse non plus : un mot ne s'écrit que trouvé, tel qu'il est dans le texte.
 //!
 //! **Contournements.** Le tableau est une entité sans collision ni inventaire : rien à
@@ -136,6 +139,22 @@ pub fn phrase_du_chat(
 /// Le texte de la dictée, découpé en morceaux de couleur. Les phrases se suivent, séparées
 /// par une espace.
 pub fn morceaux(phrases: &[Phrase], trous: &HashMap<Position, Trou>) -> Vec<Morceau> {
+    assembler(phrases, trous, |_| true)
+}
+
+/// Le tableau d'une liste de mots : les seuls éléments dont la séance demande un mot, dans
+/// l'ordre de la liste. Un élément que la séance ne demande pas livrerait une réponse.
+pub fn morceaux_de_liste(phrases: &[Phrase], trous: &HashMap<Position, Trou>) -> Vec<Morceau> {
+    assembler(phrases, trous, |rang| {
+        trous.keys().any(|position| position.phrase == rang)
+    })
+}
+
+fn assembler(
+    phrases: &[Phrase],
+    trous: &HashMap<Position, Trou>,
+    montree: impl Fn(usize) -> bool,
+) -> Vec<Morceau> {
     // Les mots encore à trouver : masqués partout.
     let caches = caches(phrases, trous);
     let mut resultat: Vec<Morceau> = Vec::new();
@@ -150,10 +169,15 @@ pub fn morceaux(phrases: &[Phrase], trous: &HashMap<Position, Trou>) -> Vec<Morc
             _ => resultat.push(Morceau { texte, genre }),
         }
     };
+    let mut premiere = true;
     for (rang, phrase) in phrases.iter().enumerate() {
-        if rang > 0 {
+        if !montree(rang) {
+            continue;
+        }
+        if !premiere {
             ajouter(" ".to_owned(), Genre::Texte);
         }
+        premiere = false;
         let mut curseur = 0;
         for (indice, mot) in phrase.mots.iter().enumerate() {
             ajouter(tranche(&phrase.texte, curseur, mot.debut), Genre::Texte);

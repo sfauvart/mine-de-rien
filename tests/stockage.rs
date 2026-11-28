@@ -425,3 +425,43 @@ fn les_bases_v1_et_v2_migrees_donnent_les_lignes_de_v3() {
     };
     assert_eq!(sans_niveaux(&v1), sans_niveaux(&v2));
 }
+
+#[test]
+fn migration_6_vers_7_reconnait_les_listes_de_mots_deja_enregistrees() {
+    let dossier = tempfile::tempdir().unwrap();
+    let chemin = dossier.path().join("v6.sqlite");
+    let cx = Connection::open(&chemin).unwrap();
+    cx.execute_batch(SCHEMA).unwrap();
+    for script in &MIGRATIONS[..5] {
+        cx.execute_batch(script).unwrap();
+    }
+    for (ident, phrases) in [
+        (1, vec!["réservoir", "récit", "avec"]),
+        (2, vec!["Il pleut sur la ville.", "Oui !"]),
+        (3, vec!["plus", "chaque année"]),
+    ] {
+        cx.execute(
+            "INSERT INTO dictees (id, jour, texte, demande_par, confirmee_le)
+             VALUES (?, '2026-12-05', '', '111', '2026-11-28T18:00:00+00:00')",
+            [ident],
+        )
+        .unwrap();
+        for (rang, texte) in phrases.into_iter().enumerate() {
+            cx.execute(
+                "INSERT INTO dictee_phrases (dictee_id, rang, texte, son, son_lent)
+                 VALUES (?, ?, ?, x'00', x'00')",
+                rusqlite::params![ident, rang as i64, texte],
+            )
+            .unwrap();
+        }
+    }
+    cx.pragma_update(None, "user_version", 6).unwrap();
+    drop(cx);
+
+    let depot = Depot::ouvrir(&chemin).unwrap();
+    assert_eq!(version(depot.connexion()), VERSION_SCHEMA);
+    let liste = |ident| depot.lire_dictee(ident).unwrap().unwrap().liste;
+    // Une liste d'éléments en plusieurs mots ne se distingue pas d'un texte : elle reste un
+    // texte, comme avant.
+    assert_eq!([liste(1), liste(2), liste(3)], [true, false, false]);
+}

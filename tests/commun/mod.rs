@@ -396,6 +396,7 @@ pub fn trou_en_base(
         .ajouter_dictee(
             jour,
             texte,
+            false,
             &sonores,
             "111",
             instant("2026-11-08T18:00:00+00:00"),

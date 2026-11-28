@@ -51,7 +51,7 @@ fn dictee(depot: &Depot, texte: &str, pour: NaiveDate, confirmee: DateTime<Utc>)
         })
         .collect();
     depot
-        .ajouter_dictee(pour, texte, &phrases, "111", confirmee)
+        .ajouter_dictee(pour, texte, false, &phrases, "111", confirmee)
         .unwrap()
 }
 

@@ -166,7 +166,7 @@ fn le_tableau_suit_la_seance_dans_la_base() {
         .collect();
     let jour = NaiveDate::from_ymd_opt(2026, 11, 13).unwrap();
     let ident = depot
-        .ajouter_dictee(jour, TEXTE, &phrases, "111", instant(8))
+        .ajouter_dictee(jour, TEXTE, false, &phrases, "111", instant(8))
         .unwrap();
     let dictee = depot.lire_dictee(ident).unwrap().unwrap();
     let coffres = seance(
@@ -276,4 +276,30 @@ fn un_coffre_qui_n_est_pas_d_une_dictee_enregistree_n_a_pas_de_tableau() {
     let numero = depot.ajouter(&ex, DEMANDE, instant(17)).unwrap();
     let reference = depot.lire(numero).unwrap().unwrap();
     assert!(tableau(&depot, &reference).unwrap().is_none());
+}
+
+/// La séance du jour ne demande que quelques mots d'une liste : les autres ne sont pas au
+/// tableau, ni écrits ni en trou.
+#[test]
+fn le_tableau_d_une_liste_ne_montre_que_les_mots_de_la_seance() {
+    use mine_de_rien::exercises::francais::dictee::decouper_liste;
+    use mine_de_rien::games::tableau::morceaux_de_liste;
+
+    let phrases = decouper_liste("réservoir récit historique légendaire plein");
+    let mut trous = HashMap::from([
+        (p(0, 0), Trou::Trouve),
+        (p(2, 0), Trou::Actif),
+        (p(4, 0), Trou::Attente),
+    ]);
+    assert_eq!(
+        lu(&morceaux_de_liste(&phrases, &trous)),
+        "[réservoir] [?] […]"
+    );
+    // Le texte d'une dictée ordinaire, lui, reste entier autour de ses trous.
+    assert_eq!(
+        lu(&morceaux(&phrases, &trous)),
+        "[réservoir] récit [?] légendaire […]"
+    );
+    trous.clear();
+    assert!(morceaux_de_liste(&phrases, &trous).is_empty());
 }

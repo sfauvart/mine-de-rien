@@ -19,7 +19,7 @@ use crate::exercises::base::{Exercice, normaliser};
 use crate::exercises::francais::dictee::{
     ErreurDictee, Phrase, Position, candidats, decouper, decouper_liste, exercice, phrase_de, tirer,
 };
-use crate::games::tableau::{self, Morceau, Trou, morceaux};
+use crate::games::tableau::{self, Morceau, Trou, morceaux, morceaux_de_liste};
 use crate::son::{ErreurSon, Pcm, encoder_ogg, lire_wav, wav_vers_ogg};
 use crate::storage::sqlite::{
     Demande, Depot, DicteeStockee, ErreurStockage, ExerciceStocke, PhraseSonore, Statut,
@@ -70,6 +70,8 @@ pub fn exercice_sonore(
 pub struct Preparation {
     /// Le texte tel qu'il sera gardé : les phrases, une par ligne.
     pub texte: String,
+    /// Une liste de mots sans texte (« mots : plus, trois »).
+    pub liste: bool,
     pub phrases: Vec<Phrase>,
     pub sonores: Vec<PhraseSonore>,
     /// Toutes les phrases à la suite, à vitesse normale, pour que le parent écoute.
@@ -133,6 +135,7 @@ pub async fn preparer(
             .map(|p| p.texte.as_str())
             .collect::<Vec<_>>()
             .join("\n"),
+        liste,
         phrases,
         sonores,
         apercu,
@@ -150,6 +153,7 @@ pub fn enregistrer(
     Ok(depot.ajouter_dictee(
         jour,
         &preparation.texte,
+        preparation.liste,
         &preparation.sonores,
         demande_par,
         quand,
@@ -406,8 +410,8 @@ pub fn position_de(ex: &Exercice) -> Option<Position> {
     })
 }
 
-/// Les phrases d'une dictée et l'état de chacun de ses trous.
-type Trous = (Vec<Phrase>, HashMap<Position, Trou>);
+/// Les phrases d'une dictée, l'état de chacun de ses trous, et si elle est une liste de mots.
+type Trous = (Vec<Phrase>, HashMap<Position, Trou>, bool);
 
 /// Les phrases de la dictée du coffre `reference` et l'état de ses trous : le coffre posé est
 /// le trou à remplir, les coffres en file des trous en attente, et les coffres ouverts de la
@@ -423,6 +427,7 @@ fn trous_de(depot: &Depot, reference: &ExerciceStocke) -> Result<Option<Trous>, 
         return Ok(None);
     };
     let (phrases, _) = phrases_enregistrees(depot, dictee)?;
+    let liste = depot.lire_dictee(dictee)?.is_some_and(|d| d.liste);
     let mut trous = HashMap::new();
     for coffre in depot.coffres_de_dictee(dictee)? {
         let etat = match coffre.statut {
@@ -438,16 +443,23 @@ fn trous_de(depot: &Depot, reference: &ExerciceStocke) -> Result<Option<Trous>, 
             }
         }
     }
-    Ok(Some((phrases, trous)))
+    Ok(Some((phrases, trous, liste)))
 }
 
-/// Le tableau de la dictée du coffre `reference` : le texte entier, avec ses trous. `None` si
-/// ce coffre n'est pas celui d'une dictée enregistrée.
+/// Le tableau de la dictée du coffre `reference` : le texte entier, avec ses trous ; pour une
+/// liste de mots, les seuls mots de la séance (`tableau::morceaux_de_liste`). `None` si ce
+/// coffre n'est pas celui d'une dictée enregistrée.
 pub fn tableau(
     depot: &Depot,
     reference: &ExerciceStocke,
 ) -> Result<Option<Vec<Morceau>>, ErreurDictees> {
-    Ok(trous_de(depot, reference)?.map(|(phrases, trous)| morceaux(&phrases, &trous)))
+    Ok(trous_de(depot, reference)?.map(|(phrases, trous, liste)| {
+        if liste {
+            morceaux_de_liste(&phrases, &trous)
+        } else {
+            morceaux(&phrases, &trous)
+        }
+    }))
 }
 
 /// La phrase du coffre `reference` telle que le chat l'écrit : son mot en `_____`, et les mots
@@ -457,7 +469,7 @@ pub fn phrase_du_chat(
     depot: &Depot,
     reference: &ExerciceStocke,
 ) -> Result<Option<String>, ErreurDictees> {
-    let Some((phrases, mut trous)) = trous_de(depot, reference)? else {
+    let Some((phrases, mut trous, _)) = trous_de(depot, reference)? else {
         return Ok(None);
     };
     let Some(position) = position_de(&reference.exercice) else {

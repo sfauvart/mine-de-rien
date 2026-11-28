@@ -1471,7 +1471,14 @@ fn monde_avec_seances() -> Monde {
         .collect();
     let jeudi = chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
     depot
-        .ajouter_dictee(jeudi, texte, &phrases, "111", t0() - TimeDelta::days(1))
+        .ajouter_dictee(
+            jeudi,
+            texte,
+            false,
+            &phrases,
+            "111",
+            t0() - TimeDelta::days(1),
+        )
         .unwrap();
     Monde {
         _dossier: dossier,
@@ -1571,7 +1578,7 @@ async fn le_tableau_de_la_dictee_suit_les_coffres() {
     let jour = chrono::NaiveDate::from_ymd_opt(2026, 11, 13).unwrap();
     let ident = m
         .depot
-        .ajouter_dictee(jour, texte, &phrases, "111", t0())
+        .ajouter_dictee(jour, texte, false, &phrases, "111", t0())
         .unwrap();
     let dictee = m.depot.lire_dictee(ident).unwrap().unwrap();
     let demande = Demande {
